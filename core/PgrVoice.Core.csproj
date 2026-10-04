@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>PgrVoice.Core</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../src/Domain.cs" Link="Domain.cs" />
+    <Compile Include="../src/Navigation.cs" Link="Navigation.cs" />
+    <Compile Include="../src/ObservedNavigation.cs" Link="ObservedNavigation.cs" />
+    <Compile Include="../src/ProgressStore.cs" Link="ProgressStore.cs" />
+    <Compile Include="../src/Matcher.cs" Link="Matcher.cs" />
+    <Compile Include="../src/DialogueFrameAnalysis.cs" Link="DialogueFrameAnalysis.cs" />
+    <Compile Include="../src/StateSaveQueue.cs" Link="StateSaveQueue.cs" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,425 @@
+using System.Text.Json;
+using PgrVoice;
+using PgrVoice.Listening;
+
+int passed = 0;
+void Test(string title, Action body) { body(); passed++; Console.WriteLine("PASS " + title); }
+void Expect(bool condition, string why = "assertion") { if (!condition) throw new Exception(why); }
+string Lines(ListeningSession s) => string.Join(",", s.Items.Where(i => i.Kind == ListeningItemKind.Line).Select(i => i.NodeId));
+Node L(string id, string? next = null, string path = "", string section = "s") => new() { Id = id, Text = "台词" + id, SectionId = section, PathId = path, NextId = next };
+ChoiceOption O(string id, string target, string? join = "m", string? path = null) => new() { Id = id, Label = "路线" + id, TargetId = target, PathId = path ?? id, MergeId = join, Verified = join != null };
+void SkipNotices(ListeningSession s) { while(s.Current?.Kind==ListeningItemKind.Notice)s.MoveNext(); }
+Node C(string id, params ChoiceOption[] options) => new() { Id = id, SectionId = "s", Kind = "choice", Options = options.ToList() };
+Node M(string id, string? next = null) => new() { Id = id, SectionId = "s", Kind = "merge", NextId = next };
+Node R(string id, string next, string path) => new() { Id = id, SectionId = "s", Kind = "return", PathId = path, NextId = next };
+Pack P(params Node[] nodes)
+{
+    var p = new Pack { Id = "book", Root = Path.GetTempPath(), Nodes = nodes.ToList(),
+        Chapters = new() { new() { Id = "ch", Title = "大章", Sections = new() { new() { Id = "s", Title = "第一小节", StartId = nodes[0].Id } } } } };
+    p.Validate(); return p;
+}
+Pack Simple() => P(L("a", "c"), C("c", O("one", "b"), O("two", "d")), L("b", "m", "one"), L("d", "m", "two"), M("m", "z"), L("z"));
+
+Test("完整台词目录显示手动分支后文，不改变断点或替用户选分支", () => {
+    var p=Simple();p.Nodes.Add(new(){Id="archived",SectionId="s",Archived=true,Text="旧台词"});p.Validate();
+    var s=new ListeningSession(p,"ch",ListeningBranchPolicy.Manual);
+    var saved=s.Capture(1234);Expect(s.TryRestore(saved,out _));var plan=s.Items;
+    var directory=ListeningDirectory.Create(s,"s");
+    Expect(directory.LineCount==4&&directory.Entries.Count==5);
+    Expect(string.Join(",",directory.Entries.Where(x=>!x.IsChoice).Select(x=>x.NodeId))=="a,b,d,z");
+    Expect(directory.Entries[1].IsChoice&&directory.Entries[2].Number==2);
+    Expect(directory.Entries.Where(x=>x.NodeId is "b" or "d" or "z").All(x=>x.IsPreview));
+    Expect(s.Current?.NodeId=="a"&&s.ResumePositionMs==1234&&ReferenceEquals(plan,s.Items));
+    Expect(directory.TargetFor("node:z")==directory.PendingItemId&&directory.PendingKey!=null);
+    Expect(s.SeekItem(directory.TargetFor("node:z")!)&&s.HasPendingChoice);
+    Expect(!s.SeekNode("z"),"浏览不能让待选后文直接进入播放计划");
+});
+Test("默认首项的其他分支可以阅读但不能定位，全部听取后可定位", () => {
+    var s=new ListeningSession(Simple(),"ch");var first=ListeningDirectory.Create(s,"s");
+    Expect(first.Entries.Single(e=>e.NodeId=="d").IsPreview&&first.TargetFor("node:d")==null);
+    Expect(first.TargetFor("node:b")!=null&&first.TargetFor("missing")==null);
+    s.SetPolicy(ListeningBranchPolicy.All);var all=ListeningDirectory.Create(s,"s");
+    Expect(all.LineCount==4&&all.Entries.All(e=>!e.IsPreview));
+    Expect(s.SeekItem(all.TargetFor("node:d")!)&&s.Current?.NodeId=="d");
+});
+Test("待选条目过期不能定位，确认分支后正文资格跟随新计划", () => {
+    var s=new ListeningSession(Simple(),"ch",ListeningBranchPolicy.Manual);
+    var directory=ListeningDirectory.Create(s,"s");string key=directory.PendingKey!;
+    Expect(s.SeekItem(directory.TargetFor(key)!));Expect(s.Choose("two"));
+    var after=ListeningDirectory.Create(s,"s");Expect(after.TargetFor(key)==null);
+    Expect(after.TargetFor("node:d")!=null&&after.TargetFor("node:b")==null);
+    Expect(after.LineCount==4&&s.Current?.NodeId=="d");
+});
+Test("跨小节浏览保持收听位置，外部大章正文不进入当前目录", () => {
+    var p=Simple();p.Chapters[0].Sections.Add(new(){Id="s2",Title="第二小节",StartId="later"});p.Nodes.Add(L("later",section:"s2"));
+    p.Chapters.Add(new(){Id="other",Title="其他大章",Sections=new(){new(){Id="outside",StartId="other-line"}}});p.Nodes.Add(L("other-line",section:"outside"));p.Validate();
+    var s=new ListeningSession(p,"ch",ListeningBranchPolicy.Manual);Expect(s.SeekNode("later"));
+    var directory=ListeningDirectory.Create(s,"s");Expect(directory.LineCount==4&&s.Current?.NodeId=="later");
+    Expect(ListeningDirectory.Create(s,"outside").Entries.Count==0&&ListeningDirectory.Create(s,"absent").Entries.Count==0);
+});
+
+Test("小节连播，不跨大章", () => {
+    var p=P(L("a"));
+    p.Chapters[0].Sections.Add(new() { Id="s2",Title="第二小节",StartId="b" });
+    p.Chapters.Add(new() { Id="other",Title="其他大章",Sections=new(){new(){Id="s3",Title="其他节",StartId="other"}}});
+    p.Nodes.AddRange(new[]{L("b",section:"s2"),L("other",section:"s3")}); p.Validate();
+    var s=new ListeningSession(p,"ch"); Expect(Lines(s)=="a,b");
+    Expect(s.Current!.NodeId=="a"); Expect(s.MoveNext()); Expect(s.Current!.SectionTitle=="第二小节");
+    Expect(!s.MoveNext()); Expect(s.Completed); Expect(s.Previous()); Expect(s.Current!.NodeId=="b");
+});
+Test("默认第一条与全部路线在共同点后仅播一次", () => {
+    var p=Simple(); Expect(Lines(new(p,"ch"))=="a,b,z");
+    Expect(Lines(new(p,"ch",ListeningBranchPolicy.All))=="a,b,d,z");
+});
+Test("手动选择不会被下一句绕过", () => {
+    var s=new ListeningSession(Simple(),"ch",ListeningBranchPolicy.Manual);
+    Expect(Lines(s)=="a");s.MoveNext();Expect(s.HasPendingChoice);Expect(!s.MoveNext());
+    Expect(!s.Choose("absent"));Expect(s.Choose("two"));Expect(s.Current!.NodeId=="d");
+    Expect(Lines(s)=="a,d,z");
+});
+Test("手动跳过分支直接接已知共同点", () => {
+    var s=new ListeningSession(Simple(),"ch",ListeningBranchPolicy.Manual);s.MoveNext();
+    Expect(s.SkipChoice());Expect(s.Current!.NodeId=="z");
+});
+Test("嵌套全部路线不重复共同正文", () => {
+    var inner=C("inner", O("i1","x","mi"),O("i2","y","mi"));inner.PathId="one";
+    var mi=M("mi","tail");mi.PathId="one";
+    var p=P(L("a","c"),C("c",O("one","b"),O("two","d")),L("b","inner","one"),inner,
+        L("x","mi","i1"),L("y","mi","i2"),mi,L("tail","m","one"),L("d","m","two"),M("m","z"),L("z"));
+    Expect(Lines(new(p,"ch",ListeningBranchPolicy.All))=="a,b,x,y,tail,d,z");
+});
+Test("人物与话题返回菜单，全听不死循环", () => {
+    var root=C("people",O("personA","hello",null),O("personB","bye",null));root.MenuType="interaction";
+    root.Options.ForEach(o=>o.ReturnId="people");
+    var topics=C("topics",O("topic1","t1",null),O("topic2","t2",null));topics.PathId="personA";topics.MenuType="topics";
+    topics.Options.ForEach(o=>o.ReturnId="people");
+    var p=P(root,L("hello","topics","personA"),topics,L("t1","r1","topic1"),R("r1","people","topic1"),
+        L("t2","r2","topic2"),R("r2","people","topic2"),L("bye","r3","personB"),R("r3","people","personB"));
+    // schema1 的 ReturnId 无严格校验，但结构足以覆盖多层返回。
+    Expect(Lines(new(p,"ch",ListeningBranchPolicy.All))=="hello,t1,t2,bye");
+    var first=new ListeningSession(p,"ch");Expect(Lines(first)=="hello,t1");
+    var manual=new ListeningSession(p,"ch",ListeningBranchPolicy.Manual);
+    Expect(manual.Choose("personA"));SkipNotices(manual);manual.MoveNext();Expect(manual.Choose("topic1"));SkipNotices(manual);
+    manual.MoveNext();Expect(manual.HasPendingChoice);Expect(manual.Current!.NodeId=="people");
+    Expect(manual.Current.Options!.Single().Id=="personB");Expect(manual.Choose("personB"));
+});
+Test("旧包串排备选台词不会默认全播", () => {
+    var p=P(C("c",O("one","b"),O("two","d")),L("b","d","one"),L("d","m","two"),M("m","z"),L("z"));
+    Expect(Lines(new(p,"ch"))=="b,z");Expect(Lines(new(p,"ch",ListeningBranchPolicy.All))=="b,d,z");
+});
+Test("返回菜单不能被旧汇合字段强行送到共同线", () => {
+    var choice=C("c",O("one","b"),O("two","d"));choice.Options[0].ReturnId="c";choice.Options[1].ReturnId="m";
+    var p=P(choice,L("b","r","one"),R("r","c","one"),L("d","m","two"),M("m","z"),L("z"));
+    Expect(Lines(new(p,"ch"))=="b");Expect(Lines(new(p,"ch",ListeningBranchPolicy.All))=="b,d,z");
+});
+Test("听书全听保留互斥条件路线，不修改游戏条件", () => {
+    var p=Simple();p.ById["c"].Options[0].Requires.Add("game-flag");p.ById["c"].Options[1].Excludes.Add("game-flag");
+    Expect(Lines(new(p,"ch",ListeningBranchPolicy.All))=="a,b,d,z");
+});
+Test("不同节点相同台词仍分别收听", () => {
+    var p=P(L("a","b"),L("b"));p.ById["b"].Text=p.ById["a"].Text;
+    Expect(Lines(new(p,"ch",ListeningBranchPolicy.All))=="a,b");
+});
+Test("全部听取将未连接正文标记为小节补充片段且不重复", () => {
+    var p=P(L("a"),L("orphan1","orphan2"),L("orphan2"));
+    var all=new ListeningSession(p,"ch",ListeningBranchPolicy.All);Expect(Lines(all)=="a,orphan1,orphan2");
+    Expect(all.Items.Where(i=>i.NodeId.StartsWith("orphan")).All(i=>i.BranchLabel.Contains("补充片段")));
+    Expect(all.Items.Any(i=>i.Kind==ListeningItemKind.Notice && i.Notice.Contains("不代表")));
+    Expect(Lines(new(p,"ch"))=="a");
+});
+Test("普通公共台词也能按显式连接去重", () => {
+    var p=P(C("c",O("one","b",null),O("two","d",null)),L("b","shared","one"),L("d","shared","two"),L("shared","z"),L("z"));
+    Expect(Lines(new(p,"ch",ListeningBranchPolicy.All))=="b,d,shared,z");
+});
+Test("直接循环可见提示后结束", () => {
+    var s=new ListeningSession(P(L("a","a")),"ch");Expect(Lines(s)=="a");
+    Expect(s.Items.Any(i=>i.Kind==ListeningItemKind.Notice));
+});
+Test("音频缺失保留台词，归档台词不播放", () => {
+    var archived=L("archived");archived.Archived=true;
+    var s=new ListeningSession(P(L("a","archived"),archived),"ch");
+    Expect(Lines(s)=="a");Expect(s.Current!.Node!.Audio==null);
+});
+Test("快照独立复原手动路线及毫秒位置", () => {
+    var p=Simple();var game=new PlaybackEngine(p);var before=JsonSerializer.Serialize(game.ExportNavigation(),Json.Options);
+    var s=new ListeningSession(p,"ch",ListeningBranchPolicy.Manual);s.MoveNext();s.Choose("two");
+    var snapshot=s.Capture(1234);var restored=new ListeningSession(p,"ch");
+    Expect(restored.TryRestore(snapshot,out var why),why);Expect(restored.Current!.NodeId=="d");Expect(restored.ResumePositionMs==1234);
+    Expect(restored.Policy==ListeningBranchPolicy.Manual);Expect(before==JsonSerializer.Serialize(game.ExportNavigation(),Json.Options));
+});
+Test("完结快照不会自行从头重播", () => {
+    var p=Simple();var s=new ListeningSession(p,"ch");while(!s.Completed)s.MoveNext();
+    var snap=s.Capture();Expect(snap.Completed && snap.NodeId=="z");
+    var other=new ListeningSession(p,"ch");Expect(other.TryRestore(snap,out _));Expect(other.Completed);
+});
+Test("手动待选位置可以精确恢复", () => {
+    var p=Simple();var s=new ListeningSession(p,"ch",ListeningBranchPolicy.Manual);s.MoveNext();
+    var other=new ListeningSession(p,"ch");Expect(other.TryRestore(s.Capture(),out _));Expect(other.HasPendingChoice);
+});
+Test("手动待选不阻止目录明确跳到后面小节及续听", () => {
+    var p=Simple();p.Chapters[0].Sections.Add(new(){Id="s2",Title="第二小节",StartId="later"});p.Nodes.Add(L("later",section:"s2"));p.Validate();
+    var s=new ListeningSession(p,"ch",ListeningBranchPolicy.Manual);Expect(s.SeekSection("s2"));Expect(s.Current!.NodeId=="later");
+    var other=new ListeningSession(p,"ch");Expect(other.TryRestore(s.Capture(300),out _));Expect(other.Current!.NodeId=="later" && other.ResumePositionMs==300);
+    Expect(other.SeekSection("s"));other.MoveNext();Expect(other.HasPendingChoice);Expect(other.Choose("two"));Expect(other.Current!.NodeId=="d");
+});
+Test("音频更新保持位置，正文变化清除毫秒", () => {
+    var p=Simple();var s=new ListeningSession(p,"ch");s.SeekNode("b");var snap=s.Capture(1700);
+    p.ById["b"].Audio="voice/b.wav";p.Validate();var a=new ListeningSession(p,"ch");Expect(a.TryRestore(snap,out _));Expect(a.ResumePositionMs==1700);
+    p.ById["b"].Text="更新后的正文";var b=new ListeningSession(p,"ch");Expect(b.TryRestore(snap,out var why));Expect(b.ResumePositionMs==0 && why.Length>0);
+});
+Test("策略切换不声称保留不可达旧位置", () => {
+    var s=new ListeningSession(Simple(),"ch",ListeningBranchPolicy.All);Expect(s.SeekNode("d"));s.SetPolicy(ListeningBranchPolicy.First);
+    Expect(s.Current!.NodeId=="a");Expect(!s.SeekNode("d"));Expect(s.SeekSection("s"));
+});
+Test("错误章节快照不改变当前状态", () => {
+    var s=new ListeningSession(Simple(),"ch");var snap=s.Capture();snap.ChapterId="other";
+    Expect(!s.TryRestore(snap,out _));Expect(s.Current!.NodeId=="a");
+});
+Test("v3未核实出口不会跳到旧共同线", () => {
+    var choice=C("c",O("one","b"));var o=choice.Options[0];
+    o.BodyVerified=true;o.ExitVerified=false;o.SegmentIds=new(){"b"};o.BodyEvidence=new(){"fixture"};o.BoundaryId="gap";o.ReturnId="m";
+    var gap=new Node{Id="gap",SectionId="s",Kind="gap",PathId="one"};
+    var p=P(choice,L("b","gap","one"),gap,M("m","z"),L("z"));p.SchemaVersion=3;p.Validate();
+    var s=new ListeningSession(p,"ch");Expect(Lines(s)=="b");Expect(s.Items.Any(i=>i.Kind==ListeningItemKind.Notice));
+    var all=new ListeningSession(p,"ch",ListeningBranchPolicy.All);Expect(Lines(all)=="b,z");Expect(all.Items.Single(i=>i.NodeId=="z").BranchLabel.Contains("补充片段"));
+});
+Test("独立文件保存断点书签，不写游戏进度", () => {
+    var dir=Path.Combine(Path.GetTempPath(),"PgrListeningTests-"+Guid.NewGuid().ToString("N"));
+    Directory.CreateDirectory(dir);
+    try {
+        var store=new ListeningProgressStore(dir);var doc=store.Load("book");var p=doc.ForChapter("ch");p.Resume=new ListeningSession(Simple(),"ch").Capture(9);
+        p.Bookmarks.Add(new(){Label="这里",Snapshot=p.Resume});store.Save(doc);
+        var read=store.Load("book");Expect(read.ForChapter("ch").Bookmarks.Single().Label=="这里");Expect(read.ForChapter("ch").Resume!.PositionMs==9);
+        var path=store.GetPath("../outside");Expect(Path.GetDirectoryName(path)==dir);Expect(Directory.GetFiles(dir).Length==1);
+        p.Resume.PositionMs=10;store.Save(doc);var backupBefore=File.ReadAllText(store.GetPath("book")+".bak");File.WriteAllText(store.GetPath("book"),"{broken");
+        var recovered=store.Load("book",out var notice);Expect(recovered.ForChapter("ch").Resume!.PositionMs==9 && notice.Length>0);
+        store.Save(recovered);Expect(store.Load("book").ForChapter("ch").Resume!.PositionMs==9);
+        Expect(File.ReadAllText(Directory.GetFiles(dir,"*.unreadable-*").Single())=="{broken");
+        Expect(File.ReadAllText(store.GetPath("book")+".bak")==backupBefore,"valid backup replaced by unreadable primary");
+    } finally { Directory.Delete(dir,true); }
+});
+Test("语法有效但语义错误主存档也恢复备份", () => {
+    var dir=Path.Combine(Path.GetTempPath(),"PgrListeningTests-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(dir);
+    try {
+        var store=new ListeningProgressStore(dir);var doc=store.Load("book");doc.ForChapter("ch").Resume=new ListeningSession(Simple(),"ch").Capture();
+        store.Save(doc);store.Save(doc);File.WriteAllText(store.GetPath("book"),"{\"version\":1,\"packId\":\"wrong\",\"chapters\":{}}");
+        Expect(store.Load("book",out var notice).ForChapter("ch").Resume!=null && notice.Length>0);
+    } finally { Directory.Delete(dir,true); }
+});
+Test("空文本字段修复并保留其他有效书签，坏原件另存不覆盖备份", () => {
+    var dir=Path.Combine(Path.GetTempPath(),"PgrListeningTests-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(dir);
+    try {
+        var store=new ListeningProgressStore(dir);var doc=store.Load("book");var chapter=doc.ForChapter("ch");
+        chapter.Resume=new ListeningSession(Simple(),"ch").Capture(600);
+        chapter.Bookmarks.Add(new(){Id="keep",Label="完整书签",Snapshot=new ListeningSession(Simple(),"ch").Capture(20)});
+        chapter.Bookmarks.Add(new(){Id="repair",Label="修复书签",Snapshot=new ListeningSession(Simple(),"ch").Capture(30)});
+        store.Save(doc);store.Save(doc);string backupBefore=File.ReadAllText(store.GetPath("book")+".bak");
+        chapter.Resume.Text=null!;chapter.Resume.SectionTitle=null!;chapter.Resume.SectionId=null!;chapter.Resume.Speaker=null!;
+        chapter.Resume.Fingerprint=null!;chapter.Resume.Choices=null!;
+        chapter.Bookmarks[1].Label=null!;chapter.Bookmarks[1].Snapshot.Text=null!;chapter.Bookmarks[1].Snapshot.SectionTitle=null!;
+        chapter.Bookmarks.Add(new(){Id="bad",Snapshot=null!});
+        string damaged=JsonSerializer.Serialize(doc,Json.Options);File.WriteAllText(store.GetPath("book"),damaged);
+        // 新实例证明保存原件不依赖某次 Load 的内存标记。
+        var reopened=new ListeningProgressStore(dir);var repaired=reopened.Load("book",out var notice);var restored=repaired.ForChapter("ch");
+        Expect(notice.Length>0);Expect(restored.Bookmarks.Count==2);Expect(restored.Bookmarks[0].Id=="keep" && restored.Bookmarks[0].Label=="完整书签");
+        Expect(restored.Resume!.Text.Length==0 && restored.Resume.SectionTitle.Length==0 && restored.Resume.Speaker.Length==0);
+        Expect(restored.Resume.Choices!=null && restored.Resume.PositionMs==600);
+        Expect(restored.Bookmarks[1].Label.Length>0 && restored.Bookmarks[1].Snapshot.Text.Length==0);
+        reopened.Save(repaired);Expect(File.ReadAllText(Directory.GetFiles(dir,"*.unreadable-*").Single())==damaged);
+        Expect(File.ReadAllText(store.GetPath("book")+".bak")==backupBefore);
+        Expect(reopened.Load("book",out var cleanNotice).ForChapter("ch").Bookmarks.Count==2 && cleanNotice.Length==0);
+    } finally { Directory.Delete(dir,true); }
+});
+Test("无备份坏存档首次保存仍保留原件", () => {
+    var dir=Path.Combine(Path.GetTempPath(),"PgrListeningTests-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(dir);
+    try {
+        var store=new ListeningProgressStore(dir);File.WriteAllText(store.GetPath("book"),"[not a document");
+        var doc=store.Load("book",out var notice);Expect(notice.Length>0 && doc.Chapters.Count==0);
+        new ListeningProgressStore(dir).Save(doc);
+        Expect(File.ReadAllText(Directory.GetFiles(dir,"*.unreadable-*").Single())=="[not a document");
+        Expect(!File.Exists(store.GetPath("book")+".bak"));Expect(store.Load("book").Chapters.Count==0);
+    } finally { Directory.Delete(dir,true); }
+});
+Test("个别坏记录不会清空整份听书存档", () => {
+    var dir=Path.Combine(Path.GetTempPath(),"PgrListeningTests-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(dir);
+    try {
+        var store=new ListeningProgressStore(dir);var doc=store.Load("book");var chapter=doc.ForChapter("ch");
+        chapter.Resume=new ListeningSession(Simple(),"ch").Capture();chapter.Resume.ChapterId="wrong-chapter";
+        chapter.Bookmarks.Add(new(){Id="same",Label="保留一",Snapshot=new ListeningSession(Simple(),"ch").Capture()});
+        chapter.Bookmarks.Add(new(){Id="same",Label="保留二",Snapshot=new ListeningSession(Simple(),"ch").Capture()});
+        chapter.Bookmarks.Add(null!);doc.Chapters["broken-chapter"]=null!;
+        File.WriteAllText(store.GetPath("book"),JsonSerializer.Serialize(doc,Json.Options));
+        var recovered=store.Load("book",out var notice);var saved=recovered.ForChapter("ch");Expect(notice.Length>0);
+        Expect(saved.Resume==null && saved.Bookmarks.Count==2 && recovered.Chapters.Count==1);
+        Expect(saved.Bookmarks.Select(b=>b.Id).Distinct().Count()==2);Expect(saved.Bookmarks.Select(b=>b.Label).SequenceEqual(new[]{"保留一","保留二"}));
+    } finally { Directory.Delete(dir,true); }
+});
+
+Pack Interaction()
+{
+    var gap=new Node { Id="wait",SectionId="s",Kind="gap",Text="等待游戏交互后继续",ResumeMenuIds=new(){"c"},NextId="c" };
+    var menu=C("c",O("one","b"),O("two","d"));menu.MenuType="interaction";menu.NextId="m";
+    return P(L("a","wait"),gap,menu,L("b","m","one"),L("d","m","two"),M("m","z"),L("z"));
+}
+foreach(var policy in Enum.GetValues<ListeningBranchPolicy>())
+{
+    Test("互动遵循首项、全听或手动策略："+policy, () => {
+        var p=Interaction();var game=new PlaybackEngine(p);var before=JsonSerializer.Serialize(game.ExportNavigation(),Json.Options);
+        var s=new ListeningSession(p,"ch",policy);s.MoveNext();
+        if(policy==ListeningBranchPolicy.Manual) {
+            Expect(Lines(s)=="a");
+            Expect(s.HasPendingChoice && s.Current!.NodeId=="c" && s.Current.Notice.StartsWith("等待互动："));
+            Expect(!s.MoveNext() && !s.SeekNode("z"));Expect(!s.Choose("missing"));
+        } else {
+            Expect(!s.Items.Any(i=>i.Kind==ListeningItemKind.Choice));
+            Expect(Lines(s)==(policy==ListeningBranchPolicy.All?"a,b,d,z":"a,b,z"));
+            Expect(s.Current!.NodeId=="b");
+        }
+        var waiting=s.Capture();var reopened=new ListeningSession(p,"ch");Expect(reopened.TryRestore(waiting,out _));Expect(reopened.HasPendingChoice==(policy==ListeningBranchPolicy.Manual));
+        if(policy==ListeningBranchPolicy.Manual) { Expect(reopened.Choose("two"));Expect(reopened.Current!.NodeId=="d");Expect(Lines(reopened)=="a,d,z"); }
+        var chosen=reopened.Capture(321);var continued=new ListeningSession(p,"ch");
+        Expect(continued.TryRestore(chosen,out _));Expect(continued.Current!.NodeId==(policy==ListeningBranchPolicy.Manual?"d":"b") && continued.ResumePositionMs==321);
+        while(!continued.Completed)Expect(!continued.HasPendingChoice && continued.MoveNext() || continued.Completed);
+        Expect(before==JsonSerializer.Serialize(game.ExportNavigation(),Json.Options),"听书不能改变游戏状态");
+    });
+}
+Test("目录仅能定位已展开台词或待选项，不能直接进入预览正文", () => {
+    var s=new ListeningSession(Interaction(),"ch",ListeningBranchPolicy.Manual);var pending=s.Items.Single(i=>i.Kind==ListeningItemKind.Choice);
+    Expect(!s.SeekItem("line:z") && s.Current!.NodeId=="a");
+    Expect(s.SeekItem(pending.Id) && s.HasPendingChoice);
+    Expect(s.Capture().Choices.Count==0 && !s.MoveNext());
+    Expect(s.SeekItem("line:a") && s.Current!.NodeId=="a");
+});
+foreach(var policy in new[]{ListeningBranchPolicy.First,ListeningBranchPolicy.All})
+{
+    Test("待选改自动策略保持互动位置："+policy,()=>{
+        var s=new ListeningSession(Interaction(),"ch",ListeningBranchPolicy.Manual);s.MoveNext();
+        Expect(s.HasPendingChoice);s.SetPolicy(policy);SkipNotices(s);
+        Expect(s.Current!.NodeId=="b" && !s.HasPendingChoice && s.ResumePositionMs==0);
+    });
+    Test("旧自动策略待选存档接到互动首句："+policy,()=>{
+        var p=Interaction();var old=new ListeningSession(p,"ch",ListeningBranchPolicy.Manual);old.MoveNext();
+        var snapshot=old.Capture();snapshot.Policy=policy;snapshot.Fingerprint="old-interaction-plan";
+        var restored=new ListeningSession(p,"ch");Expect(restored.TryRestore(snapshot,out var why),why);SkipNotices(restored);
+        Expect(restored.Current!.NodeId=="b" && !restored.Completed && restored.ResumePositionMs==0);
+        Expect(why.Contains("原互动位置"));
+    });
+    Test("多续接菜单自动展开及旧待选存档恢复："+policy,()=>{
+        var p=Interaction();p.ById["wait"].ResumeMenuIds.Add("other-menu");
+        p.Nodes.Add(C("other-menu",O("other","other-line")));p.Nodes.Add(L("other-line","m","other"));p.Validate();
+        var s=new ListeningSession(p,"ch",policy);
+        Expect(Lines(s)==(policy==ListeningBranchPolicy.All?"a,b,d,other-line,z":"a,b,z"),Lines(s));
+        Expect(!s.Items.Any(i=>i.Kind==ListeningItemKind.Choice));
+        var old=new ListeningSession(p,"ch",ListeningBranchPolicy.Manual);old.MoveNext();var snapshot=old.Capture();
+        snapshot.Policy=policy;snapshot.Fingerprint="old-plan";
+        Expect(s.TryRestore(snapshot,out var why),why);SkipNotices(s);Expect(s.Current!.NodeId=="b");
+    });
+    Test("返回互动等待点自动策略不重复或死循环："+policy,()=>{
+        var p=Interaction();p.ById["b"].NextId="wait";p.ById["d"].NextId="wait";p.Validate();
+        var s=new ListeningSession(p,"ch",policy);Expect(!s.Items.Any(i=>i.Kind==ListeningItemKind.Choice));
+        Expect(Lines(s)==(policy==ListeningBranchPolicy.All?"a,b,d,z":"a,b,z"),Lines(s));
+        int steps=0;while(!s.Completed){Expect(++steps<20,"自动互动循环");s.MoveNext();}
+    });
+}
+Test("互动明确跳过只到菜单共同线", () => {
+    var s=new ListeningSession(Interaction(),"ch",ListeningBranchPolicy.Manual);s.MoveNext();Expect(s.SkipChoice());Expect(s.Current!.NodeId=="z");
+});
+Test("空互动锚点不能迁移到下一小节",()=>{
+    var menu=C("empty-menu",O("empty","end","end"));
+    var p=P(L("a","empty-menu"),menu,M("end"));
+    p.Chapters[0].Sections.Add(new(){Id="s2",Title="第二节",StartId="later"});p.Nodes.Add(L("later",section:"s2"));p.Validate();
+    var old=new ListeningSession(p,"ch",ListeningBranchPolicy.Manual);old.MoveNext();
+    var snap=old.Capture();snap.Policy=ListeningBranchPolicy.First;snap.Fingerprint="older";
+    var target=new ListeningSession(p,"ch");Expect(!target.TryRestore(snap,out _));
+    old.SetPolicy(ListeningBranchPolicy.First);Expect(old.Current!.NodeId=="a","空菜单迁移误到下一节");
+});
+Test("普通gap有NextId但无已登记菜单仍不贯穿", () => {
+    var p=Interaction();p.ById["wait"].ResumeMenuIds.Clear();p.Validate();
+    var s=new ListeningSession(p,"ch");Expect(Lines(s)=="a" && !s.Items.Any(i=>i.Kind==ListeningItemKind.Choice));
+});
+Test("已归档的续接菜单不重新放开", () => {
+    var p=Interaction();p.ById["c"].Archived=true;p.Validate();
+    Expect(Lines(new ListeningSession(p,"ch"))=="a");
+});
+Test("多个明确续接菜单先选择菜单再选择正文", () => {
+    var p=Interaction();p.ById["wait"].ResumeMenuIds.Add("other-menu");
+    p.Nodes.Add(C("other-menu",O("other","other-line")));p.Nodes.Add(L("other-line","m","other"));p.Validate();
+    var s=new ListeningSession(p,"ch",ListeningBranchPolicy.Manual);s.MoveNext();Expect(s.Current!.NodeId=="wait" && s.Current.Options!.Count==2);
+    Expect(s.Choose("other-menu") && s.HasPendingChoice && s.Current!.NodeId=="other-menu");
+    Expect(s.Choose("other") && s.Current!.NodeId=="other-line");s.MoveNext();Expect(s.Current!.NodeId=="z");
+});
+Test("v3段落边界可进入已登记菜单但不泄漏其他范围", () => {
+    var outer=C("outer",O("route","a",null));var o=outer.Options[0];
+    o.BodyVerified=true;o.SegmentIds=new(){"a","wait"};o.BoundaryId="wait";o.BodyEvidence=new(){"fixture"};
+    var p=Interaction();p.Nodes.Insert(0,outer);p.Chapters[0].Sections[0].StartId="outer";
+    p.ById["a"].PathId="route";p.ById["wait"].PathId="route";p.SchemaVersion=3;p.Validate();
+    var s=new ListeningSession(p,"ch");Expect(Lines(s)=="a,b,z");Expect(!s.Items.Any(i=>i.Kind==ListeningItemKind.Choice));
+});
+Test("互动菜单返回等待点不会无限重复选项", () => {
+    var p=Interaction();p.ById["b"].NextId="wait";p.ById["d"].NextId="wait";p.Validate();
+    var s=new ListeningSession(p,"ch",ListeningBranchPolicy.Manual);s.MoveNext();
+    Expect(s.Choose("one"));s.MoveNext();Expect(s.HasPendingChoice && s.Current!.Options!.Count==1);
+    Expect(s.Choose("two"));int steps=0;while(!s.Completed){Expect(++steps<10);s.MoveNext();}
+    Expect(Lines(s)=="a,b,d,z");
+});
+Test("互动听完返回共同线不把后续普通分支强制标为互动", () => {
+    var p=Interaction();p.ById["c"].Options.RemoveAt(1);p.ById["b"].NextId="c";p.ById["m"].NextId="normal";
+    p.Nodes.Add(C("normal",O("normal-one","z",null)));p.Validate();
+    var s=new ListeningSession(p,"ch");
+    Expect(Lines(s)=="a,b,z" && !s.Items.Any(i=>i.Kind==ListeningItemKind.Choice));
+});
+Test("旧已完结断点不能绕过新增互动且正常新完结可恢复", () => {
+    var p=Interaction();var s=new ListeningSession(p,"ch",ListeningBranchPolicy.Manual);var old=s.Capture();
+    old.Fingerprint="old-plan";old.Completed=true;old.NodeId="z";old.ItemId=null;
+    var restored=new ListeningSession(p,"ch");Expect(restored.TryRestore(old,out var why));
+    Expect(restored.HasPendingChoice && !restored.Completed && why.Contains("互动"));
+    restored.Choose("one");while(!restored.Completed)restored.MoveNext();
+    var newer=new ListeningSession(p,"ch");Expect(newer.TryRestore(restored.Capture(),out _));Expect(newer.Completed);
+});
+Test("互动未决仍可手动查看后续小节，返回本节不丢选择", () => {
+    var p=Interaction();p.Chapters[0].Sections.Add(new(){Id="s2",Title="第二节",StartId="later"});p.Nodes.Add(L("later",section:"s2"));p.Validate();
+    var s=new ListeningSession(p,"ch",ListeningBranchPolicy.Manual);Expect(s.SeekSection("s2"));Expect(s.Current!.NodeId=="later");
+    Expect(s.SeekSection("s"));s.MoveNext();Expect(s.HasPendingChoice);s.Choose("two");Expect(s.Current!.NodeId=="d");
+});
+
+foreach(string path in args)
+{
+    Test("真实章节 " + path, () => {
+        var p=Pack.Load(path);
+        const string firstSection="bw-a226100500df8ada";
+        var firstChapter=p.Chapters.FirstOrDefault(c=>c.Sections.Any(s=>s.Id==firstSection));
+        if(firstChapter!=null) {
+            var session=new ListeningSession(p,firstChapter.Id);
+            string stop=firstSection+"-l0db17f8544ea05cc0cdb";
+            Expect(session.SeekNode(stop),"第一节必须阻止它们入口不存在");session.MoveNext();
+            while(session.Current?.Kind==ListeningItemKind.Notice || session.Current?.Node?.AudioStatus=="not-spoken")session.MoveNext();
+            Expect(!session.HasPendingChoice,"默认第一项不应要求确认构造体互动");
+            SkipNotices(session);Expect(session.Current!.NodeId==firstSection+"-l26856bf51b6aa7a0562e");
+            session.MoveNext();SkipNotices(session);Expect(session.Current!.NodeId==firstSection+"-le3abce06639fe1f8aff7");
+            session.MoveNext();SkipNotices(session);
+            while(session.Current?.Kind==ListeningItemKind.Line && session.Current.Node!.AudioStatus=="not-spoken")session.MoveNext();
+            SkipNotices(session);Expect(session.Current!.NodeId==firstSection+"-lb6caa0f76c95b6944422","没有接回最后两只了");
+            Expect(session.Items.Any(i=>i.NodeId==firstSection+"-l069d916ba7651e9ad83b"),"后文在那之前还有一件事缺失");
+            Console.WriteLine("  第一章第一节0056→互动0057/0058→共同线0059→0096验证通过");
+        }
+        foreach(var c in p.Chapters)
+        foreach(var policy in new[]{ListeningBranchPolicy.First,ListeningBranchPolicy.All,ListeningBranchPolicy.Manual}) {
+            var watch=System.Diagnostics.Stopwatch.StartNew();var session=new ListeningSession(p,c.Id,policy);
+            var seen=new HashSet<string>();int choicesMade=0,steps=0;
+            while(!session.Completed) {
+                var item=session.Current!;
+                if(item.Kind==ListeningItemKind.Choice) { Expect(policy==ListeningBranchPolicy.Manual,"自动策略意外停在待选菜单");Expect(++choicesMade<=p.Nodes.Count,"manual runaway");session.Choose(item.Options![0].Id); }
+                else { if(item.Kind==ListeningItemKind.Line)Expect(seen.Add(item.NodeId),"duplicate "+item.NodeId);session.MoveNext(); }
+                Expect(++steps<50000,"runaway");
+            }
+            var snapshot=session.Capture();var restore=new ListeningSession(p,c.Id);Expect(restore.TryRestore(snapshot,out _));Expect(restore.Completed);
+            Console.WriteLine($"  {c.Id} {policy}: {seen.Count} lines; {choicesMade} choices; {watch.ElapsedMilliseconds} ms");
+            if(policy==ListeningBranchPolicy.All) {
+                var missing=p.Nodes.Where(n=>!n.Archived && n.Kind=="line" && c.Sections.Any(s=>s.Id==n.SectionId) && !seen.Contains(n.Id)).ToList();
+                Expect(missing.Count==0,"全听未覆盖全部正文");
+                Console.WriteLine("  补充片段: "+session.Items.Count(i=>i.Kind==ListeningItemKind.Line && i.BranchLabel.Contains("补充片段")));
+            }
+        }
+    });
+}
+Console.WriteLine($"PASS total: {passed}");

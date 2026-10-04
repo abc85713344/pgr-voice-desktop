@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>PgrVoice</AssemblyName>
+    <Version>2026.10.4.2</Version>
+    <InformationalVersion>2026.10.04-automatic-dialogue-monitoring</InformationalVersion>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets/PgrVoice.ico</ApplicationIcon>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+  </PropertyGroup>
+  <ItemGroup><PackageReference Include="NAudio" Version="2.2.1" /></ItemGroup>
+  <ItemGroup>
+    <Compile Remove="Domain.cs;Navigation.cs;ObservedNavigation.cs;ProgressStore.cs;Matcher.cs;DialogueFrameAnalysis.cs;StateSaveQueue.cs" />
+    <ProjectReference Include="../core/PgrVoice.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup><Resource Include="Assets/GrayRaven.png"/><Resource Include="Assets/PgrVoice.ico"/><Content Include="Assets/artwork-source.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"/></ItemGroup>
+  <ItemGroup>
+    <Content Include="NativeLibraries/SDL3.dll" Link="SDL3.dll" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true"/>
+    <Content Include="NativeLibraries/SDL3-LICENSE.txt" Link="licenses/SDL3-LICENSE.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true"/>
+    <Content Include="NativeLibraries/SDL3-source.json" Link="licenses/SDL3-source.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true"/>
+  </ItemGroup>
+</Project>

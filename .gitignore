@@ -1,0 +1,15 @@
+﻿# .NET 构建产物
+bin/
+obj/
+*.user
+*.suo
+.vs/
+
+# 测试夹具与配音包数据（体积大，不入库）
+packs/
+fixtures/
+reports/
+
+# Python 缓存
+__pycache__/
+*.pyc

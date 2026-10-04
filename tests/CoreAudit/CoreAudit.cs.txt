@@ -1,0 +1,206 @@
+using PgrVoice;
+using PgrVoice.Packages;
+using System.IO.Compression;
+using System.Text.Json;
+
+var results = new List<object>();
+var failures = new List<string>();
+void Check(bool condition, string message) { if (!condition) throw new Exception(message); }
+void Test(string name, Action action)
+{
+    try { action(); results.Add(new { name, passed = true }); Console.WriteLine("PASS " + name); }
+    catch (Exception ex) { failures.Add(name + ": " + ex.Message); results.Add(new { name, passed = false, error = ex.Message }); Console.WriteLine("FAIL " + name + ": " + ex.Message); }
+}
+Pack Fixture(int schema = 3)
+{
+    var pack = new Pack
+    {
+        Id = "core-audit-synthetic-" + schema, SchemaVersion = schema, Root = Path.GetTempPath(),
+        Chapters = [new() { Id = "chapter", Sections = [new() { Id = "section", Title = "审查样本", StartId = "first" }] }],
+        Nodes = [new() { Id = "first", SectionId = "section", Text = "从这里开始前进", NextId = "menu" },
+            new() { Id = "menu", SectionId = "section", Kind = "choice", Source = "synthetic#menu-1", Options = [
+                new() { Id = "left", Label = "选择左边", PathId = "left", TargetId = "left1", MergeId = "merge", ReturnId = "merge", Verified = true, Evidence = ["fixture"], BodyVerified = true, BodyEvidence = ["fixture"], ExitVerified = true, ExitEvidence = ["fixture"], SegmentIds = ["left1", "left2"], LineIds = ["left1", "left2"] },
+                new() { Id = "right", Label = "选择右边", PathId = "right", TargetId = "right1", MergeId = "merge", ReturnId = "merge", Verified = true, Evidence = ["fixture"], BodyVerified = true, BodyEvidence = ["fixture"], ExitVerified = true, ExitEvidence = ["fixture"], SegmentIds = ["right1"], LineIds = ["right1"] },
+                new() { Id = "unknown", Label = "尚未核实", PathId = "unknown", TargetId = "unknown1", LineIds = ["unknown1"] }
+            ] },
+            new() { Id = "left1", SectionId = "section", PathId = "left", Text = "左边的第一句话", NextId = "left2" },
+            new() { Id = "left2", SectionId = "section", PathId = "left", Text = "左边的第二句话", NextId = "merge" },
+            new() { Id = "right1", SectionId = "section", PathId = "right", Text = "右边的一句话", NextId = "merge" },
+            new() { Id = "unknown1", SectionId = "section", PathId = "unknown", Text = "未核实的一句话", NextId = "merge" },
+            new() { Id = "merge", SectionId = "section", Kind = "merge", NextId = "common" },
+            new() { Id = "common", SectionId = "section", Text = "重新回到共同剧情", NextId = "end" },
+            new() { Id = "end", SectionId = "section", Kind = "end" }]
+    };
+    pack.Validate(); return pack;
+}
+void WithDirectory(Action<string> action)
+{
+    string temporaryRoot = Path.GetFullPath(Path.GetTempPath()).TrimEnd(Path.DirectorySeparatorChar);
+    string path = Path.GetFullPath(Path.Combine(temporaryRoot, "pgr-core-audit-" + Guid.NewGuid().ToString("N")));
+    Directory.CreateDirectory(path);
+    try { action(path); }
+    finally
+    {
+        string resolved = Path.GetFullPath(path), name = Path.GetFileName(resolved);
+        if (!string.Equals(Path.GetDirectoryName(resolved), temporaryRoot, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal) ||
+            !name.StartsWith("pgr-core-audit-", StringComparison.Ordinal) || !Guid.TryParseExact(name["pgr-core-audit-".Length..], "N", out _))
+            throw new InvalidOperationException("拒绝清理独立临时样本目录之外的路径。");
+        Directory.Delete(resolved, true);
+    }
+}
+MemoryStream Archive(Pack pack)
+{
+    var stream = new MemoryStream();
+    using (var zip = new ZipArchive(stream, ZipArchiveMode.Create, true))
+    using (var entry = zip.CreateEntry("章节/pack.json").Open()) JsonSerializer.Serialize(entry, pack, Json.Options);
+    stream.Position = 0; return stream;
+}
+
+Test("单句确认共同台词的快照、历史、书签与磁盘进度均可静音恢复", () => WithDirectory(folder =>
+{
+    var pack = Fixture(); var engine = new PlaybackEngine(pack); engine.CommitSingle("first");
+    var snapshot = engine.ExportNavigation();
+    Check(engine.ValidateNavigation(snapshot), "合法 CommitSingle 导出快照被拒绝：" + engine.NavigationError);
+    var restored = new PlaybackEngine(pack); int plays = 0; restored.PlayRequested += _ => plays++;
+    Check(restored.ImportNavigation(snapshot) && restored.CurrentId == "first" && plays == 0, "快照恢复失败或发声");
+    Check(restored.ConfirmCurrentPosition() && restored.GetAutomaticNextLine() == null && !restored.EvaluateCommonAutoPlayNext().CurrentIsCommon, "恢复丢失单句限制");
+    restored.Next(true); Check(restored.Mode == RunMode.Gap && restored.CurrentId == "first", "单句恢复后越过下一句");
+    Check(engine.RestoreVisit(0), "单句履历无法恢复");
+    var bookmark = engine.CreateBookmark("共同单句"); Check(new PlaybackEngine(pack).RestoreBookmark(bookmark), "单句书签无法恢复");
+    var store = new ProgressStore(folder); store.Save(pack, snapshot);
+    Check(new ProgressStore(folder).TryRestore(new PlaybackEngine(pack)), "磁盘重启无法恢复单句进度");
+}));
+
+Test("合法交互序列的每一步都可导出并静音恢复", () =>
+{
+    foreach (int schema in new[] { 1, 2, 3 })
+    for (int seed = 0; seed < 6; seed++)
+    {
+        var pack = Fixture(schema); var engine = new PlaybackEngine(pack); var rng = new Random(7100 + seed); var trace = new List<string>();
+        engine.Commit("first");
+        for (int step = 0; step < 300; step++)
+        {
+            string action = "";
+            switch (rng.Next(13))
+            {
+                case 0: action = "Next"; engine.Next(true); break;
+                case 1: action = "Previous"; engine.Previous(); break;
+                case 2: action = "TogglePause"; engine.TogglePause(); break;
+                case 3: action = "OpenGameMenu"; engine.OpenGameMenu("menu", "section"); break;
+                case 4: int option = rng.Next(3); action = "SelectBranch:" + option; engine.SelectBranch(option); break;
+                case 5: string line = new[] { "first", "left1", "left2", "right1", "unknown1", "common" }[rng.Next(6)]; action = "ConfirmGameLine:" + line; engine.ConfirmGameLine(line, true); break;
+                case 6: action = "EnterOriginal"; engine.EnterOriginal(); break;
+                case 7: action = "UndoCorrection"; engine.UndoCorrection(); break;
+                case 8: action = "ReselectLastChoice"; engine.ReselectLastChoice(); break;
+                case 9: action = "RestoreVisit:0"; engine.RestoreVisit(0); break;
+                case 10: action = "OpenStoryMenu"; engine.OpenStoryMenu("menu"); break;
+                case 11: action = "PauseForBrowse"; engine.PauseForBrowse(); break;
+                case 12: action = "ConfirmCurrentPosition"; engine.ConfirmCurrentPosition(); break;
+            }
+            trace.Add(action); var snapshot = engine.ExportNavigation(); var restored = new PlaybackEngine(pack); int plays = 0; restored.PlayRequested += _ => plays++;
+            Check(restored.ImportNavigation(snapshot), $"schema={schema},seed={seed},step={step},error={restored.NavigationError};trace={string.Join(" → ", trace)}");
+            Check(plays == 0 && restored.CurrentId == engine.CurrentId && restored.History.Count == engine.History.Count && restored.Mode == (engine.Mode == RunMode.Original ? RunMode.Original : RunMode.Ready), "恢复发声、丢位置/履历或自行跟随");
+        }
+    }
+});
+
+Test("已选路线的单句可恢复且仍返回所属菜单", () =>
+{
+    foreach (int schema in new[] { 1, 2, 3 })
+    {
+        var engine = new PlaybackEngine(Fixture(schema)); engine.OpenGameMenu("menu", "section"); engine.SelectBranch(0); engine.CommitSingle("left2");
+        var restored = new PlaybackEngine(engine.Pack); Check(restored.ImportNavigation(engine.ExportNavigation()), restored.NavigationError);
+        restored.ConfirmCurrentPosition(); Check(restored.GetAutomaticNextLine() == null, "恢复后放开单句自动跟随");
+        restored.Next(true); Check(restored.CurrentId == "menu" && restored.Mode == RunMode.Choice, "单句未返回所属菜单");
+    }
+});
+
+Test("单句标志不能绕过未选路线、未知路线、控制节点或空位置", () =>
+{
+    foreach (string id in new[] { "left1", "unknown1", "menu", "merge", "end", "" })
+    {
+        var engine = new PlaybackEngine(Fixture()); engine.Commit("first"); var snapshot = engine.ExportNavigation();
+        snapshot.Current.SingleLine = true; snapshot.Current.NodeId = id == "" ? null : id; snapshot.Current.HistoryPosition = -1;
+        Check(!new PlaybackEngine(engine.Pack).ImportNavigation(snapshot), "单句标志放开不合法节点 " + id);
+    }
+});
+
+Test("主存档导航丢失时保留备份且拒绝旧版迁移覆盖", () => WithDirectory(folder =>
+{
+    var pack = Fixture(); var engine = new PlaybackEngine(pack); var store = new ProgressStore(folder);
+    engine.Commit("first"); store.Save(pack, engine.ExportNavigation());
+    engine.Commit("common"); store.Save(pack, engine.ExportNavigation());
+    string file = Directory.GetFiles(folder, "*.progress.json").Single(); var bytes = File.ReadAllBytes(file + ".bak");
+    var damaged = Json.Read<ChapterProgress>(file); damaged.Bookmarks.Add(engine.CreateBookmark("保留新书签")); damaged.Navigation = null; Json.Save(file, damaged, false);
+    var reopened = new ProgressStore(folder);
+    bool hadProgress = reopened.HasProgress(pack.Id);
+    bool migrated = reopened.MigrateLegacy(pack, "common", new(), new(), new(), pack.SchemaVersion, null, -1);
+    var restored = new PlaybackEngine(pack); bool recovered = reopened.TryRestore(restored);
+    Check(hadProgress && !migrated && bytes.SequenceEqual(File.ReadAllBytes(file + ".bak")), $"缺失主导航被当作首次使用：HasProgress={hadProgress},Migrated={migrated},BackupPreserved={bytes.SequenceEqual(File.ReadAllBytes(file + ".bak"))}");
+    Check(recovered && reopened.RecoveredFromBackup && restored.CurrentId == "first", "没有恢复有效备份导航");
+    Check(reopened.Bookmarks(pack.Id).Single().Label == "保留新书签", "恢复导航丢失可读主文件的新书签");
+    restored.Commit("common"); reopened.Save(pack, restored.ExportNavigation());
+    Check(Directory.GetFiles(Path.Combine(folder, "recovery")).Any(p => p.EndsWith(".original") && Json.Read<ChapterProgress>(p).Navigation == null), "后续保存未保留受损主文件");
+}));
+
+Test("仅书签且没有旧导航的文档仍允许首次迁移", () => WithDirectory(folder =>
+{
+    var pack = Fixture(); var engine = new PlaybackEngine(pack); engine.Commit("first");
+    var store = new ProgressStore(folder); store.SaveBookmark(pack.Id, engine.CreateBookmark("第一次书签")); store.SaveBookmark(pack.Id, engine.CreateBookmark("第二次书签"));
+    var reopened = new ProgressStore(folder); Check(!reopened.HasProgress(pack.Id) && reopened.Bookmarks(pack.Id).Count == 2, "仅书签被误判为旧导航");
+    Check(reopened.MigrateLegacy(pack, "common", new(), new(), new(), pack.SchemaVersion, null, -1), "合法首次迁移被禁止");
+    Check(reopened.Bookmarks(pack.Id).Count == 2, "首次迁移丢失书签");
+}));
+
+Test("主导航校验失败时恢复备份位置并保留最新书签", () => WithDirectory(folder =>
+{
+    var pack = Fixture(); var engine = new PlaybackEngine(pack); var store = new ProgressStore(folder);
+    engine.Commit("first"); store.Save(pack, engine.ExportNavigation()); engine.Commit("common"); store.Save(pack, engine.ExportNavigation());
+    var bookmark = engine.CreateBookmark("最新保存的书签"); store.SaveBookmark(pack.Id, bookmark);
+    string file = Directory.GetFiles(folder, "*.progress.json").Single();
+    var damaged = Json.Read<ChapterProgress>(file); damaged.Navigation!.Current.ChoiceCursor = 999; Json.Save(file, damaged, false);
+    var reopened = new ProgressStore(folder); var restored = new PlaybackEngine(pack);
+    Check(reopened.TryRestore(restored) && reopened.RecoveredFromBackup && restored.CurrentId == "common", "没有回退到有效备份导航");
+    Check(reopened.Bookmarks(pack.Id).Any(b => b.Id == bookmark.Id), "恢复导航时丢失主文件最新书签");
+    Check(restored.RestoreBookmark(reopened.Bookmarks(pack.Id).Single()), "保留的最新书签无法使用");
+    reopened.Save(pack, restored.ExportNavigation());
+    var cold = new ProgressStore(folder); Check(cold.Bookmarks(pack.Id).Any(b => b.Id == bookmark.Id), "再次重启丢失最新书签");
+    Check(Directory.GetFiles(Path.Combine(folder, "recovery")).Any(p => p.EndsWith(".original") && Json.Read<ChapterProgress>(p).Navigation!.Current.ChoiceCursor == 999), "未保留受损主存档");
+}));
+
+Test("导航为空且备份损坏时保留书签和原始证据", () => WithDirectory(folder =>
+{
+    var pack = Fixture(); var engine = new PlaybackEngine(pack); engine.Commit("first");
+    var store = new ProgressStore(folder); store.SaveBookmark(pack.Id, engine.CreateBookmark("保留书签"));
+    string file = Directory.GetFiles(folder, "*.progress.json").Single(); File.WriteAllText(file + ".bak", "broken backup");
+    var reopened = new ProgressStore(folder); Check(reopened.HasProgress(pack.Id) && reopened.Bookmarks(pack.Id).Single().Label == "保留书签", "损坏备份让原书签丢失或被当成首次使用");
+    Check(!reopened.MigrateLegacy(pack, "common", new(), new(), new(), pack.SchemaVersion, null, -1), "损坏备份被旧迁移覆盖");
+    reopened.Save(pack, engine.ExportNavigation());
+    Check(Directory.GetFiles(Path.Combine(folder, "recovery")).Any(p => p.EndsWith(".backup") && File.ReadAllText(p) == "broken backup"), "没有保留原始坏备份");
+}));
+
+Test("ZIP 在校验阶段取消保留旧包及进度，提交后取消仍返回成功", () => WithDirectory(folder =>
+{
+    var pack = Fixture(); var repository = new PackageRepository(Path.Combine(folder, "packages"));
+    using var first = Archive(pack); var initial = repository.ImportAsync(first).GetAwaiter().GetResult();
+    var engine = new PlaybackEngine(pack); engine.Commit("first"); var store = new ProgressStore(Path.Combine(folder, "progress")); store.Save(pack, engine.ExportNavigation());
+    string progressFile = Directory.GetFiles(Path.Combine(folder, "progress"), "*.progress.json").Single(); var progressBytes = File.ReadAllBytes(progressFile);
+    using var beforeCommit = new CancellationTokenSource(); using var rejected = Archive(pack); bool cancelled = false;
+    try { repository.ImportAsync(rejected, beforeCommit.Token, new InlineProgress(p => { if (p.Stage == "校验剧情和音频") beforeCommit.Cancel(); })).GetAwaiter().GetResult(); }
+    catch (OperationCanceledException) { cancelled = true; }
+    Check(cancelled && repository.Find(pack.Id)!.Revision == initial.Revision, "提交前取消替换了旧包");
+    using var afterCommit = new CancellationTokenSource(); using var update = Archive(pack);
+    var installed = repository.ImportAsync(update, afterCommit.Token, new InlineProgress(p => { if (p.Stage == "导入完成") afterCommit.Cancel(); })).GetAwaiter().GetResult();
+    Check(afterCommit.IsCancellationRequested && installed.IsUpdate && installed.Revision != initial.Revision && repository.Find(pack.Id)!.Revision == installed.Revision, "提交后取消被误报为失败");
+    Check(File.Exists(initial.PackFile) && File.ReadAllBytes(progressFile).SequenceEqual(progressBytes), "更新删除旧路径或更改进度");
+    Check(!Directory.EnumerateDirectories(Path.Combine(folder, "packages", ".incoming")).Any(), "取消或成功之后遗留活动临时包");
+}));
+
+if (args.Length > 0) File.WriteAllText(args[0], JsonSerializer.Serialize(new { generatedUtc = DateTimeOffset.UtcNow, syntheticOnly = true, count = results.Count, failures = failures.Count, results }, Json.Options));
+Console.WriteLine($"CORE AUDIT: {results.Count - failures.Count}/{results.Count} passed");
+Environment.ExitCode = failures.Count == 0 ? 0 : 1;
+
+sealed class InlineProgress(Action<PackageImportProgress> callback) : IProgress<PackageImportProgress>
+{
+    public void Report(PackageImportProgress value) => callback(value);
+}

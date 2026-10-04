@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-labelledby="title desc">
+  <title id="title">剧情配音 · 灰鸦声纹</title>
+  <desc id="desc">原创的米白折线羽翼与三条红色声纹，石墨黑切角底牌。</desc>
+  <polygon points="36,12 220,12 244,36 244,220 220,244 36,244 12,220 12,36" fill="#14181D" stroke="#353D46" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M36 13H220L243 36" fill="none" stroke="#616872" stroke-opacity=".45" stroke-width="2"/>
+  <polygon points="47,104 87,48 187,48 125,89 175,89 111,133 151,133 78,201 89,144" fill="#F1EEE6"/>
+  <polygon points="47,123 70,144 62,186 41,208" fill="#A5ADB4"/>
+  <rect x="157" y="153" width="14" height="46" rx="4" fill="#E04F58"/>
+  <rect x="181" y="125" width="14" height="74" rx="4" fill="#E04F58"/>
+  <rect x="205" y="145" width="14" height="54" rx="4" fill="#E04F58"/>
+</svg>

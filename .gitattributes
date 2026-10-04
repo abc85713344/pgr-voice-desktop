@@ -1,0 +1,8 @@
+﻿# 统一文本换行
+* text=auto
+
+# 二进制不做转换
+*.png binary
+*.ico binary
+*.dll binary
+*.jpg binary
