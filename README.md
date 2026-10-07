@@ -124,3 +124,7 @@ docs/                   工程文档与界面截图
 > 完整条款见 [`LICENSE.md`](LICENSE.md)。
 
 **社区讨论**：[NGA 发布帖](https://ngabbs.com/read.php?tid=47614112) ｜ [B站演示视频](https://www.bilibili.com/video/BV1FPhZ6yEZB/)
+
+---
+
+**相关项目**：[pgr-voice-pack](https://github.com/abc85713344/pgr-voice-pack)（程序下载与校验清单） ｜ [pgr-voice-guide](https://github.com/abc85713344/pgr-voice-guide)（制作全流程复盘与教学工具包）
