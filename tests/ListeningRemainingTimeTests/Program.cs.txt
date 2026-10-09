@@ -1,0 +1,165 @@
+using System.Text;
+using System.Text.Json;
+using PgrVoice;
+using PgrVoice.Listening;
+
+string artifactRoot = Path.GetFullPath(args.FirstOrDefault() ?? "reports/library-native-20261008/listening-time-tests");
+Directory.CreateDirectory(artifactRoot);
+string audioRoot = Path.Combine(artifactRoot, "audio"); Directory.CreateDirectory(audioRoot);
+var results = new List<object>(); int failures = 0;
+void Check(bool condition, string message) { if (!condition) throw new Exception(message); }
+async Task Test(string name, Func<Task> action)
+{
+    try { await action(); results.Add(new { name, passed = true }); Console.WriteLine("PASS " + name); }
+    catch (Exception ex) { failures++; results.Add(new { name, passed = false, error = ex.ToString() }); Console.WriteLine("FAIL " + name + ": " + ex.Message); }
+}
+async Task<ListeningRemainingTime> Read(ListeningRemainingTimeCache cache, ListeningSession session, long position = 0, double speed = 1)
+{
+    for (int i = 0; i < 500; i++)
+    {
+        var value = cache.Estimate(session.Pack, session.Items, session.Position, position, speed);
+        if (!value.Loading) return value;
+        await Task.Delay(10);
+    }
+    throw new TimeoutException("时长读取未完成");
+}
+string Snapshot(ListeningSession session)
+{
+    var value = session.Capture(session.ResumePositionMs); value.UpdatedUtc = default;
+    return JsonSerializer.Serialize(value, Json.Options);
+}
+Node Line(string id, string? next = null, string path = "", string section = "s") => new()
+{ Id = id, Text = "台词" + id, Speaker = "角色", SectionId = section, Audio = id + ".wav", NextId = next, PathId = path };
+Pack PackOf(params Node[] nodes)
+{
+    var pack = new Pack { Id = Guid.NewGuid().ToString("N"), Root = audioRoot, Nodes = nodes.ToList(),
+        Chapters = [new() { Id = "ch", Title = "测试章", Sections = [new() { Id = "s", Title = "第一节", StartId = nodes[0].Id }] }] };
+    pack.Validate(); return pack;
+}
+Pack Branch()
+{
+    var choice = new Node { Id = "c", Kind = "choice", SectionId = "s", Options = [
+        new() { Id = "one", Label = "第一项", TargetId = "b", PathId = "one", MergeId = "m", Verified = true },
+        new() { Id = "two", Label = "第二项", TargetId = "d", PathId = "two", MergeId = "m", Verified = true }] };
+    return PackOf(Line("a", "c"), choice, Line("b", "m", "one"), Line("d", "m", "two"),
+        new() { Id = "m", Kind = "merge", SectionId = "s", NextId = "z" }, Line("z"));
+}
+void Wave(string name, int milliseconds, bool extraChunk = false)
+{
+    const int rate = 8000, align = 2; int bytes = milliseconds * rate / 1000 * align;
+    using var stream = File.Create(Path.Combine(audioRoot, name)); using var writer = new BinaryWriter(stream, Encoding.ASCII);
+    writer.Write(Encoding.ASCII.GetBytes("RIFF")); writer.Write(36 + bytes + (extraChunk ? 12 : 0)); writer.Write(Encoding.ASCII.GetBytes("WAVE"));
+    if (extraChunk) { writer.Write(Encoding.ASCII.GetBytes("JUNK")); writer.Write(3); writer.Write(new byte[4]); }
+    writer.Write(Encoding.ASCII.GetBytes("fmt ")); writer.Write(16); writer.Write((ushort)1); writer.Write((ushort)1);
+    writer.Write(rate); writer.Write(rate * align); writer.Write((ushort)align); writer.Write((ushort)16);
+    writer.Write(Encoding.ASCII.GetBytes("data")); writer.Write(bytes); writer.Write(new byte[bytes]);
+}
+Wave("a.wav", 4000, true); Wave("b.wav", 6000); Wave("d.wav", 9000); Wave("z.wav", 2000); Wave("later.wav", 30000);
+
+await Test("WAV只读音频头，奇数长度附加块不影响真实时长，坏头保持未知", () =>
+{
+    Check(AudioDurationMetadata.ReadWaveMilliseconds(Path.Combine(audioRoot, "a.wav")) == 4000, "WAV时长错误");
+    File.WriteAllBytes(Path.Combine(audioRoot, "bad.bin"), [1, 2, 3]);
+    Check(AudioDurationMetadata.ReadWaveMilliseconds(Path.Combine(audioRoot, "bad.bin")) == null, "坏头伪造了时长");
+    return Task.CompletedTask;
+});
+await Test("手动分支只统计到待选点，读取不改计划、选择、断点或位置", async () =>
+{
+    var s = new ListeningSession(Branch(), "ch", ListeningBranchPolicy.Manual); s.TryRestore(s.Capture(1500), out _);
+    var plan = s.Items; string before = Snapshot(s); var cache = new ListeningRemainingTimeCache();
+    var result = await Read(cache, s, 1500);
+    Check(result.KnownMilliseconds == 2500 && result.Boundary == ListeningTimeBoundary.Choice, "越过未选分支统计");
+    Check(Snapshot(s) == before && ReferenceEquals(plan, s.Items), "计算更改了导航或断点");
+    s.MoveNext(); result = await Read(cache, s); Check(result.AtBoundary && result.DisplayText.Contains("选择分支"), "待选处冒充可播放时间");
+    s.Choose("two"); result = await Read(cache, s, 1000, 2);
+    Check(result.KnownMilliseconds == 5000 && result.Boundary == ListeningTimeBoundary.SectionEnd, "分支选择后未重算新计划与倍速");
+});
+await Test("首项与全部听取使用各自真实计划，不跨小节累计", async () =>
+{
+    var p = Branch(); p.Chapters[0].Sections.Add(new() { Id = "s2", Title = "第二节", StartId = "later" });
+    p.Nodes.Add(Line("later", section: "s2")); p.Validate();
+    var s = new ListeningSession(p, "ch", ListeningBranchPolicy.First); var cache = new ListeningRemainingTimeCache();
+    var result = await Read(cache, s); Check(result.KnownMilliseconds == 12000, "首项计入其他分支/小节");
+    s.SetPolicy(ListeningBranchPolicy.All); result = await Read(cache, s); Check(result.KnownMilliseconds == 21000, "全部听取没有按实际计划累计");
+    s.SeekNode("later"); result = await Read(cache, s, 2000, 2); Check(result.KnownMilliseconds == 14000, "切节未重算");
+});
+await Test("缺音频、损坏/未知时长明确提示，not-spoken不误报缺配音", async () =>
+{
+    var a = Line("a", "missing"); var missing = Line("missing", "unknown");
+    var unknown = Line("unknown", "silent"); unknown.Audio = "bad.bin";
+    var silent = Line("silent"); silent.Audio = null; silent.AudioStatus = "not-spoken";
+    var s = new ListeningSession(PackOf(a, missing, unknown, silent), "ch");
+    var result = await Read(new(), s, 1000);
+    Check(result.KnownMilliseconds == 3000 && result.MissingFiles == 1 && result.UnknownDurations == 1, "缺失/未知分类错误");
+    Check(result.DisplayText.Contains("已知音频") && result.DisplayText.Contains("时长未知"), "部分时长冒称准确总时长");
+});
+await Test("缓存避免逐次刷新解码，失效后按文件变更重读", async () =>
+{
+    string path = Path.Combine(audioRoot, "fallback.mp3"); File.WriteAllBytes(path, [1]); int reads = 0;
+    var line = Line("only"); line.Audio = "fallback.mp3"; var s = new ListeningSession(PackOf(line), "ch");
+    var cache = new ListeningRemainingTimeCache(file => { Interlocked.Increment(ref reads); return new FileInfo(file).Length * 1000; });
+    Check((await Read(cache, s)).KnownMilliseconds == 1000, "格式兜底未调用");
+    for (int i = 0; i < 100; i++) cache.Estimate(s.Pack, s.Items, s.Position, i);
+    Check(reads == 1, "UI刷新反复读取音频");
+    cache.Invalidate(); await Read(cache, s); Check(reads == 1, "未变化文件缓存没复用");
+    File.WriteAllBytes(path, [1, 2]); cache.Invalidate();
+    Check((await Read(cache, s)).KnownMilliseconds == 2000 && reads == 2, "更新后沿用了旧时长");
+});
+await Test("路线不明提示截断时长，停止处不虚构后文", async () =>
+{
+    var p = PackOf(Line("a", "gap"), new() { Id = "gap", SectionId = "s", Kind = "gap" });
+    var s = new ListeningSession(p, "ch"); var value = await Read(new(), s, 99999);
+    Check(value.KnownMilliseconds == 0 && value.Boundary == ListeningTimeBoundary.RouteNotice, "未知路线没有截止或负值");
+    s.MoveNext(); Check((await Read(new(), s)).AtBoundary, "提示本身有虚构时长");
+});
+await Test("换节时旧异步结果不覆盖新小节，读取全程不产生导航副作用", async () =>
+{
+    var p = PackOf(Line("a")); p.Chapters[0].Sections.Add(new() { Id = "s2", StartId = "later" }); p.Nodes.Add(Line("later", section: "s2")); p.Validate();
+    var s = new ListeningSession(p, "ch"); var cache = new ListeningRemainingTimeCache();
+    _ = cache.Estimate(p, s.Items, s.Position, 0); s.SeekNode("later"); var before = Snapshot(s);
+    Check((await Read(cache, s)).KnownMilliseconds == 30000 && Snapshot(s) == before, "异步串节或改变导航");
+    s.MoveNext(); Check((await Read(cache, s)).Boundary == ListeningTimeBoundary.Completed, "完结状态错误");
+});
+await Test("预留声线映射启停与重新加载会失效缓存，关闭仍使用原音频", async () =>
+{
+    var p = PackOf(Line("a")); var s = new ListeningSession(p, "ch"); var cache = new ListeningRemainingTimeCache();
+    Check((await Read(cache, s)).KnownMilliseconds == 4000, "原声时长错误");
+    string directory = Path.Combine(audioRoot, "character-voices"); Directory.CreateDirectory(directory);
+    Wave("alternate.wav", 7000); File.Copy(Path.Combine(audioRoot, "alternate.wav"), Path.Combine(directory, "a.wav"), true);
+    var manifest = new FixedVoiceManifest { PackId = p.Id, NavigationFingerprint = PlaybackEngine.NavigationFingerprint(p),
+        Lines = [new() { NodeId = "a", Speaker = p.ById["a"].Speaker, TextSha256 = FixedVoicePackage.TextHash(p.ById["a"].Text), VoiceId = "voice-a", Audio = "a.wav" }] };
+    Json.Save(Path.Combine(directory, "fixed-voices.json"), manifest);
+    p.PrepareFixedVoices(); Check(p.FixedVoices != null && !p.FixedVoices.Enabled, "测试清单未加载或默认开启");
+    Check((await Read(cache, s)).KnownMilliseconds == 4000, "未开启就切换时长");
+    p.FixedVoices!.SetEnabled(true); Check((await Read(cache, s)).KnownMilliseconds == 7000, "启用没有切换实际文件时长");
+    p.PrepareFixedVoices(); Check((await Read(cache, s)).KnownMilliseconds == 4000, "新对象默认关闭却沿用旧时长");
+});
+await Test("安卓真实适配层只读展示按当前倍速折算，不播放、不改变断点", async () =>
+{
+    string root = Path.Combine(artifactRoot, "android-adapter"); Directory.CreateDirectory(root);
+    var pack = PackOf(Line("a", "b"), Line("b"));
+    var session = new PgrVoice.AndroidApp.ListeningSession(new(root), new TimeStorage(pack), () => { }, new());
+    session.Open(pack.Id, "ch"); session.SetSpeed(2);
+    string before = session.Current!.Id; long offset = session.PositionMilliseconds;
+    var file = Path.Combine(root, "listening", "preferences.json"); string settings = File.ReadAllText(file);
+    string text = "";
+    for (int i = 0; i < 500; i++) { text = session.RemainingTimeText; if (!text.Contains("正在读取")) break; await Task.Delay(10); }
+    Check(text == "本小节剩余约 5秒", "安卓时长或倍速接线错误：" + text);
+    Check(!session.IsPlaying && session.Current?.Id == before && session.PositionMilliseconds == offset, "展示推进或播放");
+    Check(File.ReadAllText(file) == settings && PgrVoice.AndroidApp.Platform.AndroidAudioPlayer.Latest == null, "展示写设置或创建了播放器");
+});
+
+File.WriteAllText(Path.Combine(artifactRoot, "results.json"), JsonSerializer.Serialize(new
+{ createdUtc = DateTimeOffset.UtcNow, passed = failures == 0, count = results.Count, failures, tests = results }, Json.Options));
+return failures == 0 ? 0 : 1;
+
+sealed class TimeStorage(Pack pack) : PgrVoice.AndroidApp.Contracts.IChapterStorage
+{
+    public IReadOnlyList<PgrVoice.Packages.InstalledPackage> List() => [];
+    public Pack Load(string id) => pack;
+    public PgrVoice.Packages.InstalledPackage? Find(string id) => null;
+    public Task<PgrVoice.Packages.InstalledPackage> ImportAsync(Stream stream, CancellationToken token, IProgress<PgrVoice.Packages.PackageImportProgress>? progress = null) => throw new NotSupportedException();
+    public Task<PgrVoice.Packages.PackageRemovalResult> RemoveAsync(string id, string expectedRevision) => throw new NotSupportedException();
+    public PgrVoice.Packages.PackageFolder Browse(string id, string relativePath = "", string? expectedRevision = null) => throw new NotSupportedException();
+    public void CleanAbandonedImports() { }
+}

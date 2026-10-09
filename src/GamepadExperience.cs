@@ -234,10 +234,10 @@ public partial class MainWindow
         gamepadStatus.Text=!preferences.GamepadEnabled?"手柄操作已关闭":gamepadBackendError.Length>0?gamepadBackendError:gamepadDeviceNotice.Length>0?gamepadDeviceNotice:gamepadLatest is {Connected:true,Device:not null} r?"已连接："+r.Device.Name:"未连接手柄；连接后会自动识别。";
         gamepadHelp.Text="面板：方向键 / 左摇杆移动，"+PadLabel(GamepadButtons.South)+" 确认，"+PadLabel(GamepadButtons.East)+" 返回，LB / RB（L1 / R1）切页。\n"+
             "听书：Menu / Options 暂停续听，"+PadLabel(GamepadButtons.West)+" 重播，"+PadLabel(GamepadButtons.North)+" 记书签。\n"+
-            "游戏前台用 "+PadChord("panel")+" 打开配音面板。组合键也会传给游戏，如冲突可改绑。请先在游戏选择分支，再打开配音菜单确认相同路线。\n"+
+            "游戏前台用 "+PadChord("panel")+" 打开配音面板。组合键也会传给游戏，如冲突可改绑。原生电脑版会按支线新对白自动接上；无法确定时可打开配音菜单手动续接。\n"+
             "确认和快捷操作在按钮松开后执行；重连或切回窗口后，先松开按钮并让摇杆归中。三种输入可自动切换，短时间重叠按一次处理。时间关联不能识别所有 Steam 映射；如果自定义映射仍重复，保留一种推进映射。";
         gamepadPanelHint.Visibility=GamepadConnected?Visibility.Visible:Visibility.Collapsed;
         gamepadPanelHint.Text="手柄：方向移动 · "+PadLabel(GamepadButtons.South)+" 确认 · "+PadLabel(GamepadButtons.East)+" 返回 · LB / RB 切页 · "+PadChord("panel")+" 展开/收起";
-        branchMenu.SetGamepadHint(GamepadConnected?(branchMenu.GamepadNavigation?"手柄：↑↓选择 · "+PadLabel(GamepadButtons.South)+" 松开确认 · "+PadLabel(GamepadButtons.East)+" 返回游戏":"先在游戏选择路线，再按 "+PadChord("panel")+" 操作配音菜单。") : "");
+        branchMenu.SetGamepadHint(GamepadConnected?(branchMenu.GamepadNavigation?"手柄：↑↓选择 · "+PadLabel(GamepadButtons.South)+" 松开确认 · "+PadLabel(GamepadButtons.East)+" 返回游戏":"原生电脑版选完路线会自动接上；需手动续接时按 "+PadChord("panel")+" 操作配音菜单。") : "");
     }
 }

@@ -53,5 +53,6 @@ public partial class MainWindow
         FontSize = veryCompact ? 12 : 13;
         NavigationToolbar.Margin=new Thickness(0,0,0,veryCompact?2:5);
         foreach(var child in NavigationToolbar.Children)if(child is System.Windows.Controls.Button button){button.Padding=new Thickness(veryCompact?5:8,veryCompact?2:5,veryCompact?5:8,veryCompact?2:5);button.MinHeight=veryCompact?22:28;}
+        ApplyManualContinuationLayout();
     }
 }

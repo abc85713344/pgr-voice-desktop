@@ -76,7 +76,7 @@ public partial class MainWindow
             SaveBookmark();Check(progressStore!.Bookmarks(engine.Pack.Id).Count>0,"完整路线书签可保存");
             Save();LoadPack(b);engine!.Commit("start");LoadPack(a);
             Check(engine!.CurrentId==current && engine.Mode==RunMode.Ready,"切换章节后独立进度静音恢复");
-            calls=playCalls;FocusCatalog();await Task.Delay(120);Check(LibraryBox.IsKeyboardFocusWithin,"F4聚焦可见章节目录");
+            calls=playCalls;FocusCatalog();await Task.Delay(120);Check(chapterPickerButtons[LibraryBox].Chapter.IsKeyboardFocusWithin,"F4聚焦可见章节目录");
             SearchBox.Text="栗西 现状";SearchBox.Focus();
             OnPreviewKey(SearchBox,new KeyEventArgs(Keyboard.PrimaryDevice,PresentationSource.FromVisual(this),Environment.TickCount,Key.Enter){RoutedEvent=Keyboard.PreviewKeyDownEvent,Source=SearchBox});
             Check(playCalls==calls && LinesList.IsKeyboardFocusWithin && rows.Any(r=>r.Node.Id=="t1a"),"角色加正文搜索，回车进入结果且不误播");

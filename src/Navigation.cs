@@ -467,12 +467,21 @@ public sealed partial class PlaybackEngine
         }
         return true;
     }
-    public bool ImportNavigation(NavigationSnapshot snapshot)
+    public bool ImportNavigation(NavigationSnapshot snapshot, bool allowBoundaryResume = false)
     {
         if (!ValidateNavigation(snapshot)) return false;
+        bool resumedBoundary = false;
+        if (allowBoundaryResume && PrepareBoundaryResume(snapshot) is NavigationSnapshot repaired)
+        {
+            // 原快照先完整通过校验，再校验仅改当前点的候选；失败保留可用旧边界。
+            if (ValidateNavigation(repaired)) { snapshot = repaired; resumedBoundary = true; }
+            else NavigationError = "";
+        }
         StopRequested?.Invoke(); undoCorrection = snapshot.Undo == null ? null : CloneCore(snapshot.Undo);
         if (undoCorrection != null) undoCorrection.PackFingerprint = graphFingerprint!;
-        ApplySnapshot(snapshot, true); Changed?.Invoke(); return true;
+        ApplySnapshot(snapshot, true);
+        if (resumedBoundary) Notice = "该段衔接已修复，已接回后续台词；确认位置后再播放。";
+        Changed?.Invoke(); return true;
     }
     public bool ReselectLastChoice() => choiceCursor > 0 && ReselectChoice(choiceVisits[choiceCursor - 1].Sequence);
     public bool ReselectChoice(long sequence)

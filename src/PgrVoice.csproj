@@ -7,13 +7,21 @@
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AssemblyName>PgrVoice</AssemblyName>
-    <Version>2026.10.4.2</Version>
-    <InformationalVersion>2026.10.04-automatic-dialogue-monitoring</InformationalVersion>
+    <Version>2026.10.9.9</Version>
+    <InformationalVersion>2026.10.09-settings-validation</InformationalVersion>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets/PgrVoice.ico</ApplicationIcon>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>
   <ItemGroup><PackageReference Include="NAudio" Version="2.2.1" /></ItemGroup>
+  <ItemGroup><EmbeddedResource Include="Assets/GamePlayerNameTemplates.json" LogicalName="GamePlayerNameTemplates.json" /></ItemGroup>
+  <ItemGroup>
+    <Compile Include="../android/BundledRouteRepairs.cs" Link="BundledRouteRepairs.cs" />
+    <Compile Include="../android/BundledStoryReference.cs" Link="BundledStoryReference.cs" />
+    <EmbeddedResource Include="../android/StoryReference.20261009.zip" LogicalName="PgrVoice.StoryReference.20261009.zip" />
+    <EmbeddedResource Include="../android/RouteRepairs.20261009.json.gz" LogicalName="PgrVoice.RouteRepairs.20261009.json.gz" />
+    <Using Include="System" /><Using Include="System.IO" /><Using Include="System.Linq" /><Using Include="System.Collections.Generic" />
+  </ItemGroup>
   <ItemGroup>
     <Compile Remove="Domain.cs;Navigation.cs;ObservedNavigation.cs;ProgressStore.cs;Matcher.cs;DialogueFrameAnalysis.cs;StateSaveQueue.cs" />
     <ProjectReference Include="../core/PgrVoice.Core.csproj" />

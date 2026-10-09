@@ -53,7 +53,7 @@ public sealed partial class PackageRepository
             catch (Exception ex) when (ex is IOException or InvalidDataException or JsonException or UnauthorizedAccessException or ArgumentException)
             { CoreDiagnostics.Write("package", "保留无法读取的配音包：" + ex.Message); }
         }
-        return result.OrderBy(p => p.Title, StringComparer.CurrentCulture).ToList();
+        return result.OrderBy(p => ChapterCatalog.SortKey(p.PackId, p.Title), StringComparer.Ordinal).ToList();
     }
 
     public InstalledPackage? Find(string packId)

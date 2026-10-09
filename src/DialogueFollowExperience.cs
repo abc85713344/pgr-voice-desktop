@@ -45,7 +45,7 @@ public partial class MainWindow
         AddButton(buttons, "恢复默认范围", () => { preferences.DialogueRegion = new(); ResetDialogueObservation(); Save(); Tell("已恢复默认对白范围；请核对游戏与配音的当前句。"); });
         AddButton(buttons, "确认仍是当前句", ConfirmDialogueAnchor);
         AddButton(buttons, "定位游戏当前句", () => _ = Locate());
-        panel.Children.Add(new TextBlock { Text = "不确定时暂停自动跟随。核对台词后，可确认当前句，或用“配音上一句 / 下一句”纠偏；F9 可识别一次画面。分支选完需要重新核对。", TextWrapping = TextWrapping.Wrap });
+        panel.Children.Add(new TextBlock { Text = "不确定时暂停自动跟随。核对台词后，可确认当前句，或用“配音上一句 / 下一句”纠偏；F9 可识别一次画面。原生电脑版选完分支会按新对白自动接上，无法确定时再手动核对。", TextWrapping = TextWrapping.Wrap });
         dialogueRecovery.Children.Add(new TextBlock { Text = "自动跟随已停住，请核对上方当前台词。", TextWrapping = TextWrapping.Wrap });
         var recoveryButtons = new WrapPanel(); dialogueRecovery.Children.Add(recoveryButtons);
         AddButton(recoveryButtons, "游戏仍是当前句", ConfirmDialogueAnchor);
@@ -59,7 +59,8 @@ public partial class MainWindow
         if (!ConfirmInputFollowStart()) return;
         preferences.MouseFollowEnabled = false;
         Collapse(); Save(); RefreshMouseFollow();
-        Tell("按键跟随已开启，跟随键：" + KeyName("next") + "。请在游戏窗口内按下；分支需在两边选择相同路线。");
+        Tell("按键跟随已开启，跟随键：" + KeyName("next") + "。原生电脑版遇到分支后会监听新对白，选完自动接上。");
+        BeginInputBranchRecovery(engine?.CurrentId ?? "");
     }
     void AddInputFollowStartPreview(Panel panel)
     {
@@ -184,6 +185,7 @@ public partial class MainWindow
     void AdvanceObservedLine()
     {
         if (engine == null) return;
+        string previousLine = engine.CurrentId ?? "";
         engine.Next();
         // merge 是虚拟汇合标记；检查开关不应改变一次真实换句所消耗的台词数。
         // 每一步仍由引擎检查路线边界；选择点、待续接和原声状态不跨越。
@@ -193,6 +195,7 @@ public partial class MainWindow
         {
             PauseMouseFollow("汇合连接循环，需手动定位共同线");
         }
+        BeginInputBranchRecovery(previousLine);
     }
     async Task SelectDialogueRegion()
     {

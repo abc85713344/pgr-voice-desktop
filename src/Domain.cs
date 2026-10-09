@@ -44,14 +44,29 @@ public sealed class Pack
     public Dictionary<string,string> Migrations { get; set; } = new();
     // 由逐项核对的数据更新器写入；仅允许准确列出的旧导航图继续逐点校验。
     public List<string> CompatibleNavigationFingerprints { get; set; } = new();
+    public List<NavigationResumeRepair> NavigationResumeRepairs { get; set; } = new();
     [System.Text.Json.Serialization.JsonIgnore] public string Root { get; set; } = "";
     [System.Text.Json.Serialization.JsonIgnore] public Dictionary<string, Node> ById { get; private set; } = new();
+    [System.Text.Json.Serialization.JsonIgnore] public FixedVoicePackage? FixedVoices { get; private set; }
+    string fixedVoiceNotice = "角色固定声线：等待配音包，未开启";
+    [System.Text.Json.Serialization.JsonIgnore] public string FixedVoiceStatus => FixedVoices?.Status ?? fixedVoiceNotice;
     public static Pack Load(string file)
     {
         var pack = Json.Read<Pack>(file);
         pack.Root = Path.GetDirectoryName(Path.GetFullPath(file))!;
         pack.Validate();
+        pack.PrepareFixedVoices();
         return pack;
+    }
+    public void PrepareFixedVoices()
+    {
+        FixedVoices = null;
+        fixedVoiceNotice = "角色固定声线：等待配音包，未开启";
+        string manifest = Path.Combine(Root, FixedVoicePackage.RelativeManifest.Replace('/', Path.DirectorySeparatorChar));
+        if (!File.Exists(manifest)) return;
+        try { FixedVoices = FixedVoicePackage.Load(this, manifest); }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or System.Text.Json.JsonException or ArgumentException)
+        { fixedVoiceNotice = "角色声线包尚不可用，继续使用原配音"; }
     }
     public void Validate()
     {
@@ -89,9 +104,11 @@ public sealed class Pack
             if(n.ResumeMenuIds.Any(id=>!ById.TryGetValue(id,out var m)||m.Kind!="choice"||m.SectionId!=n.SectionId))throw new InvalidDataException("续接菜单不存在或跨小节");
         }
         if(SchemaVersion==3 && Nodes.Where(n=>!n.Archived).SelectMany(n=>n.Options).GroupBy(o=>o.PathId).Any(g=>string.IsNullOrEmpty(g.Key)||g.Count()>1))throw new InvalidDataException("路线编号重复或为空");
+        NavigationResumeRepair.Validate(this);
     }
     public string? ResolveAudio(Node n)
     {
+        if (FixedVoices?.Resolve(n) is string fixedAudio) return fixedAudio;
         if (string.IsNullOrWhiteSpace(n.Audio)) return null;
         // 配音包来自 Windows，统一两种分隔符，不能让安卓把反斜线当成文件名。
         var relative = n.Audio.Replace('\\', '/');

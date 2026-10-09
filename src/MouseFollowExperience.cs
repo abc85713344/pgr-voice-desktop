@@ -42,8 +42,9 @@ public partial class MainWindow
         { Tell("请先绑定可见的战双游戏窗口。"); return; }
         if (!ConfirmInputFollowStart()) return;
         preferences.MouseFollowEnabled = true; DialoguePositionConfirmed();
-        mouseFollowNotice = "已确认起点。等字幕完整后轻点热区；分支仍需在两边选择相同路线。";
+        mouseFollowNotice = "已确认起点。等字幕完整后轻点热区；原生电脑版选完分支后会按新对白自动接上。";
         Collapse(); Save(); RefreshMouseFollow(); Tell(mouseFollowNotice);
+        BeginInputBranchRecovery(engine?.CurrentId ?? "");
     }
     void RefreshMouseFollow()
     {

@@ -77,7 +77,7 @@ public partial class MainWindow
             if (!testUi) throw new InvalidOperationException("小台词条验收仅允许在隔离测试入口运行");
             timer.Stop(); gamepadTimer?.Stop(); StopGamepadInput(); rawKeyboard?.Dispose(); keyboard?.Dispose(); keyboard = null;
             listeningTestAudio = true; preferences.DialogueGuardEnabled = false; preferences.OcrEnabled = false;
-            Check(compactControlsReady && compactFollowActions.Count == 5, "构造流程已初始化五个小台词条按钮");
+            Check(compactControlsReady && compactFollowActions.Count == 6 && compactFollowActions.ContainsKey("continuation"), "构造流程初始化原五个按钮及手动续接入口");
             Check(new Preferences().CompactControlsEnabled, "快捷按钮对新设置默认显示");
             string folder = Path.Combine(Log.DataDir, "fixtures", "compact-follow"); Directory.CreateDirectory(folder);
             File.WriteAllBytes(Path.Combine(folder, "voice.wav"), new byte[] { 0 });

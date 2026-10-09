@@ -1,0 +1,294 @@
+{
+  "schemaVersion": 1,
+  "placeholder": "【指挥官姓名】",
+  "entries": [
+    {
+      "packId": "pgr-ch32",
+      "nodeId": "ch32-782b137489a669098935-b57dd486395f4c026448",
+      "sectionId": "ch32-782b137489a669098935",
+      "speaker": "凡妮莎",
+      "text": "【灰鸦指挥官】……还真是一如既往……",
+      "template": "【指挥官姓名】……还真是一如既往……"
+    },
+    {
+      "packId": "pgr-ch32",
+      "nodeId": "ch32-782b137489a669098935-4b903a84ed9eef0406ca",
+      "sectionId": "ch32-782b137489a669098935",
+      "speaker": "凡妮莎",
+      "text": "【灰鸦指挥官】！醒醒！",
+      "template": "【指挥官姓名】！醒醒！"
+    },
+    {
+      "packId": "pgr-ch32",
+      "nodeId": "ch32-782b137489a669098935-805bae7d3d4f67585dce",
+      "sectionId": "ch32-782b137489a669098935",
+      "speaker": "凡妮莎",
+      "text": "就应该把房间门锁起来……灰鸦指挥官？【灰鸦指挥官】？",
+      "template": "就应该把房间门锁起来……灰鸦指挥官？【指挥官姓名】？"
+    },
+    {
+      "packId": "pgr-ch32",
+      "nodeId": "ch32-782b137489a669098935-df8bd9bd4714b6a171f2",
+      "sectionId": "ch32-782b137489a669098935",
+      "speaker": "露西亚",
+      "text": "咳……【灰鸦指挥官】队长。",
+      "template": "咳……【指挥官姓名】队长。"
+    },
+    {
+      "packId": "pgr-ch32",
+      "nodeId": "ch32-782b137489a669098935-7c0362c864864d477d22",
+      "sectionId": "ch32-782b137489a669098935",
+      "speaker": "露西亚",
+      "text": "我真的很开心，能够和【灰鸦指挥官】相遇。",
+      "template": "我真的很开心，能够和【指挥官姓名】相遇。"
+    },
+    {
+      "packId": "pgr-ch32",
+      "nodeId": "ch32-782b137489a669098935-d586472b93d9de55c0b9",
+      "sectionId": "ch32-782b137489a669098935",
+      "speaker": "凡妮莎",
+      "text": "【灰鸦指挥官】的身体状态……",
+      "template": "【指挥官姓名】的身体状态……"
+    },
+    {
+      "packId": "pgr-ch32",
+      "nodeId": "ch32-fa9eafe3b4bf8280e920-32041a94e21329ec8339",
+      "sectionId": "ch32-fa9eafe3b4bf8280e920",
+      "speaker": "露娜",
+      "text": "【灰鸦指挥官】。我不是人类的英雄，没办法拯救这个地球。",
+      "template": "【指挥官姓名】。我不是人类的英雄，没办法拯救这个地球。"
+    },
+    {
+      "packId": "pgr-ch32",
+      "nodeId": "ch32-fa9eafe3b4bf8280e920-a5cc7734d973b39c9de2",
+      "sectionId": "ch32-fa9eafe3b4bf8280e920",
+      "speaker": "露娜",
+      "text": "除了你，【灰鸦指挥官】。",
+      "template": "除了你，【指挥官姓名】。"
+    },
+    {
+      "packId": "pgr-ch32",
+      "nodeId": "ch32-fa9eafe3b4bf8280e920-d3082bea13b6c8397e36",
+      "sectionId": "ch32-fa9eafe3b4bf8280e920",
+      "speaker": "露娜",
+      "text": "你是唯一的变数，【灰鸦指挥官】，你能从异聚塔出来，已经是我观测到的数据中仅存的误差点。",
+      "template": "你是唯一的变数，【指挥官姓名】，你能从异聚塔出来，已经是我观测到的数据中仅存的误差点。"
+    },
+    {
+      "packId": "pgr-ch32",
+      "nodeId": "ch32-fa9eafe3b4bf8280e920-4b199a035fcf3e2b5a64",
+      "sectionId": "ch32-fa9eafe3b4bf8280e920",
+      "speaker": "露娜",
+      "text": "……希望你能成功，【灰鸦指挥官】。",
+      "template": "……希望你能成功，【指挥官姓名】。"
+    },
+    {
+      "packId": "pgr-ch32",
+      "nodeId": "ch32-3ba6fbfe43e3058afc48-629f8534b700fd083804",
+      "sectionId": "ch32-3ba6fbfe43e3058afc48",
+      "speaker": "塞万提斯",
+      "text": "你真的是指挥官吗?",
+      "template": "你真的是【指挥官姓名】吗？"
+    },
+    {
+      "packId": "pgr-ch32",
+      "nodeId": "ch32-71fcf055b68c2cfb1350-a00dc6a683600e043dbe",
+      "sectionId": "ch32-71fcf055b68c2cfb1350",
+      "speaker": "凡妮莎",
+      "text": "这是灰鸦指挥官。大概一个月前，我们通过北极航线联合中的一个废弃小镇联络到了这个家伙。",
+      "template": "这是灰鸦指挥官。【指挥官姓名】，大概一个月前，我们通过北极航线联合中的一个废弃小镇联络到了这个家伙。"
+    },
+    {
+      "packId": "pgr-ch32",
+      "nodeId": "ch32-71fcf055b68c2cfb1350-5e7fa92c56c6b4192b53",
+      "sectionId": "ch32-71fcf055b68c2cfb1350",
+      "speaker": "曲",
+      "text": "守在这里的时候，我曾经多次用华胥再度推演过“未来”，但每个未来里……都没有你，指挥官。",
+      "template": "守在这里的时候，我曾经多次用华胥再度推演过“未来”，但每个未来里……都没有你，【指挥官姓名】。"
+    },
+    {
+      "packId": "pgr-ch32",
+      "nodeId": "ch32-71fcf055b68c2cfb1350-9e45264ed151bbf14246",
+      "sectionId": "ch32-71fcf055b68c2cfb1350",
+      "speaker": "???",
+      "text": "指挥官……还是这样的选择吗?",
+      "template": "【指挥官姓名】……还是这样的选择吗？"
+    },
+    {
+      "packId": "pgr-ch32",
+      "nodeId": "ch32-8e8d84f50ce1eea5362e-2dbe619a015bafb99542",
+      "sectionId": "ch32-8e8d84f50ce1eea5362e",
+      "speaker": "卡俄斯",
+      "text": "异聚塔……灰鸦指挥官……",
+      "template": "异聚塔……【指挥官姓名】……"
+    },
+    {
+      "packId": "pgr-ch32",
+      "nodeId": "ch32-8e8d84f50ce1eea5362e-2c70d73be5658b3a378d",
+      "sectionId": "ch32-8e8d84f50ce1eea5362e",
+      "speaker": "卡俄斯",
+      "text": "灰鸦指挥官……异聚塔……离开……",
+      "template": "【指挥官姓名】……异聚塔……离开……"
+    },
+    {
+      "packId": "pgr-ch32",
+      "nodeId": "ch32-8e8d84f50ce1eea5362e-1f161649a5f44bcc3b23",
+      "sectionId": "ch32-8e8d84f50ce1eea5362e",
+      "speaker": "卡俄斯",
+      "text": "灰鸦指挥官……离开了异聚塔。",
+      "template": "【指挥官姓名】……离开了异聚塔。"
+    },
+    {
+      "packId": "pgr-ch32",
+      "nodeId": "ch32-8e8d84f50ce1eea5362e-b1cf1c228cbebefa7206",
+      "sectionId": "ch32-8e8d84f50ce1eea5362e",
+      "speaker": "卡俄斯",
+      "text": "异聚塔内部时间交错，不清楚灰鸦指挥官究竟在什么时间离开。",
+      "template": "异聚塔内部时间交错，不清楚【指挥官姓名】究竟在什么时间离开。"
+    },
+    {
+      "packId": "pgr-ch32",
+      "nodeId": "ch32-8e8d84f50ce1eea5362e-e01f14866bd455f48f40",
+      "sectionId": "ch32-8e8d84f50ce1eea5362e",
+      "speaker": "卡俄斯",
+      "text": "没有……知道灰鸦指挥官究竟会出现在什么时间。",
+      "template": "没有……知道【指挥官姓名】究竟会出现在什么时间。"
+    },
+    {
+      "packId": "pgr-ch32",
+      "nodeId": "ch32-57a326b7660240542e3b-73a4043cfd76ace3d83b",
+      "sectionId": "ch32-57a326b7660240542e3b",
+      "speaker": "卡俄斯",
+      "text": "【灰鸦指挥官】……离开了异聚塔。",
+      "template": "【指挥官姓名】……离开了异聚塔。"
+    },
+    {
+      "packId": "pgr-ch32",
+      "nodeId": "ch32-57a326b7660240542e3b-e8ae68cc0e02b9f1edb5",
+      "sectionId": "ch32-57a326b7660240542e3b",
+      "speaker": "格式塔",
+      "text": "——无法计算出【灰鸦指挥官】离开异聚塔的具体时间，所以假设不成立，无法开启推演。",
+      "template": "——无法计算出【指挥官姓名】离开异聚塔的具体时间，所以假设不成立，无法开启推演。"
+    },
+    {
+      "packId": "pgr-ch32",
+      "nodeId": "ch32-57a326b7660240542e3b-b8f303a25a63b6a8be2f",
+      "sectionId": "ch32-57a326b7660240542e3b",
+      "speaker": "七实",
+      "text": "【灰鸦指挥官】一定离开了异聚塔，但并不知道离开塔之后出现在了什么时间。",
+      "template": "【指挥官姓名】一定离开了异聚塔，但并不知道离开塔之后出现在了什么时间。"
+    },
+    {
+      "packId": "pgr-ch32",
+      "nodeId": "ch32-57a326b7660240542e3b-7b599ea7c6355dc5d8ef",
+      "sectionId": "ch32-57a326b7660240542e3b",
+      "speaker": "七实",
+      "text": "格式塔计算不出【灰鸦指挥官】离开异聚塔的具体时间，但没有否认对方出塔的可能性……",
+      "template": "格式塔计算不出【指挥官姓名】离开异聚塔的具体时间，但没有否认对方出塔的可能性……"
+    },
+    {
+      "packId": "pgr-ch32",
+      "nodeId": "ch32-8e7c98d77475ae0f6237-476f5cdec5ffde7bab01",
+      "sectionId": "ch32-8e7c98d77475ae0f6237",
+      "speaker": "七实",
+      "text": "这个机器人叫做【指挥官】！还知道七实的名字！爸爸说过，交换过名字的就是朋友了，七实就把朋友带回家了！",
+      "template": "这个机器人叫做【指挥官姓名】！还知道七实的名字！爸爸说过，交换过名字的就是朋友了，七实就把朋友带回家了！"
+    },
+    {
+      "packId": "pgr-ch32",
+      "nodeId": "ch32-8e7c98d77475ae0f6237-00939f4df66330a963fe",
+      "sectionId": "ch32-8e7c98d77475ae0f6237",
+      "speaker": "七实",
+      "text": "【指挥官】，这是七实的爸爸，这是七实的妈妈！这个是七实的狗狗，叫米米！",
+      "template": "【指挥官姓名】，这是七实的爸爸，这是七实的妈妈！这个是七实的狗狗，叫米米！"
+    },
+    {
+      "packId": "pgr-ch32",
+      "nodeId": "ch32-8e7c98d77475ae0f6237-c5b7188a17b0beeb3dda",
+      "sectionId": "ch32-8e7c98d77475ae0f6237",
+      "speaker": "七实",
+      "text": "嗯嗯！【指挥官】，你在这边等一下七实，七实一会儿带着米米来和你一起玩！",
+      "template": "嗯嗯！【指挥官姓名】，你在这边等一下七实，七实一会儿带着米米来和你一起玩！"
+    },
+    {
+      "packId": "pgr-ch32",
+      "nodeId": "ch32-8e7c98d77475ae0f6237-8f7d6c1d26dd70080bef",
+      "sectionId": "ch32-8e7c98d77475ae0f6237",
+      "speaker": "七实",
+      "text": "【指挥官】！你看！这是七实今天画的鲸鱼！",
+      "template": "【指挥官姓名】！你看！这是七实今天画的鲸鱼！"
+    },
+    {
+      "packId": "pgr-ch32",
+      "nodeId": "ch32-8e7c98d77475ae0f6237-0524b012a4a717e20d96",
+      "sectionId": "ch32-8e7c98d77475ae0f6237",
+      "speaker": "七实",
+      "text": "这就是【指挥官】眼中的世界吗？",
+      "template": "这就是【指挥官姓名】眼中的世界吗？"
+    },
+    {
+      "packId": "pgr-ch32",
+      "nodeId": "ch32-8e7c98d77475ae0f6237-f0ca1cf5b290a0beb1ea",
+      "sectionId": "ch32-8e7c98d77475ae0f6237",
+      "speaker": "七实",
+      "text": "接下来，能给七实讲一下，【指挥官】眼中的鲸鱼是什么样子吗！",
+      "template": "接下来，能给七实讲一下，【指挥官姓名】眼中的鲸鱼是什么样子吗！"
+    },
+    {
+      "packId": "pgr-ch32",
+      "nodeId": "ch32-8e7c98d77475ae0f6237-be65be23b7705f695f74",
+      "sectionId": "ch32-8e7c98d77475ae0f6237",
+      "speaker": "七实",
+      "text": "【指挥官】！我们一起种下去的花发芽了！",
+      "template": "【指挥官姓名】！我们一起种下去的花发芽了！"
+    },
+    {
+      "packId": "pgr-ch32",
+      "nodeId": "ch32-8e7c98d77475ae0f6237-8423b5e7e47957a18fff",
+      "sectionId": "ch32-8e7c98d77475ae0f6237",
+      "speaker": "七实",
+      "text": "这朵我给它起了名字哦，它就叫【指挥官】！",
+      "template": "这朵我给它起了名字哦，它就叫【指挥官姓名】！"
+    },
+    {
+      "packId": "pgr-ch32",
+      "nodeId": "ch32-8e7c98d77475ae0f6237-43e316f5bcea0a311446",
+      "sectionId": "ch32-8e7c98d77475ae0f6237",
+      "speaker": "七实",
+      "text": "欸……【指挥官】？",
+      "template": "欸……【指挥官姓名】？"
+    },
+    {
+      "packId": "pgr-ch32",
+      "nodeId": "ch32-8e7c98d77475ae0f6237-e7426e37acafeed12e6d",
+      "sectionId": "ch32-8e7c98d77475ae0f6237",
+      "speaker": "小七实",
+      "text": "这是之前我们一起种下的花，这朵就是【指挥官】哦！",
+      "template": "这是之前我们一起种下的花，这朵就是【指挥官姓名】哦！"
+    },
+    {
+      "packId": "pgr-ch32",
+      "nodeId": "ch32-8e7c98d77475ae0f6237-18231e86c51e7d6d3cea",
+      "sectionId": "ch32-8e7c98d77475ae0f6237",
+      "speaker": "旁白",
+      "text": "她有一个幸福的家，有爸爸，妈妈，米米，有叫【指挥官】的朋友。",
+      "template": "她有一个幸福的家，有爸爸，妈妈，米米，有叫【指挥官姓名】的朋友。"
+    },
+    {
+      "packId": "pgr-ch32",
+      "nodeId": "ch32-1b175c82e15476656899-a6a0ca2fa52c7e0202a3",
+      "sectionId": "ch32-1b175c82e15476656899",
+      "speaker": "七实",
+      "text": "把需要转交的东西交给我，我会帮助你递交给【指挥官】。",
+      "template": "把需要转交的东西交给我，我会帮助你递交给【指挥官姓名】。"
+    },
+    {
+      "packId": "pgr-ch32",
+      "nodeId": "ch32-bcc09e10aef7f7fec11a-2bacfd26d78b06fef16c",
+      "sectionId": "ch32-bcc09e10aef7f7fec11a",
+      "speaker": "？？？",
+      "text": "【灰鸦指挥官】……醒醒……",
+      "template": "【指挥官姓名】……醒醒……"
+    }
+  ]
+}

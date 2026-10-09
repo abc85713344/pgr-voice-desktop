@@ -21,7 +21,7 @@ public partial class MainWindow
     // 它验证真实控件事件接线和状态，不能代替实体鼠标命中与真实游戏实测。
     async Task RunBranchMouseUiTest()
     {
-        const string fixture = @"fixtures\第29章_源解信标\pack.json";
+        const string fixture = @"packs\第29章_源解信标\pack.json";
         var results = new List<string>
         {
             "SCOPE: isolated WPF routed mouse events, reflected ClickCount, and UIA button Invoke; not physical input.",

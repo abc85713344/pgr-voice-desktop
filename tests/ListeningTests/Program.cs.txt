@@ -352,6 +352,12 @@ Test("v3段落边界可进入已登记菜单但不泄漏其他范围", () => {
     var outer=C("outer",O("route","a",null));var o=outer.Options[0];
     o.BodyVerified=true;o.SegmentIds=new(){"a","wait"};o.BoundaryId="wait";o.BodyEvidence=new(){"fixture"};
     var p=Interaction();p.Nodes.Insert(0,outer);p.Chapters[0].Sections[0].StartId="outer";
+    // 此例验证已核续接菜单；升级为v3后需明确其子正文/出口元数据，不能沿用v1的默认false。
+    foreach(var child in p.ById["c"].Options) {
+        child.BodyVerified=true;child.ExitVerified=true;child.SegmentIds=new(){child.TargetId};
+        child.ReturnId=child.MergeId;
+        child.BodyEvidence=new(){"fixture"};child.ExitEvidence=new(){"fixture"};
+    }
     p.ById["a"].PathId="route";p.ById["wait"].PathId="route";p.SchemaVersion=3;p.Validate();
     var s=new ListeningSession(p,"ch");Expect(Lines(s)=="a,b,z");Expect(!s.Items.Any(i=>i.Kind==ListeningItemKind.Choice));
 });

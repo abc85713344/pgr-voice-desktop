@@ -16,6 +16,11 @@ public partial class MainWindow
     {
         if(closing || !preferences.GamepadEnabled || recordingAction!=null || keyEditor?.IsVisible==true)return "";
         var foreground=Native.GetForegroundWindow();
+        if(chapterPicker?.IsVisible==true)return foreground==new WindowInteropHelper(chapterPicker).Handle?"chapter-picker":"";
+        if(sectionPicker?.IsVisible==true)return foreground==new WindowInteropHelper(sectionPicker).Handle?"section-picker":"";
+        if(experienceDialog?.IsVisible==true)return foreground==new WindowInteropHelper(experienceDialog).Handle?"experience-dialog":"";
+        var listeningMenuContext=ListeningRechoiceGamepadContext(foreground);
+        if(listeningMenuContext!=null)return listeningMenuContext;
         if(branchMenu.IsVisible && branchMenu.GamepadNavigation && foreground==branchMenu.Handle)return "branch:"+branchMenu.Epoch;
         if(expanded && foreground==new WindowInteropHelper(this).Handle)return "panel:"+Tabs.SelectedIndex+":"+locating;
         if(game!=null && foreground==game.Handle && Native.IsWindow(game.Handle))return "game";
@@ -71,7 +76,7 @@ public partial class MainWindow
             gamepadGate.Reset();gamepadRequireNeutral=true;gamepadNavigation?.ReleaseHighlight();return;
         }
         // 不等按钮松开才停止自动点击。后台快照也被 AutomaticEnvironment 检查。
-        if(automaticRunning && (buttons!=GamepadButtons.None || Math.Abs(reading.RightX)>.45 || Math.Abs(reading.RightY)>.45))
+        if(context is not ("chapter-picker" or "section-picker" or "experience-dialog") && automaticRunning && (buttons!=GamepadButtons.None || Math.Abs(reading.RightX)>.45 || Math.Abs(reading.RightY)>.45))
         {StopAutomatic("检测到手柄操作，自动播放已停止，请核对当前句。");gamepadGate.Reset();return;}
         if(gamepadRequireNeutral)
         {
@@ -118,6 +123,10 @@ public partial class MainWindow
     void HandleGamepadAction(string action,long timestamp)
     {
         string context=GetGamepadContext();if(context.Length==0)return;
+        if(context=="experience-dialog"){experienceDialog?.GamepadAction(action);return;}
+        if(context=="chapter-picker"){chapterPicker?.GamepadAction(action);return;}
+        if(context=="section-picker"){sectionPicker?.GamepadAction(action);return;}
+        if(context.StartsWith("listening-rechoice:",StringComparison.Ordinal)){HandleListeningRechoiceGamepad(action);return;}
         bool panel=context.StartsWith("panel:"),branch=context.StartsWith("branch:");
         if(action=="panel"){OpenGamepadPanel();return;}
         if(action=="next")

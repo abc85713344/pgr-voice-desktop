@@ -29,7 +29,8 @@ public partial class MainWindow
             (Action: "replay", Label: "重播", Help: "重播当前句"),
             (Action: "manualNext", Label: "下一句", Help: "仅校正配音到下一句，不点击游戏"),
             (Action: "pause", Label: "暂停跟随", Help: "暂停或恢复跟随；不会开启自动点击"),
-            (Action: "ocr", Label: "定位", Help: "识别一次游戏画面，在候选页确认位置")
+            (Action: "ocr", Label: "定位", Help: "识别一次游戏画面，在候选页确认位置"),
+            (Action: "continuation", Label: "手动续接", Help: "浏览本节全部台词；确认游戏当前句后才播放")
         })
         {
             string action = entry.Action;
@@ -46,6 +47,7 @@ public partial class MainWindow
         compactControlsSetting.Unchecked += (_, _) => SetCompactControlsEnabled(false);
         StripState.TextWrapping = TextWrapping.Wrap;
         StripState.TextTrimming = TextTrimming.None;
+        InitializeDesktopBranchFeedback(grid);
         compactControlsReady = true;
         RefreshCompactFollowControls();
     }
@@ -60,6 +62,7 @@ public partial class MainWindow
 
     void RunCompactFollowAction(string action)
     {
+        if (action == "continuation") { OpenBranchFeedbackContinuation(); return; }
         bool wasCompact = !expanded;
         IntPtr gameHandle = game?.Handle ?? IntPtr.Zero;
         bool automatic = automaticRunning || automaticPendingOwner != null || automaticPreparingOwner != null;
@@ -97,7 +100,7 @@ public partial class MainWindow
             else
             {
                 StripSpeaker.Text = engine?.Current?.Speaker ?? "剧情配音";
-                StripText.Text = engine?.Current?.Text ?? "请选择起始台词";
+                StripText.Text = GameBranchLineText();
                 StripState.Text = automaticRunning ? "共同线自动播放 · " + automaticStatus.Text
                     : automaticPreparingOwner != null ? "正在定位自动播放起点"
                     : automaticPendingOwner != null ? "等待确认自动播放起点"
@@ -108,6 +111,7 @@ public partial class MainWindow
                 compactFollowActions["ocr"].ToolTip = "识别一次游戏画面，在候选页确认位置";
                 StripView.BorderBrush = engine?.MenuWaiting == true ? LineRow.BranchAccent : Theme.Brush("NormalAccent");
             }
+            RefreshBranchFeedbackPresentation();
             StripState.ToolTip = StripState.Text;
         }
         finally { compactControlsRefreshing = false; }

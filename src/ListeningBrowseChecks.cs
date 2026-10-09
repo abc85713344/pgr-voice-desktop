@@ -116,9 +116,10 @@ public partial class MainWindow
                 "UIA目录互动定位按钮按项目编号静音打开相同待选菜单");
             listeningSession.SeekNode("browse-current"); listeningBrowsingLocation = false; RefreshListening();
             Browse("browse-one", "browse-tail"); await Invoke(listeningLocate);
-            check(listeningSession.Current?.Id == pending.Id && !listeningRunning
+            check(listeningSession.Current?.NodeId == "browse-current" && !listeningRunning && listeningPreviewNode?.Id == "browse-tail"
                 && !listeningSession.Items.Any(i => i.NodeId == "browse-tail"),
-                "定位互动后面的预览台词先停在本节待选菜单，不越过选择直接播放后文");
+                "未接入的后文可显式单句试听，原收听位置和未选菜单不改变");
+            await Invoke(listeningPendingChoice);
             var optionButton = listeningChoices.Children.OfType<Button>().Single(b => b.Content?.ToString() == "与地上的构造体互动");
             await Invoke(optionButton); long selectedTicket = listeningTicket;
             optionButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); OnListeningCompleted(previousTicket); await Drain();
@@ -141,8 +142,9 @@ public partial class MainWindow
                 "普通分支与等待互动共用静音定位入口，首项菜单可以正常打开");
             string beforeUnknown = listeningSession.Current!.Id;
             Browse("browse-four", "browse-unlinked"); await Invoke(listeningLocate);
-            check(listeningSession.Current?.Id == beforeUnknown && !listeningRunning && listeningStatus.Text.Contains("尚未接入"),
-                "没有本节待选菜单的未核实预览不能越线，保留原位置并说明连接未核实");
+            check(listeningSession.Current?.Id == beforeUnknown && !listeningRunning && listeningPreviewNode?.Id == "browse-unlinked"
+                && listeningStatus.Text.Contains("仅试听"),
+                "没有待选菜单的未接入正文也可单句试听，保留原路线位置且不连续推进");
             check(engine == null || System.Text.Json.JsonSerializer.Serialize(engine.ExportNavigation()) == gameBefore,
                 "完整目录浏览、互动确认及后文续听都不改变游戏路线进度");
 

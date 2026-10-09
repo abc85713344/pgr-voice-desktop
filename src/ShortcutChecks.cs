@@ -9,6 +9,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using PgrVoice.Listening;
 
 namespace PgrVoice;
 
@@ -52,9 +53,23 @@ public partial class MainWindow
 
     async Task RunShortcutUiTest()
     {
-        var results = new List<string>(); Window? scene = null;
+        var results = new List<string>(); var controlDiagnostics = new List<object>(); Window? scene = null;
         void Check(bool ok, string message) => results.Add((ok ? "PASS: " : "FAIL: ") + message);
         async Task Drain() { await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle); }
+        void Diagnostic(string phase, Control control, KeyEventArgs? input = null)
+        {
+            controlDiagnostics.Add(new { phase, control = control.GetType().Name, control.IsLoaded, control.IsVisible,
+                control.IsKeyboardFocusWithin, dropdownOpen = (control as ComboBox)?.IsDropDownOpen,
+                selectedIndex = (control as ComboBox)?.SelectedIndex, itemCount = (control as ComboBox)?.Items.Count,
+                expanded, current = engine?.CurrentId, mode = engine?.Mode.ToString(), playCalls,
+                listeningRunning, listeningTicket, listeningNode = listeningSession?.Current?.NodeId,
+                sessionPolicy = listeningSession?.Policy.ToString(), savedPolicy = ListeningProgress?.Resume?.Policy.ToString(),
+                listeningSaveWarning,
+                foreground = Native.GetForegroundWindow().ToInt64(), own = new WindowInteropHelper(this).Handle.ToInt64(),
+                handled = input?.Handled, originalSource = input?.OriginalSource?.GetType().Name });
+        }
+        void Require(bool ok, string message)
+        { if (!ok) throw new InvalidOperationException(message + "；详细前提见 shortcut-control-diagnostics.json"); Check(true, message); }
         try
         {
             timer.Stop(); rawKeyboard?.Dispose(); keyboard?.Dispose(); keyboard = null;
@@ -78,7 +93,7 @@ public partial class MainWindow
                     new() { Id="merge", SectionId="section", Kind="merge", NextId="tail" },
                     new() { Id="tail", SectionId="section", Text="共同线末句", Audio="voice.wav" }
                 } };
-            pack.Validate(); string file = Path.Combine(root, "pack.json"); Json.Save(file, pack); LoadPack(file);
+            pack.Validate(); string file = Path.Combine(root, "pack.json"); Json.Save(file, pack); SetLibrary(root); LoadPack(file);
             var own = new WindowInteropHelper(this).Handle;
             KeyEventArgs Local(Key key, UIElement? source = null)
             {
@@ -98,7 +113,9 @@ public partial class MainWindow
             Prepare(); before=playCalls; Local(Key.Space);
             Check(engine.CurrentId == "a" && playCalls==before, "展开面板的空格不充当游戏推进键");
             Local(Key.F2); Check(Tabs.SelectedItem==historyTab && engine.Mode==RunMode.Paused, "面板 F2 打开历史并暂停游戏跟随");
-            Prepare(); Local(Key.F4); await Drain(); Check(Tabs.SelectedItem==StoryTab && LibraryBox.IsKeyboardFocusWithin, "面板 F4 聚焦章节目录");
+            Prepare(); await PrepareIsolatedTestForeground(this, "F4目录检查无法取得播放器前台");
+            Local(Key.F4); await Drain(); Diagnostic("catalog-after-F4", chapterPickerButtons[LibraryBox].Chapter);
+            Check(Tabs.SelectedItem==StoryTab && chapterPickerButtons[LibraryBox].Chapter.IsKeyboardFocusWithin, "面板 F4 聚焦章节目录");
             Prepare(); Local(Key.F1); Check(branchMenu.IsVisible && branchMenu.IsNavigation && engine.CurrentId=="a", "面板 F1 静音打开手动分支导航");
             HideBranchMenu(); engine.Commit("menu"); engine.SelectBranch(1); Expand(StoryTab); Local(Key.F3);
             Check(engine.CurrentId=="menu" && engine.MenuWaiting, "面板 F3 返回实际选择点");
@@ -111,6 +128,108 @@ public partial class MainWindow
             Check(playCalls==before, "在搜索框输入已改绑字母不触发剧情动作");
             Local(Key.J, LinesList); Check(playCalls==before+1, "离开输入框后改绑字母可以重播");
             before=playCalls; Local(Key.F5); Check(playCalls==before, "改绑后面板旧 F5 不再生效"); preferences.Keys["replay"]="F5";
+
+            // 真实控件上的隧道事件检查窗口路由；再发冒泡事件检查原生调整仍然可用。
+            var appearance = SettingsContent.Children.OfType<Expander>().Single(x => Equals(x.Header, "外观与声音"));
+            var scaleBox = AppearanceSettingsContent.Children.OfType<ComboBox>().First();
+            double priorScale = preferences.ReadingScale, priorVolume = VolumeSlider.Value;
+            async Task PrepareSettings()
+            {
+                Prepare(); Expand(SettingsTab); appearance.IsExpanded = true; scaleBox.BringIntoView(); scaleBox.Focus();
+                await PrepareIsolatedTestForeground(this, "设置控件检查无法取得播放器前台");
+                UpdateLayout(); await Drain(); scaleBox.BringIntoView(); scaleBox.Focus(); await Drain();
+                Diagnostic("settings-loaded", scaleBox);
+                Require(scaleBox.IsLoaded && scaleBox.IsVisible && scaleBox.IsKeyboardFocusWithin, "设置下拉已加载可见且实际取得键盘焦点");
+            }
+            KeyEventArgs NativeControlKey(Key key, UIElement source)
+            {
+                var args = Local(key, source);
+                if (!args.Handled) { args.RoutedEvent = Keyboard.KeyDownEvent; source.RaiseEvent(args); }
+                return args;
+            }
+            var controlKeys = new[] { Key.PageUp, Key.PageDown, Key.Up, Key.Down, Key.Home, Key.End, Key.Space, Key.Enter };
+            foreach (bool open in new[] { false, true })
+            {
+                await PrepareSettings(); scaleBox.IsDropDownOpen = open; await Drain();
+                Diagnostic(open ? "settings-open-before-keys" : "settings-closed-before-keys", scaleBox);
+                Require(scaleBox.IsDropDownOpen == open, open ? "设置下拉实际展开后检查按键" : "设置下拉实际收起后检查按键");
+                before = playCalls;
+                foreach (var key in controlKeys)
+                {
+                    var routed = Local(key, scaleBox);
+                    Check(!routed.Handled && engine.CurrentId == "a" && playCalls == before && expanded && Tabs.SelectedItem == SettingsTab,
+                        $"设置下拉{(open ? "展开" : "收起")}时 {key} 交原控件，不播放或切换剧情");
+                }
+                preferences.Keys["replay"] = "J";
+                var letter = Local(Key.J, scaleBox);
+                Check(!letter.Handled && engine.CurrentId == "a" && playCalls == before,
+                    $"设置下拉{(open ? "展开" : "收起")}时改绑 J 不抢文字检索");
+                preferences.Keys["replay"] = "F5";
+                if (open)
+                {
+                    Diagnostic("settings-before-escape", scaleBox);
+                    Require(scaleBox.IsDropDownOpen, "设置Esc场景发键前下拉仍实际展开");
+                    var escape = Local(Key.Escape, scaleBox);
+                    Diagnostic("settings-after-escape", scaleBox, escape);
+                    Check(escape.Handled && !scaleBox.IsDropDownOpen && expanded && engine.CurrentId == "a" && playCalls == before,
+                        "设置下拉 Esc 仅关闭下拉，不收起面板或改变剧情");
+                }
+                scaleBox.IsDropDownOpen = false;
+            }
+            await PrepareSettings(); scaleBox.SelectedIndex = 0; before = playCalls;
+            NativeControlKey(Key.Down, scaleBox);
+            Check(scaleBox.SelectedIndex == 1 && preferences.ReadingScale == 1.25 && engine.CurrentId == "a" && playCalls == before,
+                "阅读比例原生 Down 仍调整并保存设置，不播放");
+            VolumeSlider.Focus(); before = playCalls;
+            foreach (var key in controlKeys.Concat(new[] { Key.Left, Key.Right }))
+            {
+                var routed = Local(key, VolumeSlider);
+                Check(!routed.Handled && engine.CurrentId == "a" && playCalls == before && expanded,
+                    $"音量滑块 {key} 不被剧情快捷键抢走");
+            }
+            VolumeSlider.Value = 50; NativeControlKey(Key.Right, VolumeSlider);
+            Check(VolumeSlider.Value > 50 && preferences.Volume == VolumeSlider.Value && engine.CurrentId == "a" && playCalls == before,
+                "音量滑块原生 Right 仍调整并保存音量，不播放");
+            Local(Key.F5, VolumeSlider);
+            Check(playCalls == before + 1 && engine.CurrentId == "a", "设置滑块仍保留 F5 明确重播快捷键");
+            scaleBox.SelectedIndex = Array.IndexOf(new[] { 1d, 1.25, 1.5, 2d }, priorScale);
+            VolumeSlider.Value = priorVolume;
+
+            game = null; Expand(listeningTab); OpenListeningPack(file, "chapter"); StartListening();
+            listeningOptions.IsExpanded = true;
+            await PrepareIsolatedTestForeground(this, "听书策略检查无法取得播放器前台");
+            UpdateLayout(); await Drain(); listeningPolicy.BringIntoView(); listeningPolicy.Focus(); await Drain();
+            Diagnostic("listening-policy-loaded", listeningPolicy);
+            Require(listeningPolicy.IsLoaded && listeningPolicy.IsVisible && listeningPolicy.IsKeyboardFocusWithin, "听书策略已加载可见且实际取得键盘焦点");
+            long policyTicket = listeningTicket; string? policyPosition = listeningSession?.Current?.NodeId;
+            before = playCalls;
+            foreach (var key in controlKeys)
+            {
+                var routed = Local(key, listeningPolicy);
+                Check(!routed.Handled && listeningTicket == policyTicket && listeningRunning && listeningSession?.Current?.NodeId == policyPosition && playCalls == before,
+                    $"听书策略下拉 {key} 先交原控件，不误调用听书上一句或下一句");
+            }
+            listeningPolicy.IsDropDownOpen = true; await Drain(); Diagnostic("listening-before-escape", listeningPolicy);
+            Require(listeningPolicy.IsDropDownOpen, "听书Esc场景发键前下拉实际展开");
+            var policyEscape = Local(Key.Escape, listeningPolicy); Diagnostic("listening-after-escape", listeningPolicy, policyEscape);
+            Check(!listeningPolicy.IsDropDownOpen && expanded && listeningRunning && listeningTicket == policyTicket && listeningSession?.Current?.NodeId == policyPosition,
+                "听书策略下拉 Esc 仅关闭下拉，保播放票据和当前句");
+            // Popup关闭和焦点还原由Dispatcher完成，下一次实体按键也会发生在其后。
+            await Drain(); listeningPolicy.Focus(); await Drain(); Diagnostic("listening-before-native-policy-key", listeningPolicy);
+            Require(listeningPolicy.IsLoaded && listeningPolicy.IsVisible && listeningPolicy.IsKeyboardFocusWithin && !listeningPolicy.IsDropDownOpen,
+                "听书原生策略调整前下拉已关闭并稳定取得焦点");
+            int priorPolicy = listeningPolicy.SelectedIndex;
+            int expectedPolicyIndex = priorPolicy == 0 ? 1 : priorPolicy - 1;
+            var expectedPolicy = expectedPolicyIndex switch { 1 => ListeningBranchPolicy.First, 2 => ListeningBranchPolicy.All, _ => ListeningBranchPolicy.Manual };
+            var policyKey = NativeControlKey(priorPolicy == 0 ? Key.Down : Key.Up, listeningPolicy);
+            Diagnostic("listening-after-native-policy-key", listeningPolicy, policyKey); await Drain();
+            Diagnostic("listening-after-native-policy-drain", listeningPolicy);
+            Check(listeningPolicy.SelectedIndex == expectedPolicyIndex && listeningSession?.Policy == expectedPolicy && !listeningRunning && listeningSession?.Current?.NodeId == policyPosition && playCalls == before,
+                "听书策略原生调整按既有规则暂停并保存策略，不跳句或重播");
+            var savedPolicy = listeningStore!.Load(pack.Id).ForChapter("chapter").Resume;
+            Check(savedPolicy?.Policy == expectedPolicy && savedPolicy.NodeId == policyPosition && listeningProgressWarning.Length == 0,
+                "听书原生键选中的具体策略和原当前句实际保存并可重读");
+            Prepare();
 
             // 窗口由本测试进程创建，仅直接调用路由入口，不注入系统按键。
             scene = new Window { Title="功能键模拟游戏", Width=360, Height=200, Background=Brushes.DarkSlateGray, ShowInTaskbar=false };
@@ -162,6 +281,7 @@ public partial class MainWindow
         }
         catch(Exception ex){results.Add("FAIL: "+ex);}
         finally{listeningTestAudio=false;game=null;scene?.Close();}
-        Directory.CreateDirectory(Log.DataDir);File.WriteAllLines(Path.Combine(Log.DataDir,"shortcut-ui-test.txt"),results);Close();
+        Directory.CreateDirectory(Log.DataDir);File.WriteAllLines(Path.Combine(Log.DataDir,"shortcut-ui-test.txt"),results);
+        Json.Save(Path.Combine(Log.DataDir,"shortcut-control-diagnostics.json"),controlDiagnostics);Close();
     }
 }

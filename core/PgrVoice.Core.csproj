@@ -6,6 +6,9 @@
     <AssemblyName>PgrVoice.Core</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
+    <EmbeddedResource Include="ChapterCatalog.json" LogicalName="PgrVoice.ChapterCatalog.json" />
+    <EmbeddedResource Include="SectionOrder.json" LogicalName="PgrVoice.SectionOrder.json" />
+    <EmbeddedResource Include="NativeVoiceCatalog.json" LogicalName="PgrVoice.NativeVoiceCatalog.json" Condition="Exists('NativeVoiceCatalog.json')" />
     <Compile Include="../src/Domain.cs" Link="Domain.cs" />
     <Compile Include="../src/Navigation.cs" Link="Navigation.cs" />
     <Compile Include="../src/ObservedNavigation.cs" Link="ObservedNavigation.cs" />

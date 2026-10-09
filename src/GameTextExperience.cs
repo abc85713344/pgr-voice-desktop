@@ -70,8 +70,8 @@ public partial class MainWindow
         Mirror(gameTextLibrary, LibraryBox); Mirror(gameTextSection, SectionBox); Mirror(gameTextChapter, ChapterBox);
         var selectors = new Grid { Margin = new Thickness(0, 0, 0, 10) };
         selectors.ColumnDefinitions.Add(new() { Width = new GridLength(1, GridUnitType.Star) }); selectors.ColumnDefinitions.Add(new() { Width = new GridLength(1.2, GridUnitType.Star) });
-        var chapter = new StackPanel { Margin = new Thickness(0, 0, 8, 0) }; chapter.Children.Add(new TextBlock { Text = "章节", FontSize = 11, Foreground = Theme.Brush("MutedText") }); chapter.Children.Add(gameTextLibrary);
-        var section = new StackPanel(); section.Children.Add(new TextBlock { Text = "小节", FontSize = 11, Foreground = Theme.Brush("MutedText") }); section.Children.Add(gameTextSection);
+        var chapter = new StackPanel { Margin = new Thickness(0, 0, 8, 0) }; chapter.Children.Add(new TextBlock { Text = "章节", FontSize = 11, Foreground = Theme.Brush("MutedText") }); chapter.Children.Add(gameTextLibrary); chapter.Children.Add(ChapterPickerControls(gameTextLibrary));
+        var section = new StackPanel(); section.Children.Add(new TextBlock { Text = "小节", FontSize = 11, Foreground = Theme.Brush("MutedText") }); section.Children.Add(gameTextSection); section.Children.Add(SectionPickerControl(gameTextSection));
         Grid.SetColumn(section, 1); selectors.Children.Add(chapter); selectors.Children.Add(section); panel.Children.Add(selectors);
         gameTextChapter.SetBinding(VisibilityProperty, new Binding("Visibility") { Source = ChapterSelector }); panel.Children.Add(gameTextChapter);
         panel.Children.Add(followModeTabs);
@@ -125,28 +125,36 @@ public partial class MainWindow
         gameTextResume.Click += (_, _) => BeginTextMonitoring();
         AddButton(playback, "暂停配音", () => PauseTextPlayback("游戏配音已暂停，仍显示读取到的文字。"));
         AddButton(playback, "断开连接", () => StopGameText("已断开游戏文字连接。"));
+        AddButton(playback, "反馈当前句", FeedbackGameLine);
         gameTextNotice.FontSize = 11; gameTextNotice.Foreground = Theme.Brush("MutedText"); panel.Children.Add(gameTextNotice);
         panel.Children.Add(automaticCard);
         var help = new TextBlock { Text = "无需 OCR。只读监听游戏已有的对白框；首次寻找可能需要数秒。缺音频、对白未出现或当前句不明确时等待。切场景后后台重新寻找；暂停或断开后不会自行恢复播放。", TextWrapping = TextWrapping.Wrap, FontSize = 11, Foreground = Theme.Brush("MutedText"), Margin = new Thickness(0, 5, 0, 5) };
         panel.Children.Add(new Expander { Header = "连接说明", Content = help, Margin = new Thickness(0, 5, 0, 0) });
         UpdateGameTextModeLabel();
     }
-    void UpdateGameTextModeLabel() => gameTextMode.Text = textArmed ? (textAutoBox.IsChecked == true ? "当前方式：文字跟随 + 播完自动下一句" : "当前方式：文字跟随 · 你手动换句") : "游戏文字跟随 · 推荐";
+    void UpdateGameTextModeLabel() => gameTextMode.Text = inputBranchRecovery != null ? "正在接续游戏支线 · 接上后保持原跟随方式" : textArmed ? (textAutoBox.IsChecked == true ? "当前方式：文字跟随 + 播完自动下一句" : "当前方式：文字跟随 · 你手动换句") : "游戏文字跟随 · 推荐";
     void TextNotice(string message) { gameTextNotice.Text = message; UpdateGameTextModeLabel(); Log.Write("game-text", message); }
-    void PauseTextPlayback(string reason)
+    void PauseTextPlayback(string reason, bool preserveBranchAudio = false)
     {
+        bool showBranchPause = BranchFeedbackContext;
+        ClearBranchWaitReason();
+        bool branchRecovery = inputBranchRecovery != null;
+        inputBranchRecovery = null;
         CancelTextAutoAdvance();
         textArmed = false;
         foreach (var probe in textProbes)
         {
             probe.AutoConnect = false;
+            if (branchRecovery) { probe.Reader?.Dispose(); probe.Reader = null; }
             if (probe.Binding is not { } binding) continue;
             probe.Revision++; probe.Binding = null; binding.Cancel();
             probe.Connect.Content = probe.Kind == GameTextKind.Ordinary ? "连接普通对白" : "连接 3D 对白";
             probe.Status.Text = "连接已取消";
         }
-        if (textSoundSource != null) { StopAudio(); textSoundSource = null; }
+        if (textSoundSource != null || branchRecovery && !preserveBranchAudio) StopAudio();
+        textSoundSource = null;
         TextNotice(reason); ResetFollowInputSession();
+        if (showBranchPause && !preserveBranchAudio) CaptureBranchWaitReason(reason, paused: true);
     }
     void StopGameText(string reason)
     {
@@ -226,6 +234,7 @@ public partial class MainWindow
         if (engine.Mode == RunMode.Original) { TextNotice("请先结束游戏原声时段，再开始文本配音。"); return; }
         StopAutomatic("已切换到文本追踪。"); StopListeningForGame(); StopPreview(); CancelOcr(); HideBranchMenu();
         CancelTextAutoAdvance();
+        ClearBranchWaitReason();
         textOwner = engine; textSection = section.Id; textArmed = true; lastTextPlayed = "";
         foreach (var probe in textProbes)
         {
@@ -238,6 +247,11 @@ public partial class MainWindow
     {
         if (!sample.Valid || !sample.Active || sample.Text.Length == 0)
         {
+            if (probe.Active) ClearObservedBranchWaitReason();
+            // 分支/场景切换可能重建对白框。首次消失后短暂等待再扫描，
+            // 不让原有15秒冷却迫使用户重连；连续空帧不重复续期或启动扫描。
+            if (probe.Active && textArmed && probe.AutoConnect)
+                probe.NextConnectAttempt = DateTime.UtcNow.AddMilliseconds(500);
             probe.Active = false; probe.Pending = probe.Observed = probe.PendingSpeaker = probe.ObservedSpeaker = "";
             probe.Status.Text = sample.Reason.Length > 0 ? sample.Reason : "正文已清空，等待下一句。";
             if (textSoundSource == probe) { StopAudio(); textSoundSource = null; }
@@ -245,6 +259,7 @@ public partial class MainWindow
         }
         probe.Active = true;
         if (sample.Text == probe.Observed && sample.Speaker == probe.ObservedSpeaker) return;
+        ClearObservedBranchWaitReason();
         probe.Observed = probe.Pending = sample.Text; probe.PendingSince = now;
         probe.ObservedSpeaker = probe.PendingSpeaker = sample.Speaker;
         gameTextLive.Text = probe.Title + "\n" + (sample.Speaker.Length > 0 ? sample.Speaker + "：" : "") + sample.Text;
@@ -257,6 +272,7 @@ public partial class MainWindow
     {
         bool simulated = testUi && gameTextSampleTest != null;
         if (closing || (testUi && !simulated) || (!simulated && !textProbes.Any(p => p.Reader != null || p.AutoConnect))) return;
+        if (!InputBranchRecoveryCurrent()) PauseTextPlayback("续接位置或状态已变化，分支监听已取消。");
         if (textOwner != engine) { PauseTextPlayback("配音章节已变化，请选好小节后恢复文本配音。"); textOwner = engine; }
         if (textArmed && SectionBox.SelectedItem is Section selectedSection && selectedSection.Id != textSection)
             PauseTextPlayback("所选小节已变化，请核对后恢复文本配音。");
@@ -287,9 +303,11 @@ public partial class MainWindow
                 CancelTextAutoAdvance("两路正文存在冲突，自动点击已取消。");
                 if (!textActiveConflict) TextNotice("两路同时启用了不同正文，等待明确当前句。");
                 textActiveConflict = true;
+                if (textArmed) CaptureBranchWaitReason("两路同时启用了不同正文，等待明确当前句。");
                 if (textSoundSource != null) { StopAudio(); textSoundSource = null; }
                 return;
             }
+            if (textActiveConflict) ClearObservedBranchWaitReason();
             textActiveConflict = false;
             TickTextAutoAdvance();
             // 读取和播放不依赖焦点；只有向游戏发送鼠标点击才需要前台。
@@ -309,18 +327,22 @@ public partial class MainWindow
         finally
         {
             if (!simulated && textArmed && !textProbes.Any(p => p.Reader != null || p.AutoConnect)) PauseTextPlayback("两路文本均未连接，请重新连接当前场景。");
+            RefreshCompactFollowControls();
         }
     }
     void WaitForNextMemoryLine(TextProbe probe, string reason)
     {
         if (textSoundSource != null) { StopAudio(); textSoundSource = null; }
         probe.Status.Text = reason; TextNotice(reason);
+        CaptureBranchWaitReason(reason);
     }
     void CommitMemoryGameText(TextProbe probe, PlaybackEngine owner, string text, string speaker = "")
     {
         if (!textArmed || owner != engine || owner != textOwner || owner.Mode == RunMode.Original) return;
         var node = GameTextPolicy.Match(owner.Pack, textSection, text, out string reason, speaker);
         if (node == null) { Log.Write("game-text-wait", $"角色={speaker}\t正文={text}"); WaitForNextMemoryLine(probe, reason); return; }
+        if (inputBranchRecovery is { } recovery &&
+            (!InputBranchRecoveryCurrent() || node.Id == recovery.PreviousLine || node.Id == recovery.Boundary)) return;
         if (!AutoPlaybackLinePolicy.CanPlay(owner.Pack, node))
         { WaitForNextMemoryLine(probe, "已定位：" + node.Speaker + " · 这句暂无可用配音，继续等待下一句。"); return; }
         string key = owner.Pack.Id + "/" + node.Id + "/" + text;
@@ -330,10 +352,11 @@ public partial class MainWindow
         {
             if (!owner.ConfirmGameLine(node.Id)) { WaitForNextMemoryLine(probe, owner.NavigationError + "；继续等待下一句。"); return; }
             lastTextPlayed = key; textSoundSource = probe; singleResume = false; DialoguePositionConfirmed();
-            CaptureTextAutoLine(probe, owner, text, speaker);
+            if (inputBranchRecovery == null) CaptureTextAutoLine(probe, owner, text, speaker);
             Log.Write("game-text-line", $"节点={node.Id}\t角色={node.Speaker}\t读取角色={speaker}\t正文={text}");
             TextNotice(probe.Title + " · 已匹配 " + node.Speaker +
                 (AutoPlaybackLinePolicy.IsSilentPunctuation(node) ? " · 标点停顿" : " 并播放"));
+            CompleteInputBranchRecovery();
         }
         finally { applyingMemoryLine = false; }
     }

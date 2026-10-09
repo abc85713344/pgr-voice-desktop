@@ -112,7 +112,7 @@ public sealed class ProgressStore
         EnsureLoaded();
         string file = FileFor(engine.Pack.Id);
         if (!documents.TryGetValue(engine.Pack.Id, out var document) || document.Navigation == null) { LastError = readErrors.GetValueOrDefault(file, ""); return false; }
-        bool restored = engine.ImportNavigation(Copy(document.Navigation));
+        bool restored = engine.ImportNavigation(Copy(document.Navigation), allowBoundaryResume: true);
         LastError = restored ? "" : engine.NavigationError;
         if (!restored)
         {
@@ -121,7 +121,7 @@ public sealed class ProgressStore
             try
             {
                 var backup = ReadDocument(file + ".bak");
-                if (backup.PackId == engine.Pack.Id && backup.Navigation != null && engine.ImportNavigation(Copy(backup.Navigation)))
+                if (backup.PackId == engine.Pack.Id && backup.Navigation != null && engine.ImportNavigation(Copy(backup.Navigation), allowBoundaryResume: true))
                 {
                     // 仅回退损坏的导航；主文档仍可读的最新书签不属于这次损坏，不能一起抹去。
                     document.Navigation = backup.Navigation; document.Summary = backup.Summary; document.UpdatedUtc = backup.UpdatedUtc;

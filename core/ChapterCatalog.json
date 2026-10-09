@@ -1,0 +1,1922 @@
+[
+  {
+    "id": "P8R_W_fe62912cb3d28b74",
+    "title": "EX00 极地暗流",
+    "category": "外篇剧情",
+    "order": 1
+  },
+  {
+    "id": "P8R_W_73979b07f06a58c8",
+    "title": "EX01 湛蓝曙日",
+    "category": "外篇剧情",
+    "order": 2
+  },
+  {
+    "id": "P8R_W_374544415fe9e732",
+    "title": "EX02 重返极夜",
+    "category": "外篇剧情",
+    "order": 3
+  },
+  {
+    "id": "P8R_W_5f0a78c67b862c15",
+    "title": "EX03 古铭遗章",
+    "category": "外篇剧情",
+    "order": 4
+  },
+  {
+    "id": "P8R_W_b85b3755ada7357c",
+    "title": "EX04 咏叹回声",
+    "category": "外篇剧情",
+    "order": 5
+  },
+  {
+    "id": "P8R_W_8b3d135b0b905e93",
+    "title": "EX05 迷境刻痕",
+    "category": "外篇剧情",
+    "order": 6
+  },
+  {
+    "id": "P8R_W_897b32bcf154e68b",
+    "title": "一出好戏",
+    "category": "间章剧情",
+    "order": 1
+  },
+  {
+    "id": "P8R_W_963f7385a76a1cf3",
+    "title": "准星所向",
+    "category": "间章剧情",
+    "order": 2
+  },
+  {
+    "id": "P8R_W_5e72464fc7727632",
+    "title": "利刃下的成长",
+    "category": "间章剧情",
+    "order": 3
+  },
+  {
+    "id": "P8R_W_1acc5b07cf1308ea",
+    "title": "友人",
+    "category": "间章剧情",
+    "order": 4
+  },
+  {
+    "id": "P8R_W_c0fea1597080d480",
+    "title": "名为英雄之物",
+    "category": "间章剧情",
+    "order": 5
+  },
+  {
+    "id": "P8R_W_52ed25659125a383",
+    "title": "吞噬",
+    "category": "间章剧情",
+    "order": 6
+  },
+  {
+    "id": "P8R_W_1d7394c32c01528d",
+    "title": "四二一",
+    "category": "间章剧情",
+    "order": 7
+  },
+  {
+    "id": "P8R_W_563048e16b17049a",
+    "title": "如影随形",
+    "category": "间章剧情",
+    "order": 8
+  },
+  {
+    "id": "P8R_W_33c5cf68db5ecb30",
+    "title": "宝物",
+    "category": "间章剧情",
+    "order": 9
+  },
+  {
+    "id": "P8R_W_87d1755f93a5d342",
+    "title": "帝江",
+    "category": "间章剧情",
+    "order": 10
+  },
+  {
+    "id": "P8R_W_cfd1a3a10aa5d19c",
+    "title": "帷幕与画布",
+    "category": "间章剧情",
+    "order": 11
+  },
+  {
+    "id": "P8R_W_006b36c8b8eecde5",
+    "title": "往何处逃离",
+    "category": "间章剧情",
+    "order": 12
+  },
+  {
+    "id": "P8R_W_39357d4e095d60cb",
+    "title": "悠夜蜉蝣",
+    "category": "间章剧情",
+    "order": 13
+  },
+  {
+    "id": "P8R_W_99a4e8ee08363a6e",
+    "title": "执棋者",
+    "category": "间章剧情",
+    "order": 14
+  },
+  {
+    "id": "P8R_W_409705781b031912",
+    "title": "无垢的祈祷",
+    "category": "间章剧情",
+    "order": 15
+  },
+  {
+    "id": "P8R_W_2bd8d373fd24a23b",
+    "title": "无瑕者",
+    "category": "间章剧情",
+    "order": 16
+  },
+  {
+    "id": "P8R_W_7658fc7293055b6f",
+    "title": "月光下的礼服",
+    "category": "间章剧情",
+    "order": 17
+  },
+  {
+    "id": "P8R_W_f7ec81a06c724da7",
+    "title": "梦回初",
+    "category": "间章剧情",
+    "order": 18
+  },
+  {
+    "id": "P8R_W_796054f432b10b8a",
+    "title": "瓦尔基里",
+    "category": "间章剧情",
+    "order": 19
+  },
+  {
+    "id": "P8R_W_2b98d2ab2649878a",
+    "title": "生花奏",
+    "category": "间章剧情",
+    "order": 20
+  },
+  {
+    "id": "P8R_W_57d03b6ae81be4cb",
+    "title": "白色光谱",
+    "category": "间章剧情",
+    "order": 21
+  },
+  {
+    "id": "P8R_W_a884d86780cd7660",
+    "title": "繁星谣",
+    "category": "间章剧情",
+    "order": 22
+  },
+  {
+    "id": "P8R_W_fe9597ae848b3105",
+    "title": "虚妄的曙光",
+    "category": "间章剧情",
+    "order": 23
+  },
+  {
+    "id": "P8R_W_bae09273e21d8a0d",
+    "title": "蜕变",
+    "category": "间章剧情",
+    "order": 24
+  },
+  {
+    "id": "P8R_W_1cc0e3e3a9bf47e3",
+    "title": "血色夕阳",
+    "category": "间章剧情",
+    "order": 25
+  },
+  {
+    "id": "P8R_W_a3afce35dccf02b6",
+    "title": "被冰封的心",
+    "category": "间章剧情",
+    "order": 26
+  },
+  {
+    "id": "P8R_W_088963202ee81e17",
+    "title": "迷途真理",
+    "category": "间章剧情",
+    "order": 27
+  },
+  {
+    "id": "P8R_W_b23cccadc4b6dfbb",
+    "title": "陨落陆地之星",
+    "category": "间章剧情",
+    "order": 28
+  },
+  {
+    "id": "P8R_W_4048f0cdf237cd8e",
+    "title": "雪岭晚祷",
+    "category": "间章剧情",
+    "order": 29
+  },
+  {
+    "id": "P8R_W_314ce019310acefb",
+    "title": "青鸟",
+    "category": "间章剧情",
+    "order": 30
+  },
+  {
+    "id": "P8R_W_eef9d605b424e7ac",
+    "title": "静滞长夜",
+    "category": "间章剧情",
+    "order": 31
+  },
+  {
+    "id": "P8R_W_feee133b3b4c2eef",
+    "title": "一起来玩吧！",
+    "category": "本我回廊",
+    "order": 1
+  },
+  {
+    "id": "P8R_W_bf0e192af25dde81",
+    "title": "临渊择途",
+    "category": "本我回廊",
+    "order": 2
+  },
+  {
+    "id": "P8R_W_bf35be5dcafa2d23",
+    "title": "心引定航",
+    "category": "本我回廊",
+    "order": 3
+  },
+  {
+    "id": "P8R_W_9fe00a32fd576bb9",
+    "title": "极乐净土",
+    "category": "本我回廊",
+    "order": 4
+  },
+  {
+    "id": "P8R_W_0baaf412389b890c",
+    "title": "烛灯刑",
+    "category": "本我回廊",
+    "order": 5
+  },
+  {
+    "id": "P8R_W_16799d936b4d1780",
+    "title": "铭刻长路",
+    "category": "本我回廊",
+    "order": 6
+  },
+  {
+    "id": "P8R_W_fafd408d9c37882a",
+    "title": "再无黄金",
+    "category": "黄金之涡",
+    "order": 1
+  },
+  {
+    "id": "P8R_W_13eedc72453791e2",
+    "title": "砂之梦",
+    "category": "黄金之涡",
+    "order": 2
+  },
+  {
+    "id": "P8R_W_25efa1c87b9ad667",
+    "title": "织命",
+    "category": "黄金之涡",
+    "order": 3
+  },
+  {
+    "id": "P8R_W_62b9825ec2003ee6",
+    "title": "黄金核心",
+    "category": "黄金之涡",
+    "order": 4
+  },
+  {
+    "id": "P8R_W_a7e08dea9fcd826d",
+    "title": "冰心潜影",
+    "category": "空中花园",
+    "order": 1
+  },
+  {
+    "id": "P8R_W_71b8457e011e167a",
+    "title": "初生意志的迷惘",
+    "category": "空中花园",
+    "order": 2
+  },
+  {
+    "id": "P8R_W_d4b4f20dd7571342",
+    "title": "向着未启之美",
+    "category": "空中花园",
+    "order": 3
+  },
+  {
+    "id": "P8R_W_eabea61b1f9c7933",
+    "title": "咖啡因难题",
+    "category": "空中花园",
+    "order": 4
+  },
+  {
+    "id": "P8R_W_57fc90ecf5bab958",
+    "title": "商业露天广场开发计划",
+    "category": "空中花园",
+    "order": 5
+  },
+  {
+    "id": "P8R_K_14acd8489a1e6fbb",
+    "title": "她的痕迹",
+    "category": "空中花园",
+    "order": 6
+  },
+  {
+    "id": "P8R_W_febdd916c55a7812",
+    "title": "安全之矛",
+    "category": "空中花园",
+    "order": 7
+  },
+  {
+    "id": "P8R_W_4f10f5616793604f",
+    "title": "归航与启程",
+    "category": "空中花园",
+    "order": 8
+  },
+  {
+    "id": "P8R_K_7382bd9c362e2fc9",
+    "title": "彼此之名",
+    "category": "空中花园",
+    "order": 9
+  },
+  {
+    "id": "P8R_W_763d94c6fc3bfb08",
+    "title": "数值疑云",
+    "category": "空中花园",
+    "order": 10
+  },
+  {
+    "id": "P8R_W_b5e6760d526ab912",
+    "title": "星海漂流的祝愿",
+    "category": "空中花园",
+    "order": 11
+  },
+  {
+    "id": "P8R_W_539c207df1916181",
+    "title": "智械狂欢",
+    "category": "空中花园",
+    "order": 12
+  },
+  {
+    "id": "P8R_K_dbbfc4bbdf5fa0d0",
+    "title": "未被破解的编码",
+    "category": "空中花园",
+    "order": 13
+  },
+  {
+    "id": "P8R_K_37d3890db8a6d610",
+    "title": "毕业后的切磋",
+    "category": "空中花园",
+    "order": 14
+  },
+  {
+    "id": "P8R_W_ee0d480fcf690bf7",
+    "title": "空中的花",
+    "category": "空中花园",
+    "order": 15
+  },
+  {
+    "id": "P8R_W_19e4194daa25ec80",
+    "title": "行至时间彼岸",
+    "category": "空中花园",
+    "order": 16
+  },
+  {
+    "id": "P8R_K_21f2c65f35d24c80",
+    "title": "角色日常对话",
+    "category": "空中花园",
+    "order": 17
+  },
+  {
+    "id": "P8R_W_9c70852934320c29",
+    "title": "轻叩心门",
+    "category": "空中花园",
+    "order": 18
+  },
+  {
+    "id": "P8R_W_d094278168957826",
+    "title": "逸时邀约",
+    "category": "空中花园",
+    "order": 19
+  },
+  {
+    "id": "P8R_K_72fa10ae3ae0e95f",
+    "title": "邂逅时光",
+    "category": "空中花园",
+    "order": 20
+  },
+  {
+    "id": "P8R_K_9b857fad495357a7",
+    "title": "邻座的神威同学",
+    "category": "空中花园",
+    "order": 21
+  },
+  {
+    "id": "P8R_W_723168030db45860",
+    "title": "厄愿潮声",
+    "category": "多维演绎",
+    "order": 1
+  },
+  {
+    "id": "P8R_W_44ff9aef003c3f64",
+    "title": "宣叙妄响",
+    "category": "多维演绎",
+    "order": 2
+  },
+  {
+    "id": "P8R_W_f7304bae490622dd",
+    "title": "寒境曙光",
+    "category": "多维演绎",
+    "order": 3
+  },
+  {
+    "id": "P8R_W_935836d3846dd193",
+    "title": "矩阵循生",
+    "category": "多维演绎",
+    "order": 4
+  },
+  {
+    "id": "P8R_W_c2d171101a242111",
+    "title": "神寂启示录",
+    "category": "时宇漫纪",
+    "order": 1
+  },
+  {
+    "id": "P8R_W_937eb48640e7f826",
+    "title": "雾夜镇魂曲",
+    "category": "时宇漫纪",
+    "order": 2
+  },
+  {
+    "id": "P8R_W_4f3b2695e53845b6",
+    "title": "寄渊残响",
+    "category": "联动",
+    "order": 1
+  },
+  {
+    "id": "P8R_W_fa8c077ea6a3a3fb",
+    "title": "幻寂鸣泣曲",
+    "category": "联动",
+    "order": 2
+  },
+  {
+    "id": "P8R_W_591b1697239c5e38",
+    "title": "镜焰迷城",
+    "category": "联动",
+    "order": 3
+  },
+  {
+    "id": "bw-ca90b9456e794a3f",
+    "title": "01 涂鸦艺术",
+    "category": "主线",
+    "order": 1000
+  },
+  {
+    "id": "bw-0e39dae7af092472",
+    "title": "02 苦刑之旅",
+    "category": "主线",
+    "order": 1001
+  },
+  {
+    "id": "bw-7815433421244978",
+    "title": "丽芙·霁梦/好感剧情",
+    "category": "好感剧情",
+    "order": 1000
+  },
+  {
+    "id": "bw-88e830859cda199e",
+    "title": "但丁·但丁/好感剧情",
+    "category": "好感剧情",
+    "order": 1001
+  },
+  {
+    "id": "bw-b079129ce7ae89bd",
+    "title": "卡列尼娜·烬燃/好感剧情",
+    "category": "好感剧情",
+    "order": 1002
+  },
+  {
+    "id": "bw-e2bee52708de57cb",
+    "title": "尼尔·2B/好感剧情",
+    "category": "好感剧情",
+    "order": 1003
+  },
+  {
+    "id": "bw-8e60a888c7bbfd9a",
+    "title": "拉弥亚·深谣/好感剧情",
+    "category": "好感剧情",
+    "order": 1004
+  },
+  {
+    "id": "bw-72a04fa4600b1f09",
+    "title": "曲·启明/好感剧情",
+    "category": "好感剧情",
+    "order": 1005
+  },
+  {
+    "id": "bw-af3f00c2d8a7611f",
+    "title": "比安卡·晖暮/好感剧情",
+    "category": "好感剧情",
+    "order": 1006
+  },
+  {
+    "id": "bw-f137fcb4578ecc29",
+    "title": "比安卡·深痕/好感剧情",
+    "category": "好感剧情",
+    "order": 1007
+  },
+  {
+    "id": "bw-97b13acad892c90b",
+    "title": "比安卡·真理/好感剧情",
+    "category": "好感剧情",
+    "order": 1008
+  },
+  {
+    "id": "bw-3a1bfa64ef623eb1",
+    "title": "维吉尔·维吉尔/好感剧情",
+    "category": "好感剧情",
+    "order": 1009
+  },
+  {
+    "id": "bw-2697c8bbdf8b4098",
+    "title": "赛琳娜·希声/好感剧情",
+    "category": "好感剧情",
+    "order": 1010
+  },
+  {
+    "id": "bw-ebb7cda2898e691f",
+    "title": "里·乱数/好感剧情",
+    "category": "好感剧情",
+    "order": 1011
+  },
+  {
+    "id": "bw-3a0d84062ac8d88a",
+    "title": "里·超刻/好感剧情",
+    "category": "好感剧情",
+    "order": 1012
+  },
+  {
+    "id": "bw-5318929b73c40784",
+    "title": "露娜·银冕/好感剧情",
+    "category": "好感剧情",
+    "order": 1013
+  },
+  {
+    "id": "bw-beaac19b19d5bd9b",
+    "title": "露西亚·深红之渊/好感剧情",
+    "category": "好感剧情",
+    "order": 1014
+  },
+  {
+    "id": "bw-159b87d6af770e77",
+    "title": "露西亚·深红囚影/好感剧情",
+    "category": "好感剧情",
+    "order": 1015
+  },
+  {
+    "id": "bw-5a5fa5c059c4acc9",
+    "title": "露西亚·誓焰/好感剧情",
+    "category": "好感剧情",
+    "order": 1016
+  },
+  {
+    "id": "bw-cfa5a2931fa73bdb",
+    "title": "露西亚·逆冕/好感剧情",
+    "category": "好感剧情",
+    "order": 1017
+  },
+  {
+    "id": "bw-c10f4d88e212e192",
+    "title": "露西亚·鸦羽/好感剧情",
+    "category": "好感剧情",
+    "order": 1018
+  },
+  {
+    "id": "bw-8644fdfdfd100b5a",
+    "title": "露西亚·红莲/好感剧情",
+    "category": "好感剧情",
+    "order": 1019
+  },
+  {
+    "id": "bw-ad6809ad2fc5b689",
+    "title": "BRS·BRS/好感剧情",
+    "category": "好感剧情",
+    "order": 1020
+  },
+  {
+    "id": "bw-65c829d40f743ecb",
+    "title": "八咫·徊闪/好感剧情",
+    "category": "好感剧情",
+    "order": 1021
+  },
+  {
+    "id": "bw-63d8442bbc54d4db",
+    "title": "卡列尼娜·爆裂/好感剧情",
+    "category": "好感剧情",
+    "order": 1022
+  },
+  {
+    "id": "bw-e7ad8205377670ca",
+    "title": "斜奏·裁律/好感剧情",
+    "category": "好感剧情",
+    "order": 1023
+  },
+  {
+    "id": "bw-2f65ca5643b0569c",
+    "title": "比安卡·零度/好感剧情",
+    "category": "好感剧情",
+    "order": 1024
+  },
+  {
+    "id": "bw-bd5016a35ed7809f",
+    "title": "洁塔薇·破晓/好感剧情",
+    "category": "好感剧情",
+    "order": 1025
+  },
+  {
+    "id": "bw-cab5e4bcd353f8e6",
+    "title": "渡边·夙星/好感剧情",
+    "category": "好感剧情",
+    "order": 1026
+  },
+  {
+    "id": "bw-6598e369bf8436f9",
+    "title": "渡边·夜刃/好感剧情",
+    "category": "好感剧情",
+    "order": 1027
+  },
+  {
+    "id": "bw-af8661ee2d9f5a86",
+    "title": "诺克提·擎驱/好感剧情",
+    "category": "好感剧情",
+    "order": 1028
+  },
+  {
+    "id": "bw-7f35db5fa099e71b",
+    "title": "邦比娜塔·琉璃/好感剧情",
+    "category": "好感剧情",
+    "order": 1029
+  },
+  {
+    "id": "bw-f49b93bf5f0fda16",
+    "title": "里·异火/好感剧情",
+    "category": "好感剧情",
+    "order": 1030
+  },
+  {
+    "id": "bw-17b89b5fe8f16032",
+    "title": "露西亚·黎明/好感剧情",
+    "category": "好感剧情",
+    "order": 1031
+  },
+  {
+    "id": "bw-37645567c0cd5112",
+    "title": "七实·脉冲/好感剧情",
+    "category": "好感剧情",
+    "order": 1032
+  },
+  {
+    "id": "bw-d719fb6f77cb5cda",
+    "title": "七实·芒星之迹/好感剧情",
+    "category": "好感剧情",
+    "order": 1033
+  },
+  {
+    "id": "bw-1e435299895b6c16",
+    "title": "七实·遥星之座/好感剧情",
+    "category": "好感剧情",
+    "order": 1034
+  },
+  {
+    "id": "bw-c45c1099d60c7da1",
+    "title": "万事·明晰梦/好感剧情",
+    "category": "好感剧情",
+    "order": 1035
+  },
+  {
+    "id": "bw-b396c5f246bdaead",
+    "title": "卡列尼娜·辉晓/好感剧情",
+    "category": "好感剧情",
+    "order": 1036
+  },
+  {
+    "id": "bw-68cfe50f1f52908e",
+    "title": "含英·檀心/好感剧情",
+    "category": "好感剧情",
+    "order": 1037
+  },
+  {
+    "id": "bw-09e258885a2d7451",
+    "title": "尼尔·A2/好感剧情",
+    "category": "好感剧情",
+    "order": 1038
+  },
+  {
+    "id": "bw-04b29857dbacf1e1",
+    "title": "库洛姆·荣光/好感剧情",
+    "category": "好感剧情",
+    "order": 1039
+  },
+  {
+    "id": "bw-86fbea2624903f28",
+    "title": "渡边·尘铭/好感剧情",
+    "category": "好感剧情",
+    "order": 1040
+  },
+  {
+    "id": "bw-543f13ead454a14f",
+    "title": "神威·暗能/好感剧情",
+    "category": "好感剧情",
+    "order": 1041
+  },
+  {
+    "id": "bw-18a02b7a9617d29b",
+    "title": "罗塞塔·凛冽/好感剧情",
+    "category": "好感剧情",
+    "order": 1042
+  },
+  {
+    "id": "bw-6480765beaeb4b40",
+    "title": "薇拉·绯耀/好感剧情",
+    "category": "好感剧情",
+    "order": 1043
+  },
+  {
+    "id": "bw-8a9daa7c2ac4610a",
+    "title": "七实·风暴/好感剧情",
+    "category": "好感剧情",
+    "order": 1044
+  },
+  {
+    "id": "bw-656baccaba4bfc04",
+    "title": "21号·XXI/好感剧情",
+    "category": "好感剧情",
+    "order": 1045
+  },
+  {
+    "id": "bw-ddc08bf214cfc68a",
+    "title": "布丽姬特·耀炎/好感剧情",
+    "category": "好感剧情",
+    "order": 1046
+  },
+  {
+    "id": "bw-fa8248c00c2286a2",
+    "title": "常羽·游麟/好感剧情",
+    "category": "好感剧情",
+    "order": 1047
+  },
+  {
+    "id": "bw-e3bfe4a7e5ee7448",
+    "title": "库洛姆·弧光/好感剧情",
+    "category": "好感剧情",
+    "order": 1048
+  },
+  {
+    "id": "bw-1a104bdc524422e6",
+    "title": "神威·重能/好感剧情",
+    "category": "好感剧情",
+    "order": 1049
+  },
+  {
+    "id": "bw-28fa3096e41b6934",
+    "title": "艾拉·溢彩/好感剧情",
+    "category": "好感剧情",
+    "order": 1050
+  },
+  {
+    "id": "bw-d109de12eaf7f1ea",
+    "title": "丽芙·仰光/好感剧情",
+    "category": "好感剧情",
+    "order": 1051
+  },
+  {
+    "id": "bw-6cd3bab95209d18c",
+    "title": "尼尔·9S/好感剧情",
+    "category": "好感剧情",
+    "order": 1052
+  },
+  {
+    "id": "bw-ae178b91dac36154",
+    "title": "丽芙·蚀暗/好感剧情",
+    "category": "好感剧情",
+    "order": 1053
+  },
+  {
+    "id": "bw-aaf4cfe7a3f74a3c",
+    "title": "万事·明觉/好感剧情",
+    "category": "好感剧情",
+    "order": 1054
+  },
+  {
+    "id": "bw-94895bc1a9c77ee8",
+    "title": "丽芙·流光/好感剧情",
+    "category": "好感剧情",
+    "order": 1055
+  },
+  {
+    "id": "bw-00ff4c2bdbea7737",
+    "title": "含英·清商/好感剧情",
+    "category": "好感剧情",
+    "order": 1056
+  },
+  {
+    "id": "bw-37fa8c50cc531eac",
+    "title": "布偶熊·觅语/好感剧情",
+    "category": "好感剧情",
+    "order": 1057
+  },
+  {
+    "id": "bw-35081c32a5ac0c17",
+    "title": "苏菲亚·银牙/好感剧情",
+    "category": "好感剧情",
+    "order": 1058
+  },
+  {
+    "id": "bw-fb1ff6298041d41d",
+    "title": "薇拉·瑰丽/好感剧情",
+    "category": "好感剧情",
+    "order": 1059
+  },
+  {
+    "id": "bw-b3852ce26a4bad6b",
+    "title": "21号·森息/好感剧情",
+    "category": "好感剧情",
+    "order": 1060
+  },
+  {
+    "id": "bw-3b070910e279c5fb",
+    "title": "丽芙·极昼/好感剧情",
+    "category": "好感剧情",
+    "order": 1061
+  },
+  {
+    "id": "bw-5dd4e9bff2ca7f90",
+    "title": "亚里莎·回音/好感剧情",
+    "category": "好感剧情",
+    "order": 1062
+  },
+  {
+    "id": "bw-d144b979633f7c04",
+    "title": "布偶熊·骇影/好感剧情",
+    "category": "好感剧情",
+    "order": 1063
+  },
+  {
+    "id": "bw-9a619c02344fb312",
+    "title": "海伦汀·安魂/好感剧情",
+    "category": "好感剧情",
+    "order": 1064
+  },
+  {
+    "id": "bw-481146c7ed5cdd3e",
+    "title": "涅缇娅·亡歌/好感剧情",
+    "category": "好感剧情",
+    "order": 1065
+  },
+  {
+    "id": "bw-9df5d9dfbf5a5a70",
+    "title": "维罗妮卡·铮骨/好感剧情",
+    "category": "好感剧情",
+    "order": 1066
+  },
+  {
+    "id": "bw-3c1b61f3649c7c94",
+    "title": "艾拉·万华/好感剧情",
+    "category": "好感剧情",
+    "order": 1067
+  },
+  {
+    "id": "bw-86e65daf5e9a1631",
+    "title": "莉莉丝·谬影/好感剧情",
+    "category": "好感剧情",
+    "order": 1068
+  },
+  {
+    "id": "bw-3b4722d0c83e46bd",
+    "title": "薇拉·灼惘/好感剧情",
+    "category": "好感剧情",
+    "order": 1069
+  },
+  {
+    "id": "bw-58680558c8018ca1",
+    "title": "赛琳娜·幻奏/好感剧情",
+    "category": "好感剧情",
+    "order": 1070
+  },
+  {
+    "id": "bw-f515ec5b0f28a419",
+    "title": "露娜·终焉/好感剧情",
+    "category": "好感剧情",
+    "order": 1071
+  },
+  {
+    "id": "bw-ff8fbaf7031fa71e",
+    "title": "卡穆·狂犬/好感剧情",
+    "category": "好感剧情",
+    "order": 1072
+  },
+  {
+    "id": "bw-955fc756751d353c",
+    "title": "哈卡玛·隐星/好感剧情",
+    "category": "好感剧情",
+    "order": 1073
+  },
+  {
+    "id": "bw-9316c09021170f93",
+    "title": "曲·雀翎/好感剧情",
+    "category": "好感剧情",
+    "order": 1074
+  },
+  {
+    "id": "bw-60644bcee7734e29",
+    "title": "罗兰·戏炎/好感剧情",
+    "category": "好感剧情",
+    "order": 1075
+  },
+  {
+    "id": "bw-bbfe3f60bbe4d089",
+    "title": "蒲牢·华钟/好感剧情",
+    "category": "好感剧情",
+    "order": 1076
+  },
+  {
+    "id": "bw-f1e8377d6637aa7d",
+    "title": "诺安·逆旅/好感剧情",
+    "category": "好感剧情",
+    "order": 1077
+  },
+  {
+    "id": "bw-252d4f4ca080b6fc",
+    "title": "赛琳娜·岚音/好感剧情",
+    "category": "好感剧情",
+    "order": 1078
+  },
+  {
+    "id": "bw-47e894ba6c65f1e4",
+    "title": "伊什梅尔·幻日/好感剧情",
+    "category": "好感剧情",
+    "order": 1079
+  },
+  {
+    "id": "bw-6e234620311214b6",
+    "title": "卡列尼娜·烬航/好感剧情",
+    "category": "好感剧情",
+    "order": 1080
+  },
+  {
+    "id": "bw-b95ca446c6bf5a4b",
+    "title": "神威·不落日/好感剧情",
+    "category": "好感剧情",
+    "order": 1081
+  },
+  {
+    "id": "bw-cbb2d1c039aac222",
+    "title": "罗塞塔·极锋/好感剧情",
+    "category": "好感剧情",
+    "order": 1082
+  },
+  {
+    "id": "bw-6e20d11ce50950a1",
+    "title": "临渊择途",
+    "category": "本我回廊",
+    "order": 1006
+  },
+  {
+    "id": "bw-5e13a1fa28d52062",
+    "title": "铭刻长路",
+    "category": "本我回廊",
+    "order": 1007
+  },
+  {
+    "id": "bw-14931974fa5dc7eb",
+    "title": "一起来玩吧！",
+    "category": "本我回廊",
+    "order": 1008
+  },
+  {
+    "id": "bw-adf31fca6bac7888",
+    "title": "心引定航",
+    "category": "本我回廊",
+    "order": 1009
+  },
+  {
+    "id": "bw-a1114db094a5ea16",
+    "title": "烛灯刑",
+    "category": "本我回廊",
+    "order": 1010
+  },
+  {
+    "id": "bw-2a9d524ca74a49b8",
+    "title": "极乐净土",
+    "category": "本我回廊",
+    "order": 1011
+  },
+  {
+    "id": "bw-d8b90f00370e3e3b",
+    "title": "EX00 极地暗流",
+    "category": "外篇剧情",
+    "order": 1006
+  },
+  {
+    "id": "bw-1b1f4301f8a56519",
+    "title": "EX01 湛蓝曙日",
+    "category": "外篇剧情",
+    "order": 1007
+  },
+  {
+    "id": "bw-aa48e476cbd55ab1",
+    "title": "EX02 重返极夜",
+    "category": "外篇剧情",
+    "order": 1008
+  },
+  {
+    "id": "bw-4fc8baa3077459de",
+    "title": "EX03 古铭遗章",
+    "category": "外篇剧情",
+    "order": 1009
+  },
+  {
+    "id": "bw-fcf5116f5e557e08",
+    "title": "EX04 咏叹回声",
+    "category": "外篇剧情",
+    "order": 1010
+  },
+  {
+    "id": "bw-d0ed5facd538e092",
+    "title": "EX05 迷境刻痕",
+    "category": "外篇剧情",
+    "order": 1011
+  },
+  {
+    "id": "bw-1975c66b2f3a95e7",
+    "title": "往何处逃离",
+    "category": "间章剧情",
+    "order": 1031
+  },
+  {
+    "id": "bw-9fd129bd35ee4417",
+    "title": "蜕变",
+    "category": "间章剧情",
+    "order": 1032
+  },
+  {
+    "id": "bw-cfcf2d35c8089ad4",
+    "title": "宝物",
+    "category": "间章剧情",
+    "order": 1033
+  },
+  {
+    "id": "bw-e96a1668c174e390",
+    "title": "月光下的礼服",
+    "category": "间章剧情",
+    "order": 1034
+  },
+  {
+    "id": "bw-7c832b0481c9b342",
+    "title": "吞噬",
+    "category": "间章剧情",
+    "order": 1035
+  },
+  {
+    "id": "bw-b017b7b567a412a4",
+    "title": "友人",
+    "category": "间章剧情",
+    "order": 1036
+  },
+  {
+    "id": "bw-f415b5de7c01854c",
+    "title": "四二一",
+    "category": "间章剧情",
+    "order": 1037
+  },
+  {
+    "id": "bw-d381c19a1278f3c1",
+    "title": "被冰封的心",
+    "category": "间章剧情",
+    "order": 1038
+  },
+  {
+    "id": "bw-8238fdf80a2dc4b3",
+    "title": "利刃下的成长",
+    "category": "间章剧情",
+    "order": 1039
+  },
+  {
+    "id": "bw-755d5853d52bebc9",
+    "title": "陨落陆地之星",
+    "category": "间章剧情",
+    "order": 1040
+  },
+  {
+    "id": "bw-7d1ab740eaef77f5",
+    "title": "雪岭晚祷",
+    "category": "间章剧情",
+    "order": 1041
+  },
+  {
+    "id": "bw-9079b55ed1d1b9ca",
+    "title": "迷途真理",
+    "category": "间章剧情",
+    "order": 1042
+  },
+  {
+    "id": "bw-372441bb912f4475",
+    "title": "血色夕阳",
+    "category": "间章剧情",
+    "order": 1043
+  },
+  {
+    "id": "bw-d2b556f3e5552d6e",
+    "title": "帷幕与画布",
+    "category": "间章剧情",
+    "order": 1044
+  },
+  {
+    "id": "bw-15d46fdb0b9dd2f8",
+    "title": "准星所向",
+    "category": "间章剧情",
+    "order": 1045
+  },
+  {
+    "id": "bw-65467893aaf9aeec",
+    "title": "无瑕者",
+    "category": "间章剧情",
+    "order": 1046
+  },
+  {
+    "id": "bw-a1c1817873d579b1",
+    "title": "瓦尔基里",
+    "category": "间章剧情",
+    "order": 1047
+  },
+  {
+    "id": "bw-f4413ad7fe20385f",
+    "title": "如影随形",
+    "category": "间章剧情",
+    "order": 1048
+  },
+  {
+    "id": "bw-b812e77af78d7bf3",
+    "title": "无垢的祈祷",
+    "category": "间章剧情",
+    "order": 1049
+  },
+  {
+    "id": "bw-37c57a6c920a7e65",
+    "title": "梦回初",
+    "category": "间章剧情",
+    "order": 1050
+  },
+  {
+    "id": "bw-acf927f0e47893c9",
+    "title": "帝江",
+    "category": "间章剧情",
+    "order": 1051
+  },
+  {
+    "id": "bw-8163a183db5c3515",
+    "title": "虚妄的曙光",
+    "category": "间章剧情",
+    "order": 1052
+  },
+  {
+    "id": "bw-5f159ee69fde00a6",
+    "title": "繁星谣",
+    "category": "间章剧情",
+    "order": 1053
+  },
+  {
+    "id": "bw-5b5726dd78ef8906",
+    "title": "静滞长夜",
+    "category": "间章剧情",
+    "order": 1054
+  },
+  {
+    "id": "bw-86d3ab129c6155da",
+    "title": "执棋者",
+    "category": "间章剧情",
+    "order": 1055
+  },
+  {
+    "id": "bw-df025342ba037411",
+    "title": "白色光谱",
+    "category": "间章剧情",
+    "order": 1056
+  },
+  {
+    "id": "bw-d4e6bf20a84a6628",
+    "title": "名为英雄之物",
+    "category": "间章剧情",
+    "order": 1057
+  },
+  {
+    "id": "bw-d385e92fd7fcff36",
+    "title": "一出好戏",
+    "category": "间章剧情",
+    "order": 1058
+  },
+  {
+    "id": "bw-14d612ecd5b65956",
+    "title": "青鸟",
+    "category": "间章剧情",
+    "order": 1059
+  },
+  {
+    "id": "bw-af1591bd5cddd873",
+    "title": "生花奏",
+    "category": "间章剧情",
+    "order": 1060
+  },
+  {
+    "id": "bw-00fd57c610d327d1",
+    "title": "悠夜蜉蝣",
+    "category": "间章剧情",
+    "order": 1061
+  },
+  {
+    "id": "bw-af64139245fad13e",
+    "title": "黄金核心",
+    "category": "黄金之涡",
+    "order": 1004
+  },
+  {
+    "id": "bw-9b49fabad3b8c550",
+    "title": "砂之梦",
+    "category": "黄金之涡",
+    "order": 1005
+  },
+  {
+    "id": "bw-b48a1914ffc5bbc6",
+    "title": "织命",
+    "category": "黄金之涡",
+    "order": 1006
+  },
+  {
+    "id": "bw-dfc31f1366bbd190",
+    "title": "再无黄金",
+    "category": "黄金之涡",
+    "order": 1007
+  },
+  {
+    "id": "bw-e081ab945a7afad5",
+    "title": "基亚兰塔港",
+    "category": "边界公约",
+    "order": 1000
+  },
+  {
+    "id": "bw-1583ac6a5d28bf77",
+    "title": "琉璃顶",
+    "category": "边界公约",
+    "order": 1001
+  },
+  {
+    "id": "bw-e6539177dc0d4317",
+    "title": "夜崎新生地",
+    "category": "边界公约",
+    "order": 1002
+  },
+  {
+    "id": "bw-8eea77fa63bd7b4e",
+    "title": "湾岸堡",
+    "category": "边界公约",
+    "order": 1003
+  },
+  {
+    "id": "bw-96270592f14819d2",
+    "title": "林南道",
+    "category": "边界公约",
+    "order": 1004
+  },
+  {
+    "id": "bw-be55898791c37e6a",
+    "title": "K-44防线",
+    "category": "边界公约",
+    "order": 1005
+  },
+  {
+    "id": "bw-f6c01043486cda73",
+    "title": "阿基里斯",
+    "category": "边界公约",
+    "order": 1006
+  },
+  {
+    "id": "bw-db27f98adb223200",
+    "title": "野滨岬空军基地",
+    "category": "边界公约",
+    "order": 1007
+  },
+  {
+    "id": "bw-c5abbb79d1dcdbbe",
+    "title": "寄渊残响",
+    "category": "联动",
+    "order": 1003
+  },
+  {
+    "id": "bw-74728af9e79ae857",
+    "title": "镜焰迷城",
+    "category": "联动",
+    "order": 1004
+  },
+  {
+    "id": "bw-340c6f84478e9f8f",
+    "title": "幻寂鸣泣曲",
+    "category": "联动",
+    "order": 1005
+  },
+  {
+    "id": "bw-5be2315854189392",
+    "title": "宣叙妄响",
+    "category": "多维演绎",
+    "order": 1004
+  },
+  {
+    "id": "bw-0da3d3956e7cb9ae",
+    "title": "厄愿潮声",
+    "category": "多维演绎",
+    "order": 1005
+  },
+  {
+    "id": "bw-4a6c6631e247d223",
+    "title": "矩阵循生",
+    "category": "多维演绎",
+    "order": 1006
+  },
+  {
+    "id": "bw-b63861b225b8849c",
+    "title": "寒境曙光",
+    "category": "多维演绎",
+    "order": 1007
+  },
+  {
+    "id": "bw-e6767b5295fcd12e",
+    "title": "与薇拉同行",
+    "category": "调色板战争",
+    "order": 1000
+  },
+  {
+    "id": "bw-a9a781d51527a326",
+    "title": "与里同行",
+    "category": "调色板战争",
+    "order": 1001
+  },
+  {
+    "id": "bw-4c705baf38417220",
+    "title": "与艾拉同行",
+    "category": "调色板战争",
+    "order": 1002
+  },
+  {
+    "id": "bw-c264b75968dd0957",
+    "title": "与卡列同行",
+    "category": "调色板战争",
+    "order": 1003
+  },
+  {
+    "id": "bw-9f8a2efd711d7736",
+    "title": "未来序曲",
+    "category": "调色板战争",
+    "order": 1004
+  },
+  {
+    "id": "bw-26010395b0cbce07",
+    "title": "神寂启示录",
+    "category": "时宇漫纪",
+    "order": 1002
+  },
+  {
+    "id": "bw-fe8a4bef6e5288ad",
+    "title": "雾夜镇魂曲",
+    "category": "时宇漫纪",
+    "order": 1003
+  },
+  {
+    "id": "bw-98a230d2dd7bb2ff",
+    "title": "行至时间彼岸",
+    "category": "空中花园",
+    "order": 1021
+  },
+  {
+    "id": "bw-20563899f3e1bf29",
+    "title": "商业露天广场开发计划",
+    "category": "空中花园",
+    "order": 1022
+  },
+  {
+    "id": "bw-3261fb863b50ac29",
+    "title": "初生意志的迷惘",
+    "category": "空中花园",
+    "order": 1023
+  },
+  {
+    "id": "bw-63404abdcf2a76f9",
+    "title": "邂逅时光",
+    "category": "空中花园",
+    "order": 1024
+  },
+  {
+    "id": "bw-a07773aad7962453",
+    "title": "43 远信回响",
+    "category": "主线",
+    "order": 1002
+  },
+  {
+    "id": "voice-v2-MAIN01",
+    "title": "01 涂鸦艺术",
+    "category": "主线",
+    "order": 1
+  },
+  {
+    "id": "voice-v2-MAIN02",
+    "title": "02 苦刑之旅",
+    "category": "主线",
+    "order": 2
+  },
+  {
+    "id": "voice-v2-ER00",
+    "title": "游云鲸梦",
+    "category": "浮点纪实",
+    "order": 0
+  },
+  {
+    "id": "voice-v2-ER01",
+    "title": "遥岸方舟",
+    "category": "浮点纪实",
+    "order": 1
+  },
+  {
+    "id": "voice-v2-ER02",
+    "title": "枯朽为灯",
+    "category": "浮点纪实",
+    "order": 2
+  },
+  {
+    "id": "voice-v2-ER03",
+    "title": "未语庭言",
+    "category": "浮点纪实",
+    "order": 3
+  },
+  {
+    "id": "voice-v2-ER04",
+    "title": "浮英枕梦行",
+    "category": "浮点纪实",
+    "order": 4
+  },
+  {
+    "id": "voice-v2-ER05",
+    "title": "怒逐沉沙",
+    "category": "浮点纪实",
+    "order": 5
+  },
+  {
+    "id": "voice-v2-ER06",
+    "title": "幽塔黎光",
+    "category": "浮点纪实",
+    "order": 6
+  },
+  {
+    "id": "voice-v2-ER07",
+    "title": "云梁觅影",
+    "category": "浮点纪实",
+    "order": 7
+  },
+  {
+    "id": "voice-v2-ER08",
+    "title": "暮往长离",
+    "category": "浮点纪实",
+    "order": 8
+  },
+  {
+    "id": "voice-v2-ER09",
+    "title": "晨昏庭影",
+    "category": "浮点纪实",
+    "order": 9
+  },
+  {
+    "id": "voice-v2-ER10",
+    "title": "醉狱谲笼",
+    "category": "浮点纪实",
+    "order": 10
+  },
+  {
+    "id": "voice-v2-ER11",
+    "title": "逐生复始",
+    "category": "浮点纪实",
+    "order": 11
+  },
+  {
+    "id": "voice-v2-ER12",
+    "title": "末路燎原",
+    "category": "浮点纪实",
+    "order": 12
+  },
+  {
+    "id": "voice-v2-ER13",
+    "title": "织奏序言",
+    "category": "浮点纪实",
+    "order": 13
+  },
+  {
+    "id": "voice-v2-ER14",
+    "title": "理想笼",
+    "category": "浮点纪实",
+    "order": 14
+  },
+  {
+    "id": "voice-v2-ER15",
+    "title": "烈日将烬",
+    "category": "浮点纪实",
+    "order": 15
+  },
+  {
+    "id": "voice-v2-ER16",
+    "title": "孑念空行",
+    "category": "浮点纪实",
+    "order": 16
+  },
+  {
+    "id": "pgr-ch03",
+    "title": "第3章 终末展览 · 试用配音包",
+    "category": "主线",
+    "order": 3
+  },
+  {
+    "id": "pgr-ch04",
+    "title": "第4章 遗忘黄沙 · 试用配音包",
+    "category": "主线",
+    "order": 4
+  },
+  {
+    "id": "pgr-ch05",
+    "title": "第5章 破碎幻影 · 试用配音包",
+    "category": "主线",
+    "order": 5
+  },
+  {
+    "id": "pgr-ch06",
+    "title": "第6章 合金浸染 · 试用配音包",
+    "category": "主线",
+    "order": 6
+  },
+  {
+    "id": "pgr-ch07",
+    "title": "第7章 逆元坍塌 · 试用配音包",
+    "category": "主线",
+    "order": 7
+  },
+  {
+    "id": "pgr-ch08",
+    "title": "第8章 噬暗 · 试用配音包",
+    "category": "主线",
+    "order": 8
+  },
+  {
+    "id": "pgr-ch09",
+    "title": "第9章 黑星坠落 · 试用配音包",
+    "category": "主线",
+    "order": 9
+  },
+  {
+    "id": "pgr-ch10",
+    "title": "第10章 永久列车 · 试用配音包",
+    "category": "主线",
+    "order": 10
+  },
+  {
+    "id": "pgr-ch11",
+    "title": "第11章 九龙夜航 · 试用配音包",
+    "category": "主线",
+    "order": 11
+  },
+  {
+    "id": "pgr-ch12",
+    "title": "第12章 九龙环城 · 试用配音包",
+    "category": "主线",
+    "order": 12
+  },
+  {
+    "id": "pgr-ch13",
+    "title": "第13章 终焉福音 · 试用配音包",
+    "category": "主线",
+    "order": 13
+  },
+  {
+    "id": "pgr-ch14",
+    "title": "第14章 视线囚笼 · 试用配音包",
+    "category": "主线",
+    "order": 14
+  },
+  {
+    "id": "pgr-ch15",
+    "title": "第15章 绝海星火 · 试用配音包",
+    "category": "主线",
+    "order": 15
+  },
+  {
+    "id": "pgr-ch16",
+    "title": "第16章 永夜胎动 · 试用配音包",
+    "category": "主线",
+    "order": 16
+  },
+  {
+    "id": "pgr-ch17",
+    "title": "第17章 湮灭残昼 · 试用配音包",
+    "category": "主线",
+    "order": 17
+  },
+  {
+    "id": "pgr-ch18",
+    "title": "第18章 曙星致意 · 试用配音包",
+    "category": "主线",
+    "order": 18
+  },
+  {
+    "id": "pgr-ch19",
+    "title": "第19章 空晓界限 · 试用配音包",
+    "category": "主线",
+    "order": 19
+  },
+  {
+    "id": "pgr-ch20",
+    "title": "第20章 烬海异途 · 试用配音包",
+    "category": "主线",
+    "order": 20
+  },
+  {
+    "id": "pgr-ch21",
+    "title": "第21章 刻命螺旋 · 试用配音包",
+    "category": "主线",
+    "order": 21
+  },
+  {
+    "id": "pgr-ch22",
+    "title": "第22章 创绘映想 · 试用配音包",
+    "category": "主线",
+    "order": 22
+  },
+  {
+    "id": "pgr-ch23",
+    "title": "第23章 凛桎鸣渊 · 试用配音包",
+    "category": "主线",
+    "order": 23
+  },
+  {
+    "id": "pgr-ch24",
+    "title": "第24章 萦森歧路 · 试用配音包",
+    "category": "主线",
+    "order": 24
+  },
+  {
+    "id": "pgr-ch25",
+    "title": "第25章 爝火长明 · 试用配音包",
+    "category": "主线",
+    "order": 25
+  },
+  {
+    "id": "pgr-ch26",
+    "title": "第26章 摇篮游行 · 试用配音包",
+    "category": "主线",
+    "order": 26
+  },
+  {
+    "id": "pgr-ch27",
+    "title": "第27章 碑火铸脊 · 试用配音包",
+    "category": "主线",
+    "order": 27
+  },
+  {
+    "id": "pgr-ch28",
+    "title": "第28章 络勾陈 · 试用配音包",
+    "category": "主线",
+    "order": 28
+  },
+  {
+    "id": "pgr-ch29",
+    "title": "第29章 源解信标 · 试用配音包",
+    "category": "主线",
+    "order": 29
+  },
+  {
+    "id": "pgr-ch30",
+    "title": "第30章 镜像星尘 · 试用配音包",
+    "category": "主线",
+    "order": 30
+  },
+  {
+    "id": "pgr-ch31",
+    "title": "第31章 剪身成蝶 · 试用配音包",
+    "category": "主线",
+    "order": 31
+  },
+  {
+    "id": "pgr-ch32",
+    "title": "第32章 遥行循星 · 试用配音包",
+    "category": "主线",
+    "order": 32
+  },
+  {
+    "id": "pgr-ch33",
+    "title": "第33章 锈夜逐光 · 试用配音包",
+    "category": "主线",
+    "order": 33
+  },
+  {
+    "id": "pgr-ch34",
+    "title": "第34章 梦赴光寥之乡 · 试用配音包",
+    "category": "主线",
+    "order": 34
+  },
+  {
+    "id": "pgr-ch35",
+    "title": "第35章 覆海离声 · 试用配音包",
+    "category": "主线",
+    "order": 35
+  },
+  {
+    "id": "pgr-ch36",
+    "title": "第36章 溯梦归途 · 试用配音包",
+    "category": "主线",
+    "order": 36
+  },
+  {
+    "id": "pgr-ch37",
+    "title": "第37章 眠于厄寐之境 · 试用配音包",
+    "category": "主线",
+    "order": 37
+  },
+  {
+    "id": "pgr-ch38",
+    "title": "第38章 推想视限 · 试用配音包",
+    "category": "主线",
+    "order": 38
+  },
+  {
+    "id": "pgr-ch39",
+    "title": "第39章 冬冕的凋亡 · 试用配音包",
+    "category": "主线",
+    "order": 39
+  },
+  {
+    "id": "pgr-ch40",
+    "title": "第40章 更美好的明天 · 试用配音包",
+    "category": "主线",
+    "order": 40
+  },
+  {
+    "id": "pgr-ch41",
+    "title": "第41章 长路归航 · 试用配音包",
+    "category": "主线",
+    "order": 41
+  },
+  {
+    "id": "pgr-ch42",
+    "title": "第42章 歧海循光 · 试用配音包",
+    "category": "主线",
+    "order": 42
+  },
+  {
+    "id": "voice-v2-P8R_W_fe62912cb3d28b74",
+    "title": "EX00 极地暗流 · 可用版",
+    "category": "外篇剧情",
+    "order": 1
+  },
+  {
+    "id": "voice-v2-P8R_W_73979b07f06a58c8",
+    "title": "EX01 湛蓝曙日 · 可用版",
+    "category": "外篇剧情",
+    "order": 2
+  },
+  {
+    "id": "voice-v2-P8R_W_374544415fe9e732",
+    "title": "EX02 重返极夜 · 可用版",
+    "category": "外篇剧情",
+    "order": 3
+  },
+  {
+    "id": "voice-v2-P8R_W_5f0a78c67b862c15",
+    "title": "EX03 古铭遗章 · 可用版",
+    "category": "外篇剧情",
+    "order": 4
+  },
+  {
+    "id": "voice-v2-P8R_W_b85b3755ada7357c",
+    "title": "EX04 咏叹回声 · 可用版",
+    "category": "外篇剧情",
+    "order": 5
+  },
+  {
+    "id": "voice-v2-P8R_W_8b3d135b0b905e93",
+    "title": "EX05 迷境刻痕 · 可用版",
+    "category": "外篇剧情",
+    "order": 6
+  },
+  {
+    "id": "voice-v2-P8R_W_897b32bcf154e68b",
+    "title": "一出好戏 · 可用版",
+    "category": "间章剧情",
+    "order": 1
+  },
+  {
+    "id": "voice-v2-P8R_W_963f7385a76a1cf3",
+    "title": "准星所向 · 可用版",
+    "category": "间章剧情",
+    "order": 2
+  },
+  {
+    "id": "voice-v2-P8R_W_5e72464fc7727632",
+    "title": "利刃下的成长 · 可用版",
+    "category": "间章剧情",
+    "order": 3
+  },
+  {
+    "id": "voice-v2-P8R_W_1acc5b07cf1308ea",
+    "title": "友人 · 可用版",
+    "category": "间章剧情",
+    "order": 4
+  },
+  {
+    "id": "voice-v2-P8R_W_c0fea1597080d480",
+    "title": "名为英雄之物 · 可用版",
+    "category": "间章剧情",
+    "order": 5
+  },
+  {
+    "id": "voice-v2-P8R_W_52ed25659125a383",
+    "title": "吞噬 · 可用版",
+    "category": "间章剧情",
+    "order": 6
+  },
+  {
+    "id": "voice-v2-P8R_W_1d7394c32c01528d",
+    "title": "四二一 · 自动检查版",
+    "category": "间章剧情",
+    "order": 7
+  },
+  {
+    "id": "voice-v2-P8R_W_563048e16b17049a",
+    "title": "如影随形 · 可用版",
+    "category": "间章剧情",
+    "order": 8
+  },
+  {
+    "id": "voice-v2-P8R_W_33c5cf68db5ecb30",
+    "title": "宝物 · 可用版",
+    "category": "间章剧情",
+    "order": 9
+  },
+  {
+    "id": "voice-v2-P8R_W_87d1755f93a5d342",
+    "title": "帝江 · 可用版",
+    "category": "间章剧情",
+    "order": 10
+  },
+  {
+    "id": "voice-v2-P8R_W_cfd1a3a10aa5d19c",
+    "title": "帷幕与画布 · 可用版",
+    "category": "间章剧情",
+    "order": 11
+  },
+  {
+    "id": "voice-v2-P8R_W_006b36c8b8eecde5",
+    "title": "往何处逃离 · 自动检查版",
+    "category": "间章剧情",
+    "order": 12
+  },
+  {
+    "id": "voice-v2-P8R_W_39357d4e095d60cb",
+    "title": "悠夜蜉蝣 · 可用版",
+    "category": "间章剧情",
+    "order": 13
+  },
+  {
+    "id": "voice-v2-P8R_W_99a4e8ee08363a6e",
+    "title": "执棋者 · 可用版",
+    "category": "间章剧情",
+    "order": 14
+  },
+  {
+    "id": "MAIN43_ANNOTATED_20261005_015707",
+    "title": "第43章 远信回响（角色、情绪、路线整合）",
+    "category": "主线",
+    "order": 43
+  },
+  {
+    "id": "",
+    "title": "阿德莱德·破渊/好感剧情",
+    "category": "好感剧情",
+    "order": 1083
+  },
+  {
+    "id": "",
+    "title": "阿德莱德·破渊 · 好感剧情",
+    "category": "好感剧情",
+    "order": 1083
+  },
+  {
+    "id": "",
+    "title": "阿德莱德·破渊",
+    "category": "好感剧情",
+    "order": 1083
+  },
+  {
+    "id": "DAL68_INTEGRATED_20261005_032510",
+    "title": "空滞轮旋之梦",
+    "category": "联动",
+    "order": 4
+  }
+]

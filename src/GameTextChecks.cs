@@ -178,6 +178,39 @@ public partial class MainWindow
                 CommitMemoryGameText(probe, owner, vote.Text, vote.Speaker);
                 Check(!textArmed && playCalls == before, "手动暂停后新台词仍不能自行恢复");
             }
+            int nicknameArgument = Array.IndexOf(args, "--test-nickname-pack");
+            if (nicknameArgument >= 0 && nicknameArgument + 1 < args.Length)
+            {
+                LoadPack(args[nicknameArgument + 1]);
+                owner = engine ?? throw new Exception("昵称配音夹具未加载");
+                var names = new[] { "Raven", "星河", "Raven2026", "小灰鸦_07", "夜·雨" };
+                foreach (string id in new[] { "ch32-71fcf055b68c2cfb1350-5e7fa92c56c6b4192b53", "ch32-71fcf055b68c2cfb1350-a00dc6a683600e043dbe" })
+                {
+                    var line = owner.Pack.ById[id];
+                    Check(owner.Pack.ResolveAudio(line) is string file && File.Exists(file), "昵称反馈位置绑定现有音频：" + line.Speaker);
+                    SectionBox.SelectedItem = SectionBox.Items.OfType<Section>().First(s => s.Id == line.SectionId);
+                    foreach (string nickname in names)
+                    {
+                        string observed = line.Speaker == "曲" ? line.Text.Replace("指挥官。", nickname + "。") :
+                            line.Text.Replace("指挥官。", "指挥官。" + nickname + "，");
+                        foreach (var source in textProbes)
+                        {
+                            PauseTextPlayback("准备隔离昵称样本");
+                            textOwner = owner; textSection = line.SectionId; textArmed = true; lastTextPlayed = "";
+                            before = playCalls;
+                            CommitMemoryGameText(source, owner, observed, line.Speaker);
+                            Check(owner.CurrentId == line.Id && playCalls == before + 1 && textArmed,
+                                "昵称正文实际提交既有配音：" + source.Title + " / " + line.Speaker + " / " + nickname);
+                            CommitMemoryGameText(textProbes[0], owner, observed, line.Speaker);
+                            CommitMemoryGameText(textProbes[1], owner, observed, line.Speaker);
+                            Check(playCalls == before + 1, "昵称重复采样和另一路残留不重播：" + source.Title + " / " + line.Speaker + " / " + nickname);
+                            PauseTextPlayback("隔离昵称主动暂停");
+                            CommitMemoryGameText(source, owner, observed, line.Speaker);
+                            Check(!textArmed && playCalls == before + 1, "昵称匹配仍尊重主动暂停：" + source.Title + " / " + nickname);
+                        }
+                    }
+                }
+            }
             textProbes[0].Anchor.Text = branch.Text;
             gameTextLive.Text = "普通剧情 · 测试读取\n" + branch.Text;
             Expand(gameTextTab); await Task.Delay(120); Screenshot("game-text-tracking-ui.png");

@@ -113,6 +113,11 @@ public partial class MainWindow
             await RunListeningInteractionChecks(Check, root);
             await RunListeningChapterSelectionChecks(Check, root);
             await RunListeningBrowseChecks(Check, root);
+            await RunListeningRechoiceChecks(Check);
+            await RunListeningRechoiceGamepadChecks(Check, root);
+            await RunListeningWaitChecks(Check, root);
+            await RunGameWaitingRecoveryChecks(Check);
+            await RunManualContinuationChecks(Check);
             listeningOptions.IsExpanded = false;
             Expand(listeningTab); await Task.Delay(80); Screenshot("听书验收.png");
             listeningOptions.IsExpanded = true;
@@ -279,15 +284,16 @@ public partial class MainWindow
                     new() { Id = "wait", SectionId = "interaction-section", Kind = "gap", Text = "等待游戏交互后继续", NextId = "interaction", ResumeMenuIds = new() { "interaction" } },
                     new() { Id = "interaction", SectionId = "interaction-section", Kind = "choice", MenuType = "interaction", NextId = "interaction-join", Options = new()
                     {
-                        new() { Id = "ask", Label = "询问幸存者", TargetId = "ask-one", PathId = "ask", BodyVerified = true, BodyEvidence = new() { "隔离测试：显式两句正文连接" }, BoundaryId = "ask-boundary", SegmentIds = new() { "ask-one", "ask-two", "ask-boundary" } },
-                        new() { Id = "inspect", Label = "与地上的构造体互动", TargetId = "inspect-one", PathId = "inspect", BodyVerified = true, BodyEvidence = new() { "隔离测试：显式两句正文连接" }, BoundaryId = "inspect-boundary", SegmentIds = new() { "inspect-one", "inspect-two", "inspect-boundary" } }
+                        // 正向共同线夹具必须显式核实出口；不能再把 gap.Next 当已核返回。
+                        new() { Id = "ask", Label = "询问幸存者", TargetId = "ask-one", PathId = "ask", BodyVerified = true, BodyEvidence = new() { "隔离测试：显式两句正文连接" }, ExitVerified=true, ReturnId="ask-boundary", MergeId="interaction-join", ExitEvidence=new(){"隔离测试：明确返回共同线"}, SegmentIds = new() { "ask-one", "ask-two", "ask-boundary" } },
+                        new() { Id = "inspect", Label = "与地上的构造体互动", TargetId = "inspect-one", PathId = "inspect", BodyVerified = true, BodyEvidence = new() { "隔离测试：显式两句正文连接" }, ExitVerified=true, ReturnId="inspect-boundary", MergeId="interaction-join", ExitEvidence=new(){"隔离测试：明确返回共同线"}, SegmentIds = new() { "inspect-one", "inspect-two", "inspect-boundary" } }
                     } },
                     new() { Id = "ask-one", SectionId = "interaction-section", PathId = "ask", Speaker = "里", Text = "请说明情况。", Audio = "audio.wav", NextId = "ask-two" },
                     new() { Id = "ask-two", SectionId = "interaction-section", PathId = "ask", Speaker = "构造体士兵", Text = "前面还有感染体。", Audio = "audio.wav", NextId = "ask-boundary" },
-                    new() { Id = "ask-boundary", SectionId = "interaction-section", PathId = "ask", Kind = "gap", Text = "已审分支段落结束，请按游戏画面手动续接", NextId = "interaction-join" },
+                    new() { Id = "ask-boundary", SectionId = "interaction-section", PathId = "ask", Kind = "return", Text = "隔离夹具已核返回", NextId = "interaction-join" },
                     new() { Id = "inspect-one", SectionId = "interaction-section", PathId = "inspect", Speaker = "里", Text = "很遗憾，他……刚刚失去了意识活动……", Audio = "audio.wav", NextId = "inspect-two" },
                     new() { Id = "inspect-two", SectionId = "interaction-section", PathId = "inspect", Speaker = "露西亚", Text = "前方还有幸存者！", Audio = "audio.wav", NextId = "inspect-boundary" },
-                    new() { Id = "inspect-boundary", SectionId = "interaction-section", PathId = "inspect", Kind = "gap", Text = "已审分支段落结束，请按游戏画面手动续接", NextId = "interaction-join" },
+                    new() { Id = "inspect-boundary", SectionId = "interaction-section", PathId = "inspect", Kind = "return", Text = "隔离夹具已核返回", NextId = "interaction-join" },
                     new() { Id = "interaction-join", SectionId = "interaction-section", Kind = "merge", NextId = "after" },
                     new() { Id = "after", SectionId = "interaction-section", Speaker = "露西亚", Text = "最后两只了！", Audio = "audio.wav" }
                 }
@@ -330,7 +336,7 @@ public partial class MainWindow
                     $"{policy}策略等待互动自动展开，没有强制确认菜单");
                 check(listeningSession.Current?.NodeId == "ask-one" && listeningRunning && listeningTicket != 0,
                     $"{policy}策略前句自然结束后立即播放互动首项首句");
-                check(listeningChoices.Children.Count == 0 && listeningCurrentView.MaxHeight == 105,
+                check(listeningChoices.Children.Count == 0 && listeningCurrentView.MaxHeight is >= 48 and <= 105,
                     $"{policy}策略不显示多余互动确认按钮，保留正常阅读高度");
                 string[] expected = policy == ListeningBranchPolicy.All
                     ? new[] { "ask-one", "ask-two", "inspect-one", "inspect-two" }
@@ -349,7 +355,7 @@ public partial class MainWindow
             }
             check(listeningSession.Current?.NodeId == "after" && listeningRunning && listeningText.Text.Contains("最后两只了！"),
                 $"{policy}策略互动完成后实际播放本节共同线后文");
-            check(listeningCurrentView.MaxHeight == 105 && listeningLines.Items.OfType<ListeningEntry>().Any(i => i.Id == "after"),
+            check(listeningCurrentView.MaxHeight is >= 48 and <= 105 && listeningLines.Items.OfType<ListeningEntry>().Any(i => i.Id == "after"),
                 $"{policy}策略恢复正常台词区高度，并将共同线后文显示到列表");
             check(System.Text.Json.JsonSerializer.Serialize(engine!.ExportNavigation()) == gameBefore,
                 $"{policy}策略互动听书完全保留游戏导航与分支状态");

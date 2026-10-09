@@ -325,8 +325,13 @@ public sealed class Preferences
     public string? NodeId { get; set; }
     public Dictionary<string, string> Choices { get; set; } = new();
     public double Volume { get; set; } = 80;
+    public Dictionary<string, int> SpeakerVolumes { get; set; } = new();
+    public bool SmartListeningResume { get; set; } = true;
     public double Left { get; set; } = 60;
     public double Top { get; set; } = 100;
+    public double PanelWidth { get; set; } = 580;
+    public double PanelHeight { get; set; } = 760;
+    public bool PanelSizeCustomized { get; set; }
     public bool OcrEnabled { get; set; }
     public bool DialogueGuardEnabled { get; set; }
     public DialogueRegion DialogueRegion { get; set; } = new();

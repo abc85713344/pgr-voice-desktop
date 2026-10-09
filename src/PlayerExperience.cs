@@ -33,6 +33,7 @@ public partial class MainWindow
     readonly TextBlock diagnosticStatus = new() { TextWrapping = TextWrapping.Wrap };
     readonly ListBox diagnosticList = new() { MaxHeight = 170 };
     readonly Button checkPackButton = new() { Content = "检查当前章" };
+    readonly CheckBox showAllSectionLines = new() { Content = "查看本节全部台词", ToolTip = "包含尚未接入路线的正文；仅浏览，不确认路线或播放。", Margin = new Thickness(8, 4, 0, 4) };
     CancellationTokenSource? diagnosticCancellation;
     PackDiagnosticReport? diagnosticReport;
     bool refreshingExperience, experienceReady, previewingHistory, applyReselectHighlight;
@@ -50,6 +51,13 @@ public partial class MainWindow
     {
         progressStore = new ProgressStore(Path.Combine(Log.DataDir, "progress"));
         progressStore.Load();
+        LibraryBox.GroupStyle.Add(ChapterGroupStyle());
+        StoryChapterPickerHost.Children.Add(ChapterPickerControls(LibraryBox));
+        StorySectionPickerHost.Children.Add(SectionPickerControl(SectionBox));
+        NavigationToolbar.Children.Add(showAllSectionLines);
+        showAllSectionLines.Checked += (_, _) => { FillLines(); if(engine?.Mode==RunMode.Gap)BrowseCurrent(); };
+        showAllSectionLines.Unchecked += (_, _) => FillLines();
+        InitializeManualContinuationView();
         if(progressStore.RecoveredFromBackup) Tell("部分章节进度已从有效备份恢复。");
         if(progressStore.LastError.Length>0)ShowSaveFailure(progressStore.LastError);
         LibraryBox.DropDownOpened += (_, _) =>
@@ -74,6 +82,7 @@ public partial class MainWindow
         var actions = new WrapPanel(); Grid.SetRow(actions, 2); layout.Children.Add(actions);
         AddButton(actions, "试听本句", PreviewHistory);
         AddButton(actions, "停止试听", StopPreview);
+        AddButton(actions, "反馈选中句", FeedbackHistoryLine);
         AddButton(actions, "从这里继续", ContinueHistory);
         AddButton(actions, "删除书签", DeleteBookmark);
         Grid.SetRow(historyStatus, 3); layout.Children.Add(historyStatus);
@@ -111,6 +120,11 @@ public partial class MainWindow
         preferencesPanel.Children.Add(devicesBox); preferencesPanel.Children.Add(deviceStatus);
         AddButton(preferencesPanel, "刷新声音设备", RefreshAudioDevices);
         AddButton(preferencesPanel, "试听当前句", () => { if (engine?.Mode != RunMode.Original) { engine?.PauseForBrowse(); engine?.Replay(); } });
+        AddButton(preferencesPanel, "角色音量…", OpenSpeakerVolumes);
+        preferencesPanel.Children.Add(new TextBlock { Text = "按配音包中的角色名字分别调节，默认 100%，再乘以总音量。不会改变已有录音的音色。", TextWrapping = TextWrapping.Wrap, FontSize = 11, Foreground = Theme.Brush("MutedText") });
+        preferencesPanel.Children.Add(new TextBlock { Text = "角色固定声线：等待配音包，未开启", TextWrapping = TextWrapping.Wrap, FontSize = 11, Foreground = Theme.Brush("MutedText") });
+        AddButton(NavigationToolbar, "反馈当前句", FeedbackGameLine);
+        AddButton(NavigationToolbar, "搜索全部章节", OpenLibrarySearch);
         preferencesPanel = InputSettingsContent;
         AddHeading(preferencesPanel, "点击位置与按键测试");
         // 鼠标只观察；完整轻点通过后再跟随，始终让游戏自己处理点击。
@@ -195,7 +209,7 @@ public partial class MainWindow
         if (!experienceReady) return;
         UndoCorrectionButton.IsEnabled = engine?.CanUndoCorrection == true && engine.Mode != RunMode.Original;
         StripSpeaker.Text = engine?.Current?.Speaker ?? "剧情配音";
-        StripText.Text = engine?.Current?.Text ?? "请选择起始台词";
+        StripText.Text = GameBranchLineText();
         StripState.Text = StateText.Text;
         if (engine?.Pack.IsDraft == true) StripState.Text = "抽检草稿 · 未逐句核验 · " + StripState.Text;
         StripView.BorderBrush = engine?.MenuWaiting == true ? LineRow.BranchAccent : Theme.Brush("NormalAccent");
@@ -235,7 +249,7 @@ public partial class MainWindow
     void FocusCatalog()
     {
         Expand(StoryTab); UpdateLayout();
-        void FocusVisible(){if(LibraryBox.IsVisible)Keyboard.Focus(LibraryBox);else if(ChapterBox.IsVisible)Keyboard.Focus(ChapterBox);else Keyboard.Focus(SectionBox);}
+        void FocusVisible(){if(chapterPickerButtons.TryGetValue(LibraryBox,out var buttons) && buttons.Chapter.IsVisible)Keyboard.Focus(buttons.Chapter);else if(ChapterBox.IsVisible)Keyboard.Focus(ChapterBox);else Keyboard.Focus(sectionPickerButtons[SectionBox]);}
         FocusVisible();Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Input,FocusVisible);
     }
     void ReselectClick(object sender, RoutedEventArgs e) => Reselect();
@@ -307,7 +321,7 @@ public partial class MainWindow
         if (node == null) return;
         string notice = engine.Pack.AudioNotice(node);
         if (notice.Length > 0) { historyStatus.Text = notice; return; }
-        try { previewingHistory = true; if (!testUi) StartAudio(engine.Pack.ResolveAudio(node)!); historyStatus.Text = "试听中 · " + node.Speaker + " · 剧情位置未改变"; }
+        try { previewingHistory = true; if (!testUi) StartAudio(engine.Pack.ResolveAudio(node)!, node.Speaker); historyStatus.Text = "试听中 · " + node.Speaker + " · 剧情位置未改变"; }
         catch (Exception ex) { previewingHistory = false; historyStatus.Text = "试听失败：" + ex.Message; }
     }
     void ContinueHistory()

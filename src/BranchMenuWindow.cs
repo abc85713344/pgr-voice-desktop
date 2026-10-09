@@ -11,7 +11,7 @@ using System.Windows.Media;
 
 namespace PgrVoice;
 // 不激活窗口；键盘从低层钩子定向送入，不改变游戏焦点。
-public sealed class BranchMenuWindow : Window
+public sealed partial class BranchMenuWindow : Window
 {
     [DllImport("user32.dll")] static extern int GetWindowLong(IntPtr h,int n);
     [DllImport("user32.dll")] static extern int SetWindowLong(IntPtr h,int n,int value);
@@ -19,9 +19,10 @@ public sealed class BranchMenuWindow : Window
     readonly TextBlock title=new(){FontSize=17,Foreground=Theme.Brush("Fg"),TextWrapping=TextWrapping.Wrap};
     readonly TextBlock badge=new(){Text="◆ 分支选择 · 等待确认",FontSize=11,Foreground=LineRow.BranchAccent,FontWeight=FontWeights.SemiBold,Margin=new Thickness(0,0,0,8)};
     readonly TextBlock notice=new(){TextWrapping=TextWrapping.Wrap,FontSize=11,Margin=new Thickness(0,7,0,9),Foreground=Theme.Brush("MutedText")};
+    readonly TextBlock continuationFeedback=new(){TextWrapping=TextWrapping.Wrap,FontSize=11,Margin=new Thickness(0,0,0,7),Foreground=LineRow.BranchAccent,Visibility=Visibility.Collapsed};
     readonly TextBlock gamepadHint=new(){TextWrapping=TextWrapping.Wrap,FontSize=11,Margin=new Thickness(0,0,0,7),Foreground=Theme.Brush("NormalAccent"),Visibility=Visibility.Collapsed};
     public bool GamepadNavigation { get; private set; }
-    public bool CanConfirm => confirmButton?.IsEnabled == true;
+    public bool CanConfirm => IsAnchorView ? SelectedAnchor is {IsAmbiguous:false} : confirmButton?.IsEnabled == true;
     Button? confirmButton;
     ListBoxItem? pendingMouseConfirm;
     int pendingMouseEpoch;
@@ -54,7 +55,7 @@ public sealed class BranchMenuWindow : Window
                 ItemsControl.ContainerFromElement(Options, source) is ListBoxItem item && item.IsEnabled)
             {
                 Options.SelectedItem = item;
-                if (e.ClickCount == 2) { pendingMouseConfirm = item; pendingMouseEpoch = Epoch; }
+                if (IsAnchorView || e.ClickCount == 2) { pendingMouseConfirm = item; pendingMouseEpoch = Epoch; }
                 e.Handled = true;
             }
         };
@@ -62,7 +63,7 @@ public sealed class BranchMenuWindow : Window
         {
             var pending = pendingMouseConfirm;
             pendingMouseConfirm = null;
-            if (pending != null && pendingMouseEpoch == Epoch && IsVisible && confirmButton?.IsEnabled == true &&
+            if (pending != null && pendingMouseEpoch == Epoch && IsVisible && CanConfirm &&
                 ReferenceEquals(Options.SelectedItem, pending) && e.OriginalSource is DependencyObject source &&
                 ReferenceEquals(ItemsControl.ContainerFromElement(Options, source), pending))
             {
@@ -73,7 +74,7 @@ public sealed class BranchMenuWindow : Window
         // Raw Input 可能稍后才到达；即使确认按钮已经收起菜单，也不能把同一次点击算作下一句。
         PreviewMouseDown += (_, _) => LastPointerInputTimestamp = Stopwatch.GetTimestamp();
         PreviewMouseUp += (_, _) => LastPointerInputTimestamp = Stopwatch.GetTimestamp();
-        var header=new StackPanel();header.Children.Add(badge);header.Children.Add(title);header.Children.Add(notice);header.Children.Add(gamepadHint);header.Children.Add(scopeButton);panel.Children.Add(header);
+        var header=new StackPanel();header.Children.Add(badge);header.Children.Add(title);header.Children.Add(notice);header.Children.Add(continuationFeedback);header.Children.Add(gamepadHint);header.Children.Add(scopeButton);panel.Children.Add(header);
         scopeButton.Click+=(_,_)=>NavigationScope?.Invoke();
         Grid.SetRow(Options,1);panel.Children.Add(Options);
         var footer=new StackPanel();Grid.SetRow(footer,2);panel.Children.Add(footer);
@@ -84,6 +85,7 @@ public sealed class BranchMenuWindow : Window
         navigation.Children.Add(peopleButton);navigation.Children.Add(topicButton);footer.Children.Add(navigation);
         peopleButton.Click+=(_,_)=>Interactions?.Invoke();topicButton.Click+=(_,_)=>ReturnTopic?.Invoke();
         Button("定位游戏当前台词",()=>Locate?.Invoke());Button("手动选续接句",()=>Manual?.Invoke());Button("收起，保持待选  Esc",()=>Cancel?.Invoke());
+        InitializeAnchorView(panel,footer,header);
         SourceInitialized+=(_,_)=> {SetWindowLong(Handle,-20,GetWindowLong(Handle,-20)|0x08000000|0x80);HwndSource.FromHwnd(Handle)?.AddHook(Hook);};
     }
     IntPtr Hook(IntPtr h,int msg,IntPtr w,IntPtr l,ref bool handled) {if(msg==0x21 && !GamepadNavigation){handled=true;return new IntPtr(3);}return IntPtr.Zero;}
@@ -95,8 +97,12 @@ public sealed class BranchMenuWindow : Window
     }
     public void SetGamepadHint(string text)
     {gamepadHint.Text=text;gamepadHint.Visibility=text.Length==0?Visibility.Collapsed:Visibility.Visible;}
-    public void Present(PlaybackEngine engine,double left,double top,int selected)
+    public void Present(PlaybackEngine engine,double left,double top,int selected,bool anchors=false)
     {
+        continuationFeedback.Text="";continuationFeedback.Visibility=Visibility.Collapsed;
+        presentedEngine=engine;normalLeft=left;normalTop=top;
+        if(anchors && TryPresentAnchors(engine))return;
+        RestoreOptionView();
         if(MenuId!=engine.CurrentId || IsNavigation){MenuId=engine.CurrentId;Epoch++;}
         IsNavigation=false;
         scopeButton.Visibility=Visibility.Collapsed;
@@ -109,7 +115,7 @@ public sealed class BranchMenuWindow : Window
         title.Text=engine.Current?.Text;
         notice.Text=engine.Notice+(boundary?"\n单击选中，双击打开所选菜单（不播放）。":"\n单击选中，双击确认进入；也可点击确认按钮。")+"\n↑↓选择 · Enter确认 · Esc收起";
         Options.Items.Clear();
-        badge.Text=boundary?"◆ 段落结束 · 等待续接":"◆ 分支选择 · 等待确认";
+        badge.Text=boundary?"◆ 连接尚未确认 · 等待续接":"◆ 分支选择 · 等待确认";
         confirmButton!.Content=boundary?"打开选中的菜单  Enter":"确认进入  Enter";
         confirmButton.IsEnabled=!boundary || engine.ResumeMenus.Count>0;
         if(boundary)
@@ -130,8 +136,16 @@ public sealed class BranchMenuWindow : Window
         Options.ScrollIntoView(Options.SelectedItem);
     }
     public void ShowNavigationNotice(string text) => notice.Text=text;
+    public void SetContinuationFeedback(PlaybackEngine? engine,string reason)
+    {
+        bool current=IsVisible && !IsNavigation && presentedEngine==engine && MenuId==engine?.CurrentId;
+        continuationFeedback.Text=current?reason:"";
+        continuationFeedback.Visibility=current && reason.Length>0?Visibility.Visible:Visibility.Collapsed;
+    }
     public void PresentNavigation(PlaybackEngine engine,double left,double top,int selected,bool allMenus=false,string? sectionId=null)
     {
+        continuationFeedback.Text="";continuationFeedback.Visibility=Visibility.Collapsed;
+        RestoreOptionView();presentedEngine=engine;
         string? section=sectionId ?? engine.Current?.SectionId;
         bool hasInteractions=section==engine.Current?.SectionId && engine.InteractionMenus.Count>0;
         var storyMenus=engine.GetStoryMenus(section);
@@ -177,5 +191,10 @@ public sealed class BranchMenuWindow : Window
         if(!IsVisible){Epoch++;Show();}Options.ScrollIntoView(Options.SelectedItem);
     }
     public void Dismiss(){pendingMouseConfirm=null;Epoch++;SetGamepadNavigation(false);Hide();}
-    public void Move(int delta){Options.SelectedIndex=Math.Clamp(Options.SelectedIndex+delta,0,Math.Max(0,Options.Items.Count-1));Options.ScrollIntoView(Options.SelectedItem);}
+    public void Move(int delta)
+    {
+        if(IsAnchorView && (Options.SelectedIndex+delta<0 || Options.SelectedIndex+delta>=Options.Items.Count))
+        {ChangeAnchorPage(delta<0?-1:1);return;}
+        Options.SelectedIndex=Math.Clamp(Options.SelectedIndex+delta,0,Math.Max(0,Options.Items.Count-1));Options.ScrollIntoView(Options.SelectedItem);
+    }
 }

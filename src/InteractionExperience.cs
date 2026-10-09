@@ -28,6 +28,7 @@ public partial class MainWindow
     void ToggleNavigationScope() => ShowInteractionNavigation(!branchMenu.IsAllMenus,interactionNavigationSection);
     void ShowInteractionNavigation(bool? allMenus = null,string? sectionId=null)
     {
+        CancelInputBranchRecovery("已打开手动分支菜单，自动续接已取消。");
         if (engine == null) { Tell("请先打开章节配音包。"); return; }
         if (engine.Mode == RunMode.Original) { Tell("游戏原声时段不能切换配音路线，请先结束原声时段。"); return; }
         string? section=sectionId ?? (expanded?(SectionBox.SelectedItem as Section)?.Id:null) ?? engine.Current?.SectionId ?? (SectionBox.SelectedItem as Section)?.Id;
