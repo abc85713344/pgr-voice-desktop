@@ -58,10 +58,8 @@ public partial class MainWindow
         switch (action)
         {
             case "panel": TogglePanelShortcut(); return true;
-            case "pause": if (listeningRunning) PauseListening(); else StartListening(); return true;
-            case "replay":
-                if (listeningSession != null) { PauseListening(); listeningOffset = 0; StartListening(); }
-                return true;
+            case "pause": ListeningPlayClick(); return true; // 与主播放按钮同一逻辑（倒计时时暂停 / 继续倒计时）
+            case "replay": ListeningReplay(); return true;
             case "previous": MoveListening(() => listeningSession!.Previous()); return true;
             case "manualNext": MoveListening(() => listeningSession!.MoveNext()); return true;
             // 听书时保留游戏的原声、定位、目录和选路线状态。

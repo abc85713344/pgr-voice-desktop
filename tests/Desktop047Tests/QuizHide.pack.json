@@ -1,0 +1,600 @@
+{
+ "schemaVersion": 3,
+ "id": "synthetic-quiz-hide",
+ "title": "【测试夹具·合成】问答菜单同回应隐藏（两个错误答案同文不同节点 + 正确出口；对照：短句同文的探索菜单；正确答案记原表 Action → Movie 选择菜单，错误答案无 Action 走同文兜底）",
+ "chapters": [
+  {
+   "id": "syn",
+   "title": "合成章节",
+   "sections": [
+    {
+     "id": "syn-sec",
+     "title": "S-1 合成小节",
+     "startId": "syn-sec-s0"
+    }
+   ]
+  }
+ ],
+ "nodes": [
+  {
+   "id": "syn-sec-s0",
+   "sectionId": "syn-sec",
+   "kind": "line",
+   "pathId": "",
+   "speaker": "旁白",
+   "text": "看来需要再向所有人明确一下，问题到底是什么……",
+   "rawText": "看来需要再向所有人明确一下，问题到底是什么……",
+   "nextId": "syn-sec-q1",
+   "audioStatus": "not-found"
+  },
+  {
+   "id": "syn-sec-q1",
+   "sectionId": "syn-sec",
+   "kind": "choice",
+   "pathId": "",
+   "text": "选择路线",
+   "menuType": "exclusive",
+   "nextId": "syn-sec-q1-merge",
+   "options": [
+    {
+     "id": "syn-sec-route-q1-w1",
+     "label": "（空中花园的安全）",
+     "targetId": "syn-sec-q1-a",
+     "pathId": "syn-sec-route-q1-w1",
+     "returnId": "syn-sec-q1",
+     "mergeId": "syn-sec-q1-merge",
+     "verified": true,
+     "requires": [],
+     "excludes": [],
+     "conditionNote": "",
+     "lineIds": [
+      "syn-sec-q1-a"
+     ],
+     "evidence": [
+      "synthetic"
+     ],
+     "previousVerified": true,
+     "bodyVerified": true,
+     "exitVerified": true,
+     "segmentIds": [
+      "syn-sec-q1-a",
+      "syn-sec-q1-a-ret"
+     ],
+     "boundaryId": null,
+     "bodyEvidence": [
+      "synthetic"
+     ],
+     "exitEvidence": [
+      "synthetic"
+     ]
+    },
+    {
+     "id": "syn-sec-route-q1-r",
+     "label": "（零点能的安全）",
+     "targetId": "syn-sec-q1-r1",
+     "pathId": "syn-sec-route-q1-r",
+     "returnId": "syn-sec-q1-merge",
+     "mergeId": "syn-sec-q1-merge",
+     "verified": true,
+     "requires": [],
+     "excludes": [],
+     "conditionNote": "",
+     "lineIds": [
+      "syn-sec-q1-r1"
+     ],
+     "evidence": [
+      "synthetic"
+     ],
+     "previousVerified": true,
+     "bodyVerified": true,
+     "exitVerified": true,
+     "segmentIds": [
+      "syn-sec-q1-r1",
+      "syn-sec-q1-r-ret"
+     ],
+     "boundaryId": null,
+     "bodyEvidence": [
+      "synthetic"
+     ],
+     "exitEvidence": [
+      "synthetic",
+      "冻结来源的此选项直接目标：ZX99999BA-action-177"
+     ]
+    },
+    {
+     "id": "syn-sec-route-q1-w2",
+     "label": "（月面基地的安全）",
+     "targetId": "syn-sec-q1-b",
+     "pathId": "syn-sec-route-q1-w2",
+     "returnId": "syn-sec-q1",
+     "mergeId": "syn-sec-q1-merge",
+     "verified": true,
+     "requires": [],
+     "excludes": [],
+     "conditionNote": "",
+     "lineIds": [
+      "syn-sec-q1-b"
+     ],
+     "evidence": [
+      "synthetic"
+     ],
+     "previousVerified": true,
+     "bodyVerified": true,
+     "exitVerified": true,
+     "segmentIds": [
+      "syn-sec-q1-b",
+      "syn-sec-q1-b-ret"
+     ],
+     "boundaryId": null,
+     "bodyEvidence": [
+      "synthetic"
+     ],
+     "exitEvidence": [
+      "synthetic"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "syn-sec-q1-a",
+   "sectionId": "syn-sec",
+   "kind": "line",
+   "pathId": "syn-sec-route-q1-w1",
+   "speaker": "旁白",
+   "text": "（不……李斯特在意的并不是这些，再仔细考虑）",
+   "rawText": "（不……李斯特在意的并不是这些，再仔细考虑）",
+   "nextId": "syn-sec-q1-a-ret",
+   "audioStatus": "not-found"
+  },
+  {
+   "id": "syn-sec-q1-a-ret",
+   "sectionId": "syn-sec",
+   "kind": "return",
+   "pathId": "syn-sec-route-q1-w1",
+   "text": "",
+   "nextId": "syn-sec-q1",
+   "completeRoute": "syn-sec-route-q1-w1",
+   "setFacts": []
+  },
+  {
+   "id": "syn-sec-q1-b",
+   "sectionId": "syn-sec",
+   "kind": "line",
+   "pathId": "syn-sec-route-q1-w2",
+   "speaker": "旁白",
+   "text": "（不……李斯特在意的并不是这些，再仔细考虑）",
+   "rawText": "（不……李斯特在意的并不是这些，再仔细考虑）",
+   "nextId": "syn-sec-q1-b-ret",
+   "audioStatus": "not-found"
+  },
+  {
+   "id": "syn-sec-q1-b-ret",
+   "sectionId": "syn-sec",
+   "kind": "return",
+   "pathId": "syn-sec-route-q1-w2",
+   "text": "",
+   "nextId": "syn-sec-q1",
+   "completeRoute": "syn-sec-route-q1-w2",
+   "setFacts": []
+  },
+  {
+   "id": "syn-sec-q1-r1",
+   "sectionId": "syn-sec",
+   "kind": "line",
+   "pathId": "syn-sec-route-q1-r",
+   "speaker": "旁白",
+   "text": "对于一个外来者，要做的就是先攻击对手薄弱的地方。",
+   "rawText": "对于一个外来者，要做的就是先攻击对手薄弱的地方。",
+   "nextId": "syn-sec-q1-r-ret",
+   "audioStatus": "not-found"
+  },
+  {
+   "id": "syn-sec-q1-r-ret",
+   "sectionId": "syn-sec",
+   "kind": "return",
+   "pathId": "syn-sec-route-q1-r",
+   "text": "",
+   "nextId": "syn-sec-q1-merge",
+   "completeRoute": "syn-sec-route-q1-r",
+   "setFacts": []
+  },
+  {
+   "id": "syn-sec-q1-merge",
+   "sectionId": "syn-sec",
+   "kind": "merge",
+   "pathId": "",
+   "text": "返回共同线",
+   "nextId": "syn-sec-m1"
+  },
+  {
+   "id": "syn-sec-m1",
+   "sectionId": "syn-sec",
+   "kind": "line",
+   "pathId": "",
+   "speaker": "旁白",
+   "text": "但什么才是真正的希望呢？",
+   "rawText": "但什么才是真正的希望呢？",
+   "nextId": "syn-sec-q2",
+   "audioStatus": "not-found"
+  },
+  {
+   "id": "syn-sec-q2",
+   "sectionId": "syn-sec",
+   "kind": "choice",
+   "pathId": "",
+   "text": "选择路线",
+   "menuType": "exclusive",
+   "nextId": "syn-sec-q2-merge",
+   "options": [
+    {
+     "id": "syn-sec-route-q2-w1",
+     "label": "（驶向未来的零点能引擎）",
+     "targetId": "syn-sec-q2-a",
+     "pathId": "syn-sec-route-q2-w1",
+     "returnId": "syn-sec-q2",
+     "mergeId": "syn-sec-q2-merge",
+     "verified": true,
+     "requires": [],
+     "excludes": [],
+     "conditionNote": "",
+     "lineIds": [
+      "syn-sec-q2-a"
+     ],
+     "evidence": [
+      "synthetic"
+     ],
+     "previousVerified": true,
+     "bodyVerified": true,
+     "exitVerified": true,
+     "segmentIds": [
+      "syn-sec-q2-a",
+      "syn-sec-q2-a-ret"
+     ],
+     "boundaryId": null,
+     "bodyEvidence": [
+      "synthetic"
+     ],
+     "exitEvidence": [
+      "synthetic"
+     ]
+    },
+    {
+     "id": "syn-sec-route-q2-w2",
+     "label": "（最后的伊甸，空中花园）",
+     "targetId": "syn-sec-q2-b",
+     "pathId": "syn-sec-route-q2-w2",
+     "returnId": "syn-sec-q2",
+     "mergeId": "syn-sec-q2-merge",
+     "verified": true,
+     "requires": [],
+     "excludes": [],
+     "conditionNote": "",
+     "lineIds": [
+      "syn-sec-q2-b"
+     ],
+     "evidence": [
+      "synthetic"
+     ],
+     "previousVerified": true,
+     "bodyVerified": true,
+     "exitVerified": true,
+     "segmentIds": [
+      "syn-sec-q2-b",
+      "syn-sec-q2-b-ret"
+     ],
+     "boundaryId": null,
+     "bodyEvidence": [
+      "synthetic"
+     ],
+     "exitEvidence": [
+      "synthetic"
+     ]
+    },
+    {
+     "id": "syn-sec-route-q2-r",
+     "label": "（创造出希望的人们）",
+     "targetId": "syn-sec-q2-r1",
+     "pathId": "syn-sec-route-q2-r",
+     "returnId": "syn-sec-q2-merge",
+     "mergeId": "syn-sec-q2-merge",
+     "verified": true,
+     "requires": [],
+     "excludes": [],
+     "conditionNote": "",
+     "lineIds": [
+      "syn-sec-q2-r1"
+     ],
+     "evidence": [
+      "synthetic"
+     ],
+     "previousVerified": true,
+     "bodyVerified": true,
+     "exitVerified": true,
+     "segmentIds": [
+      "syn-sec-q2-r1",
+      "syn-sec-q2-r-ret"
+     ],
+     "boundaryId": null,
+     "bodyEvidence": [
+      "synthetic"
+     ],
+     "exitEvidence": [
+      "synthetic",
+      "冻结来源的此选项直接目标：ZX99999BA-action-196"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "syn-sec-q2-a",
+   "sectionId": "syn-sec",
+   "kind": "line",
+   "pathId": "syn-sec-route-q2-w1",
+   "speaker": "旁白",
+   "text": "（如果名为希望的东西只是这样的话，和李斯特又有什么区别……一定可以找到别的答案）",
+   "rawText": "（如果名为希望的东西只是这样的话，和李斯特又有什么区别……一定可以找到别的答案）",
+   "nextId": "syn-sec-q2-a-ret",
+   "audioStatus": "not-found"
+  },
+  {
+   "id": "syn-sec-q2-a-ret",
+   "sectionId": "syn-sec",
+   "kind": "return",
+   "pathId": "syn-sec-route-q2-w1",
+   "text": "",
+   "nextId": "syn-sec-q2",
+   "completeRoute": "syn-sec-route-q2-w1",
+   "setFacts": []
+  },
+  {
+   "id": "syn-sec-q2-b",
+   "sectionId": "syn-sec",
+   "kind": "line",
+   "pathId": "syn-sec-route-q2-w2",
+   "speaker": "旁白",
+   "text": "（如果名为希望的东西只是这样的话，和李斯特又有什么区别……一定可以找到别的答案）",
+   "rawText": "（如果名为希望的东西只是这样的话，和李斯特又有什么区别……一定可以找到别的答案）",
+   "nextId": "syn-sec-q2-b-ret",
+   "audioStatus": "not-found"
+  },
+  {
+   "id": "syn-sec-q2-b-ret",
+   "sectionId": "syn-sec",
+   "kind": "return",
+   "pathId": "syn-sec-route-q2-w2",
+   "text": "",
+   "nextId": "syn-sec-q2",
+   "completeRoute": "syn-sec-route-q2-w2",
+   "setFacts": []
+  },
+  {
+   "id": "syn-sec-q2-r1",
+   "sectionId": "syn-sec",
+   "kind": "line",
+   "pathId": "syn-sec-route-q2-r",
+   "speaker": "旁白",
+   "text": "我认为真正的希望，是创造出这一切的人们。",
+   "rawText": "我认为真正的希望，是创造出这一切的人们。",
+   "nextId": "syn-sec-q2-r-ret",
+   "audioStatus": "not-found"
+  },
+  {
+   "id": "syn-sec-q2-r-ret",
+   "sectionId": "syn-sec",
+   "kind": "return",
+   "pathId": "syn-sec-route-q2-r",
+   "text": "",
+   "nextId": "syn-sec-q2-merge",
+   "completeRoute": "syn-sec-route-q2-r",
+   "setFacts": []
+  },
+  {
+   "id": "syn-sec-q2-merge",
+   "sectionId": "syn-sec",
+   "kind": "merge",
+   "pathId": "",
+   "text": "返回共同线",
+   "nextId": "syn-sec-x0"
+  },
+  {
+   "id": "syn-sec-x0",
+   "sectionId": "syn-sec",
+   "kind": "line",
+   "pathId": "",
+   "speaker": "旁白",
+   "text": "去营地里看看吧。",
+   "rawText": "去营地里看看吧。",
+   "nextId": "syn-sec-c",
+   "audioStatus": "not-found"
+  },
+  {
+   "id": "syn-sec-c",
+   "sectionId": "syn-sec",
+   "kind": "choice",
+   "pathId": "",
+   "text": "选择路线",
+   "menuType": "exclusive",
+   "nextId": "syn-sec-c-merge",
+   "options": [
+    {
+     "id": "syn-sec-route-c-a",
+     "label": "问问丽芙",
+     "targetId": "syn-sec-c-a1",
+     "pathId": "syn-sec-route-c-a",
+     "returnId": "syn-sec-c",
+     "mergeId": "syn-sec-c-merge",
+     "verified": true,
+     "requires": [],
+     "excludes": [],
+     "conditionNote": "",
+     "lineIds": [
+      "syn-sec-c-a1"
+     ],
+     "evidence": [
+      "synthetic"
+     ],
+     "previousVerified": true,
+     "bodyVerified": true,
+     "exitVerified": true,
+     "segmentIds": [
+      "syn-sec-c-a1",
+      "syn-sec-c-a-ret"
+     ],
+     "boundaryId": null,
+     "bodyEvidence": [
+      "synthetic"
+     ],
+     "exitEvidence": [
+      "synthetic"
+     ]
+    },
+    {
+     "id": "syn-sec-route-c-b",
+     "label": "问问露西亚",
+     "targetId": "syn-sec-c-b1",
+     "pathId": "syn-sec-route-c-b",
+     "returnId": "syn-sec-c",
+     "mergeId": "syn-sec-c-merge",
+     "verified": true,
+     "requires": [],
+     "excludes": [],
+     "conditionNote": "",
+     "lineIds": [
+      "syn-sec-c-b1"
+     ],
+     "evidence": [
+      "synthetic"
+     ],
+     "previousVerified": true,
+     "bodyVerified": true,
+     "exitVerified": true,
+     "segmentIds": [
+      "syn-sec-c-b1",
+      "syn-sec-c-b-ret"
+     ],
+     "boundaryId": null,
+     "bodyEvidence": [
+      "synthetic"
+     ],
+     "exitEvidence": [
+      "synthetic"
+     ]
+    },
+    {
+     "id": "syn-sec-route-c-x",
+     "label": "离开",
+     "targetId": "syn-sec-c-x1",
+     "pathId": "syn-sec-route-c-x",
+     "returnId": "syn-sec-c-merge",
+     "mergeId": "syn-sec-c-merge",
+     "verified": true,
+     "requires": [],
+     "excludes": [],
+     "conditionNote": "",
+     "lineIds": [
+      "syn-sec-c-x1"
+     ],
+     "evidence": [
+      "synthetic"
+     ],
+     "previousVerified": true,
+     "bodyVerified": true,
+     "exitVerified": true,
+     "segmentIds": [
+      "syn-sec-c-x1",
+      "syn-sec-c-x-ret"
+     ],
+     "boundaryId": null,
+     "bodyEvidence": [
+      "synthetic"
+     ],
+     "exitEvidence": [
+      "synthetic"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "syn-sec-c-a1",
+   "sectionId": "syn-sec",
+   "kind": "line",
+   "pathId": "syn-sec-route-c-a",
+   "speaker": "丽芙",
+   "text": "……",
+   "rawText": "……",
+   "nextId": "syn-sec-c-a-ret",
+   "audioStatus": "not-found"
+  },
+  {
+   "id": "syn-sec-c-a-ret",
+   "sectionId": "syn-sec",
+   "kind": "return",
+   "pathId": "syn-sec-route-c-a",
+   "text": "",
+   "nextId": "syn-sec-c",
+   "completeRoute": "syn-sec-route-c-a",
+   "setFacts": []
+  },
+  {
+   "id": "syn-sec-c-b1",
+   "sectionId": "syn-sec",
+   "kind": "line",
+   "pathId": "syn-sec-route-c-b",
+   "speaker": "丽芙",
+   "text": "……",
+   "rawText": "……",
+   "nextId": "syn-sec-c-b-ret",
+   "audioStatus": "not-found"
+  },
+  {
+   "id": "syn-sec-c-b-ret",
+   "sectionId": "syn-sec",
+   "kind": "return",
+   "pathId": "syn-sec-route-c-b",
+   "text": "",
+   "nextId": "syn-sec-c",
+   "completeRoute": "syn-sec-route-c-b",
+   "setFacts": []
+  },
+  {
+   "id": "syn-sec-c-x1",
+   "sectionId": "syn-sec",
+   "kind": "line",
+   "pathId": "syn-sec-route-c-x",
+   "speaker": "指挥官",
+   "text": "走吧。",
+   "rawText": "走吧。",
+   "nextId": "syn-sec-c-x-ret",
+   "audioStatus": "not-found"
+  },
+  {
+   "id": "syn-sec-c-x-ret",
+   "sectionId": "syn-sec",
+   "kind": "return",
+   "pathId": "syn-sec-route-c-x",
+   "text": "",
+   "nextId": "syn-sec-c-merge",
+   "completeRoute": "syn-sec-route-c-x",
+   "setFacts": []
+  },
+  {
+   "id": "syn-sec-c-merge",
+   "sectionId": "syn-sec",
+   "kind": "merge",
+   "pathId": "",
+   "text": "返回共同线",
+   "nextId": "syn-sec-s9"
+  },
+  {
+   "id": "syn-sec-s9",
+   "sectionId": "syn-sec",
+   "kind": "line",
+   "pathId": "",
+   "speaker": "旁白",
+   "text": "一行人离开了营地。",
+   "rawText": "一行人离开了营地。",
+   "nextId": null,
+   "audioStatus": "not-found"
+  }
+ ]
+}

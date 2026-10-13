@@ -1,0 +1,466 @@
+using System.Text.Json.Nodes;
+using PgrVoice;
+using PgrVoice.Listening;
+using CoreSession = PgrVoice.Listening.ListeningSession;
+
+// 0.4.7 桌面播放规则回归（与安卓 release/0.4.7 同核心）：
+// 听书停下处按倒计时处理后 0 停 0 重复；29-1 第一 337 / 第二 327（menu-020 是关卡按钮菜单，不做同回应隐藏）；19-14 问答菜单（只对 Movie 选择菜单：原表 Action 或白名单）；38-1 三种方式；探索菜单建议（空回环 / 空出口 / 单选项）；无音频停留；播放记录导出。
+int passed = 0, failed = 0;
+void Test(string name, Action body)
+{
+    try { body(); passed++; Console.WriteLine("PASS " + name); }
+    catch (Exception ex) { failed++; Console.WriteLine("FAIL " + name + "\n   " + ex.Message); }
+}
+void Check(bool ok, string message) { if (!ok) throw new Exception(message); }
+string ChapterFor(Pack pack, string sectionId) => pack.Chapters.First(c => c.Sections.Any(s => s.Id == sectionId)).Id;
+
+// 模拟桌面听书适配层（src/Listening047.cs）：待选支线 / 等待确认续接 / 死角都按 ResolveStop 倒计时结果处理（手动方式即“倒计时到点自动选择”）。
+(List<string> Lines, int Stops, int Auto, List<string> Kinds) Listen(Pack pack, string sectionId, ListeningBranchPolicy policy, int number)
+{
+    var core = new CoreSession(pack, ChapterFor(pack, sectionId), policy);
+    var lines = new List<string>(); var kinds = new List<string>(); int stops = 0, auto = 0, guard = 0;
+    while (core.Current is { } item && guard++ < 100000)
+    {
+        if (item.Kind == ListeningItemKind.Choice || item.IsBlocking)
+        {
+            var stop = core.ResolveStop(number);
+            if (stop == null) { if (item.SectionId == sectionId) stops++; break; }
+            if (item.SectionId == sectionId) { auto++; kinds.Add(stop.Action.ToString()); if (stop.DeadEnd) stops++; }
+            if (!core.ApplyStop(stop)) { stops++; break; }
+            continue;
+        }
+        if (item.Kind == ListeningItemKind.Line && item.SectionId == sectionId) lines.Add(item.NodeId);
+        if (!core.MoveNext()) { if (core.Current == item) break; }
+    }
+    return (lines, stops, auto, kinds);
+}
+
+
+// 模拟桌面游戏配音：玩家在游戏中点选与配音相同的项（单选项 / 探索菜单取 DesktopExploration 建议，普通菜单取默认第 n 项），统计路线句数、重复与无法继续处。
+(int Lines, int Repeats, int Stops, int Menus, int Suggested, int Handovers, List<string> Read) Game(Pack pack, string sectionId, int number)
+{
+    // 未核出口（Gap）：与安卓游戏模式相同，自动播放交给玩家定位；模拟玩家按听书顺序定位到下一句（计为交手动，不计无法继续）。
+    var order = Listen(pack, sectionId, number == 2 ? ListeningBranchPolicy.Second : ListeningBranchPolicy.First, number).Lines;
+    int handovers = 0; string? lastLine = null;
+    var e = new PlaybackEngine(pack); var start = pack.Chapters.SelectMany(c => c.Sections).First(s => s.Id == sectionId).StartId;
+    if (!e.ConfirmGameLine(start) && !e.OpenGameMenu(start, sectionId)) throw new Exception("无法定位小节开头：" + e.NavigationError);
+    var seen = new HashSet<string>(); var read = new List<string>(); int lines = 0, repeats = 0, stops = 0, menus = 0, suggested = 0;
+    for (int guard = 0; guard < 20000; guard++)
+    {
+        var cur = e.Current; if (cur == null || cur.SectionId != sectionId) break;
+        if (e.Mode == RunMode.Following && cur.Kind == "line") { lines++; read.Add(cur.Id); if (!seen.Add(cur.Id)) repeats++; lastLine = cur.Id; e.Next(); continue; }
+        if (e.Mode == RunMode.Gap)
+        {
+            int at = lastLine == null ? -1 : order.IndexOf(lastLine);
+            var target = order.Skip(at + 1).FirstOrDefault(id => !seen.Contains(id));
+            if (target != null && e.ConfirmGameLine(target)) { handovers++; continue; }
+        }
+        if (e.Mode == RunMode.Choice)
+        {
+            menus++; var sug = DesktopExploration.Suggest(e, number);
+            int index = sug?.Index ?? Math.Min(number - 1, e.AvailableOptions.Count - 1);
+            if (sug != null) suggested++;
+            DesktopExploration.Add(e, cur.Id, e.AvailableOptions[index].Id);
+            string before = cur.Id; var mode = e.Mode; e.SelectBranch(index);
+            if (e.CurrentId == before && e.Mode == mode) { Console.WriteLine($"   [menu stuck] {before} opt={e.AvailableOptions[index].Id} notice={e.Notice}"); stops++; break; }
+            continue;
+        }
+        if (e.Mode == RunMode.Merge) { e.Next(); continue; }
+        if (e.Mode == RunMode.End) break;
+        Console.WriteLine($"   [game stop] mode={e.Mode} cur={cur.Id} kind={cur.Kind} next={cur.NextId} notice={e.Notice} err={e.NavigationError}");
+        stops++; break;
+    }
+    return (lines, repeats, stops, menus, suggested, handovers, read);
+}
+
+string baseDir = AppContext.BaseDirectory;
+var synthetic = Pack.Load(Path.Combine(baseDir, "EmptyExit.pack.json"));
+const string Syn = "syn-sec";
+
+Test("合成包（空回环 + 普通回环 + 空出口）：听书第一 / 第二 / 手动倒计时均为 s0,l0,n1,n2,l9,s9，0 停 0 重复", () =>
+{
+    foreach (var (policy, number) in new[] { (ListeningBranchPolicy.First, 1), (ListeningBranchPolicy.Second, 2), (ListeningBranchPolicy.Manual, 1), (ListeningBranchPolicy.Manual, 2) })
+    {
+        var r = Listen(synthetic, Syn, policy, number);
+        var ids = r.Lines.Select(x => x[(Syn.Length + 1)..]).ToList();
+        Check(ids.SequenceEqual(new[] { "s0", "l0", "n1", "n2", "l9", "s9" }) && r.Stops == 0, $"{policy}/{number}: {string.Join(",", ids)} 停 {r.Stops}");
+    }
+});
+
+Test("游戏配音探索建议：单选项取唯一项；探索菜单跳过空回环先建议「聊聊」，读完后建议空出口「离开营地」（标记空出口）", () =>
+{
+    var e = new PlaybackEngine(synthetic);
+    Check(e.ConfirmGameLine(Syn + "-s0"), "无法定位 s0：" + e.NavigationError);
+    e.Next();
+    Check(e.Mode == RunMode.Choice && e.CurrentId == Syn + "-m0", "s0 之后应为单选项菜单 m0，实际 " + e.Mode + " " + e.CurrentId);
+    var single = DesktopExploration.Suggest(e, 1)!;
+    Check(single.Index == 0 && single.Kind == PlaybackLog.Types.SingleOption, "单选项建议错误");
+    DesktopExploration.Add(e, e.CurrentId!, single.Option.Id); e.SelectBranch(single.Index);
+    for (int i = 0; i < 4 && e.Mode != RunMode.Choice; i++) e.Next();
+    Check(e.Mode == RunMode.Choice && e.CurrentId == Syn + "-menu", "未到探索菜单：" + e.Mode + " " + e.CurrentId);
+    var first = DesktopExploration.Suggest(e, 1)!;
+    Check(first.Option.Label == "聊聊" && first.Kind == PlaybackLog.Types.Exploration && !first.EmptyExit, "第一建议应为「聊聊」，实际 " + first.Option.Label);
+    DesktopExploration.Add(e, e.CurrentId!, first.Option.Id);
+    var second = DesktopExploration.Suggest(e, 2)!;
+    Check(second.Option.Label == "离开营地" && second.EmptyExit, "读完回环后应建议空出口「离开营地」，实际 " + second.Option.Label);
+    e.SelectBranch(second.Index);
+    for (int i = 0; i < 8 && e.Mode == RunMode.Merge; i++) e.Next();
+    Check(e.CurrentId == Syn + "-l9" && e.Mode == RunMode.Following, "空出口后应落在汇合后第一句 l9，实际 " + e.Mode + " " + e.CurrentId);
+    Console.WriteLine("   建议：进入营地（单选项）→ 聊聊（跳过空回环 再等等……）→ 离开营地（空出口）→ l9");
+});
+
+Test("无音频停留：待配音 / 无配音按每字 0.25 秒（至少 2 秒）；纯标点仍 1.2 秒；有音频的句子不停留", () =>
+{
+    var json = JsonNode.Parse(File.ReadAllText(Path.Combine(baseDir, "EmptyExit.pack.json")))!;
+    foreach (var n in json["nodes"]!.AsArray())
+    {
+        if ((string?)n!["id"] == Syn + "-n1") n["audioStatus"] = "draft-missing";
+        if ((string?)n!["id"] == Syn + "-l9") n["text"] = "……";
+    }
+    string tmp = Path.Combine(Path.GetTempPath(), "desk047-dwell-" + Guid.NewGuid().ToString("N") + ".json");
+    File.WriteAllText(tmp, json.ToJsonString());
+    try
+    {
+        var pack = Pack.Load(tmp);
+        var n1 = pack.ById[Syn + "-n1"]; var n2 = pack.ById[Syn + "-n2"]; var l9 = pack.ById[Syn + "-l9"];
+        Check(PendingVoice.IsDraftMissing(n1) && PendingVoice.Tag(n1) == "待配音 · " && PendingVoice.Tag(n2) == "无配音 · ", "签文字错误");
+        Check(AutoPlaybackLinePolicy.SilentMilliseconds(pack, n1) == Math.Max(2000, n1.Text.Count(c => !char.IsWhiteSpace(c)) * 250), "待配音停留时长错误：" + AutoPlaybackLinePolicy.SilentMilliseconds(pack, n1));
+        Check(AutoPlaybackLinePolicy.SilentMilliseconds(pack, pack.ById[Syn + "-s9"]) == 2250, "9 字句应停 2.25 秒：" + AutoPlaybackLinePolicy.SilentMilliseconds(pack, pack.ById[Syn + "-s9"]));
+        Check(AutoPlaybackLinePolicy.SilentMilliseconds(pack, l9) == AutoPlaybackLinePolicy.SilentPauseMilliseconds, "纯标点句应为 1.2 秒短停顿");
+        Check(AutoPlaybackLinePolicy.CanPlay(pack, n1) && AutoPlaybackLinePolicy.CanPlay(pack, n2), "无音频台词在自动播放中应可越过（不停）");
+    }
+    finally { File.Delete(tmp); }
+});
+
+// 0.4.7 仅字幕（audioStatus "subtitle-only"、audioReason「仅字幕」、没有 audio / audioBinding / audioEvidence）：显示字幕、按待配音同一公式停留后继续；
+// 不标「待配音 / 无配音」签、不算待补 / 缺句、提示不称缺失；播放记录「仅字幕越过」。合成包：仅字幕 / 待配音 / 无配音各一句。
+Test("仅字幕（合成包）：加载通过；分类 SubtitleOnly、无签；草稿「待补」与提示不计仅字幕；听书 / 游戏配音按字数停留后继续，0 停；剩余时长计入停留", () =>
+{
+    var pack = Pack.Load(Path.Combine(baseDir, "SubtitleOnly.pack.json")); const string S = "sub-sec";
+    Node so = pack.ById[S + "-so"], dm = pack.ById[S + "-dm"], nf = pack.ById[S + "-nf"], end = pack.ById[S + "-s9"];
+    Check(PendingVoice.Classify(pack, so) == AudioKind.SubtitleOnly && PendingVoice.Classify(pack, dm) == AudioKind.PendingVoice && PendingVoice.Classify(pack, nf) == AudioKind.NoVoice, "分类错误");
+    Check(PendingVoice.Tag(so) == "" && PendingVoice.VoiceTag(so) == null && PendingVoice.VoiceTag(dm) == "待配音" && PendingVoice.VoiceTag(nf) == "无配音", "签错误");
+    Check(PendingVoice.PassType(so) == "仅字幕越过" && PendingVoice.PassType(dm) == PlaybackLog.Types.PendingVoicePass && PendingVoice.PassType(nf) == PlaybackLog.Types.NoVoicePass, "播放记录类型错误");
+    Check(pack.AudioNotice(so) == "仅字幕 · 无需配音" && PendingVoice.Notice(pack, so) == "仅字幕 · 无需配音" && pack.AudioNotice(dm).StartsWith("缺句"), "提示文字错误：" + pack.AudioNotice(so));
+    pack.Delivery = new PackDelivery { Status = "draft" };
+    Check(pack.DraftSummary.Contains("待补 2 句"), "草稿待补应只计待配音 / 无配音两句：" + pack.DraftSummary);
+    Check(pack.Nodes.Count(PendingVoice.CountsAsMissing) == 2, "缺失统计错误");
+    // 游戏配音：自动播放按字数停留（不暂停），手动一次越过（CanPlay = 可越过）。
+    Check(AutoPlaybackLinePolicy.CanPlay(pack, so) && AutoPlaybackLinePolicy.SilentMilliseconds(pack, so) == PendingVoice.DwellMilliseconds(so.Text) && PendingVoice.DwellMilliseconds(so.Text) == Math.Max(2000, so.Text.Count(c => !char.IsWhiteSpace(c)) * 250), "游戏配音仅字幕停留错误：" + AutoPlaybackLinePolicy.SilentMilliseconds(pack, so));
+    var g = Game(pack, S, 1);
+    Check(g.Lines == 4 && g.Stops == 0 && g.Repeats == 0 && g.Handovers == 0, $"游戏配音 {g.Lines} 句 无法继续 {g.Stops}");
+    foreach (var (policy, number) in new[] { (ListeningBranchPolicy.First, 1), (ListeningBranchPolicy.Manual, 1) })
+    {
+        var r = Listen(pack, S, policy, number);
+        Check(r.Lines.Count == 4 && r.Stops == 0, $"{policy}: {r.Lines.Count} 句 停 {r.Stops}");
+    }
+    var core = new CoreSession(pack, "sub", ListeningBranchPolicy.First);
+    var cache = new ListeningRemainingTimeCache(); var t = cache.Estimate(pack, core.Items, 0, 0);
+    for (int i = 0; i < 200 && t.Loading; i++) { Thread.Sleep(10); t = cache.Estimate(pack, core.Items, 0, 0); }
+    long want = new[] { so, dm, nf, end }.Sum(n => (long)PendingVoice.DwellMilliseconds(n.Text));
+    Check(t.KnownMilliseconds == want && t.MissingFiles == 0, $"剩余时长 {t.KnownMilliseconds}（预期 {want}）缺 {t.MissingFiles}");
+    Console.WriteLine($"   草稿：{pack.DraftSummary}；仅字幕提示「{pack.AudioNotice(so)}」；停留 {PendingVoice.DwellMilliseconds(so.Text)} ms；{t.DisplayText}");
+});
+
+Test("播放记录：写入后导出带 BOM 与表头，含类型 / 原因 / 所选项", () =>
+{
+    string file = Path.Combine(Path.GetTempPath(), "desk047-log-" + Guid.NewGuid().ToString("N") + ".csv");
+    PlaybackLog.Configure(file);
+    PlaybackLog.Write(PlaybackLog.Types.AutoSelect, "听书", synthetic, "合成章", "合成小节", Syn + "-menu", "倒计时结束·默认分支第一个选项", "聊聊");
+    PlaybackLog.Write(PlaybackLog.Types.Exploration, "听书", synthetic, "合成章", "合成小节", Syn + "-menu", ListeningText.EmptyExitContinue, "离开营地");
+    string text = PlaybackLog.Export();
+    Check(text.StartsWith("\uFEFF" + PlaybackLog.Header), "缺少 BOM / 表头");
+    Check(text.Contains(ListeningText.EmptyExitContinue) && text.Contains("聊聊") && text.Contains(PlaybackLog.Types.AutoSelect), "导出内容缺少记录");
+    File.Delete(file);
+});
+
+// ---- 0.4.7 同回应隐藏（问答菜单，19-14）：回到菜单时与刚选项回应相同的选项隐藏；同一段错误回应只读一次，之后取正确答案 ----
+var quiz = Pack.Load(Path.Combine(baseDir, "QuizHide.pack.json"));
+int WrongReads(Pack pack, IEnumerable<string> ids, string text) => ids.Count(id => pack.ById[id].Text == text);
+const string Wrong1 = "（不……李斯特在意的并不是这些，再仔细考虑）";
+const string Wrong2 = "（如果名为希望的东西只是这样的话，和李斯特又有什么区别……一定可以找到别的答案）";
+Test("合成问答包：两题识别为问答菜单（错误答案同文不同节点，按整段回应台词分组）；短句「……」同文的探索菜单不分组、不隐藏", () =>
+{
+    var q1 = MenuShape.Of(quiz, quiz.ById[Syn + "-q1"]); var q2 = MenuShape.Of(quiz, quiz.ById[Syn + "-q2"]); var c = MenuShape.Of(quiz, quiz.ById[Syn + "-c"]);
+    Check(q1.Quiz && q2.Quiz && !c.Quiz, $"问答识别 q1={q1.Quiz} q2={q2.Quiz} c={c.Quiz}");
+    Check(q1.SameResponse(q1.Options[0], q1.Options[2]) && !q1.SameResponse(q1.Options[0], q1.Options[1]), "q1 分组错误");
+    Check(q1.ResponseMatch.Values.Single() == MenuShape.MatchText, "q1 判定方式应为整段回应台词相同");
+    Check(!c.SameResponse(c.Options[0], c.Options[1]) && c.ResponseMatch.Count == 0, "短句「……」被误判为同回应");
+    Check(q1.VisibleAfter(q1.Options[0].Id).Select(o => o.Label).SequenceEqual(new[] { "（零点能的安全）" }), "q1 答错后应只剩正确答案");
+    Check(c.VisibleAfter(c.Options[0].Id).Count == 3, "普通探索菜单不应隐藏任何项");
+});
+Test("合成问答包：原表 Action 优先——两个错误答案记有不同 Action 时不隐藏；同一 Action 时即使台词不同也隐藏", () =>
+{
+    var json = JsonNode.Parse(File.ReadAllText(Path.Combine(baseDir, "QuizHide.pack.json")))!;
+    JsonNode Opt(string id) => json["nodes"]!.AsArray().SelectMany(n => n!["options"]?.AsArray() ?? new JsonArray()).First(o => (string?)o!["id"] == id)!;
+    Opt(Syn + "-route-q1-w1")["exitEvidence"] = new JsonArray("冻结来源的此选项直接目标：ZX99999BA-action-176");
+    Opt(Syn + "-route-q1-w2")["exitEvidence"] = new JsonArray("冻结来源的此选项直接目标：ZX99999BA-action-178");
+    Opt(Syn + "-route-q2-w1")["exitEvidence"] = new JsonArray("冻结来源的此选项直接目标：ZX99999BA-action-195");
+    Opt(Syn + "-route-q2-w2")["exitEvidence"] = new JsonArray("冻结来源的此选项直接目标：ZX99999BA-action-195");
+    foreach (var n in json["nodes"]!.AsArray()) if ((string?)n!["id"] == Syn + "-q2-b") n["text"] = "（另一句不同的台词，但原表同一个 Action）";
+    string tmp = Path.Combine(Path.GetTempPath(), "desk047-quiz-" + Guid.NewGuid().ToString("N") + ".json");
+    File.WriteAllText(tmp, json.ToJsonString());
+    try
+    {
+        var pack = Pack.Load(tmp);
+        var q1 = MenuShape.Of(pack, pack.ById[Syn + "-q1"]); var q2 = MenuShape.Of(pack, pack.ById[Syn + "-q2"]);
+        Check(MenuShape.ResponseAction(q1.Options[0]) == "ZX99999BA-action-176", "Action 读取错误：" + MenuShape.ResponseAction(q1.Options[0]));
+        Check(!q1.Quiz && !q1.SameResponse(q1.Options[0], q1.Options[2]), "不同 Action 仍被隐藏");
+        Check(q2.Quiz && q2.SameResponse(q2.Options[0], q2.Options[1]) && q2.ResponseMatch.Values.Single() == MenuShape.MatchAction, "同一 Action 没有按 Action 分组");
+    }
+    finally { File.Delete(tmp); }
+});
+Test("合成问答包：听书第一 / 第二 / 手动倒计时——每题错误回应至多读一次，随后取正确答案；0 停 0 重复；对照探索菜单两个「……」照常各读一次", () =>
+{
+    var want = new Dictionary<(ListeningBranchPolicy, int), string[]>
+    {
+        [(ListeningBranchPolicy.First, 1)] = new[] { "s0", "q1-a", "q1-r1", "m1", "q2-a", "q2-r1", "x0", "c-a1", "c-b1", "c-x1", "s9" },
+        [(ListeningBranchPolicy.Second, 2)] = new[] { "s0", "q1-r1", "m1", "q2-b", "q2-r1", "x0", "c-a1", "c-b1", "c-x1", "s9" },
+        [(ListeningBranchPolicy.Manual, 1)] = new[] { "s0", "q1-a", "q1-r1", "m1", "q2-a", "q2-r1", "x0", "c-a1", "c-b1", "c-x1", "s9" },
+        [(ListeningBranchPolicy.Manual, 2)] = new[] { "s0", "q1-r1", "m1", "q2-b", "q2-r1", "x0", "c-a1", "c-b1", "c-x1", "s9" },
+    };
+    foreach (var ((policy, number), expected) in want)
+    {
+        var r = Listen(quiz, Syn, policy, number);
+        var ids = r.Lines.Select(x => x[(Syn.Length + 1)..]).ToList();
+        Check(ids.SequenceEqual(expected) && r.Stops == 0, $"{policy}/{number}: {string.Join(",", ids)} 停 {r.Stops}");
+        Check(WrongReads(quiz, r.Lines, Wrong1) <= 1 && WrongReads(quiz, r.Lines, Wrong2) <= 1, $"{policy}/{number} 错误回应读了两次");
+        Console.WriteLine($"   听书 {policy}/默认{number}：{string.Join(",", ids)}");
+    }
+});
+Test("合成问答包：游戏配音（玩家按建议点选）——答错一次后菜单只剩正确答案（另两项隐藏）并自动建议，0 停 0 重复", () =>
+{
+    foreach (var (number, expected) in new[] { (1, new[] { "s0", "q1-a", "q1-r1", "m1", "q2-a", "q2-r1", "x0", "c-a1", "c-b1", "c-x1", "s9" }),
+                                               (2, new[] { "s0", "q1-r1", "m1", "q2-b", "q2-r1", "x0", "c-a1", "c-b1", "c-x1", "s9" }) })
+    {
+        var g = Game(quiz, Syn, number);
+        var ids = g.Read.Select(x => x[(Syn.Length + 1)..]).ToList();
+        Check(ids.SequenceEqual(expected) && g.Repeats == 0 && g.Stops == 0 && g.Handovers == 0, $"n={number}: {string.Join(",", ids)} 重复 {g.Repeats} 停 {g.Stops} 交手动 {g.Handovers}");
+        Console.WriteLine($"   游戏配音 默认{number}：{string.Join(",", ids)}；菜单 {g.Menus} 次，建议 {g.Suggested} 次");
+    }
+    var e = new PlaybackEngine(quiz); Check(e.ConfirmGameLine(Syn + "-s0"), "无法定位 s0"); e.Next();
+    Check(e.Mode == RunMode.Choice && e.CurrentId == Syn + "-q1", "未到 q1");
+    Check(DesktopExploration.HiddenIndexes(e).Count == 0, "首次到菜单不应隐藏");
+    var first = DesktopExploration.Suggest(e, 1)!;
+    Check(first.Option.Label == "（空中花园的安全）" && first.Kind == PlaybackLog.Types.AutoSelect, "首次应按默认第一项：" + first.Option.Label);
+    DesktopExploration.Add(e, e.CurrentId!, first.Option.Id); e.SelectBranch(first.Index);
+    for (int i = 0; i < 6 && e.Mode != RunMode.Choice; i++) e.Next();
+    Check(e.Mode == RunMode.Choice && e.CurrentId == Syn + "-q1", "答错后没有回到 q1：" + e.Mode + " " + e.CurrentId);
+    var hidden = DesktopExploration.HiddenIndexes(e);
+    Check(hidden.SequenceEqual(new[] { 0, 2 }), "隐藏下标应为 0,2：" + string.Join(",", hidden));
+    var only = DesktopExploration.Suggest(e, 2)!;
+    Check(only.Index == 1 && only.Kind == PlaybackLog.Types.SingleOption && only.Notice.Contains("已隐藏"), "答错后应按单选项建议正确答案：" + only.Option.Label + " / " + only.Notice);
+    Console.WriteLine("   答错回到 q1：隐藏「（空中花园的安全）」「（月面基地的安全）」，建议「" + only.Option.Label + "」");
+});
+string liveCh19 = Environment.GetEnvironmentVariable("LIVE_CH19") ?? "/workspace/fixture047/ch19/pack-5ca198d0.json";
+if (File.Exists(liveCh19))
+    Test("现行 ch19（5ca198d0）19-14 何为希望：听书第一 / 第二 / 手动倒计时与游戏配音，每题错误回应至多一次，随后正确答案；0 停 0 重复", () =>
+    {
+        var pack = Pack.Load(liveCh19); const string Sec = "ch19-185fecd83dca9abdd3cc";
+        var q1 = MenuShape.Of(pack, pack.ById[Sec + "-menu-000"]); var q2 = MenuShape.Of(pack, pack.ById[Sec + "-menu-001"]);
+        Check(q1.Quiz && q2.Quiz, "19-14 两个菜单没有识别为问答菜单");
+        string w1 = pack.ById[Sec + "-2611b7e646192f3dc62e"].Text, w2 = pack.ById[Sec + "-71b09f2ac7dbb4abac1b"].Text;
+        string r1 = Sec + "-d12aa472bcc31a87fdff", r2 = Sec + "-2b3b76972a4313ddfac8";
+        foreach (var (policy, number) in new[] { (ListeningBranchPolicy.First, 1), (ListeningBranchPolicy.Second, 2), (ListeningBranchPolicy.Manual, 1), (ListeningBranchPolicy.Manual, 2) })
+        {
+            var r = Listen(pack, Sec, policy, number);
+            int a = WrongReads(pack, r.Lines, w1), b = WrongReads(pack, r.Lines, w2);
+            Check(r.Stops == 0 && r.Lines.Distinct().Count() == r.Lines.Count && a <= 1 && b <= 1 && r.Lines.Contains(r1) && r.Lines.Contains(r2),
+                $"{policy}/{number}: {r.Lines.Count} 句，停 {r.Stops}，错误回应 {a}/{b}，正确答案 {r.Lines.Contains(r1)}/{r.Lines.Contains(r2)}");
+            Check(r.Lines.IndexOf(r1) > (a == 0 ? -1 : r.Lines.FindIndex(id => pack.ById[id].Text == w1)), "正确答案应在错误回应之后");
+            Console.WriteLine($"   听书 {policy}/默认{number}：19-14 {r.Lines.Count} 句，错误回应 第一题 {a} 次 / 第二题 {b} 次，0 停 0 重复");
+        }
+        foreach (var number in new[] { 1, 2 })
+        {
+            var g = Game(pack, Sec, number);
+            int a = WrongReads(pack, g.Read, w1), b = WrongReads(pack, g.Read, w2);
+            Check(g.Repeats == 0 && g.Stops == 0 && a <= 1 && b <= 1 && g.Read.Contains(r1) && g.Read.Contains(r2),
+                $"游戏配音 n={number}: {g.Lines} 句，重复 {g.Repeats}，无法继续 {g.Stops}，错误回应 {a}/{b}");
+            Console.WriteLine($"   游戏配音 默认{number}：19-14 {g.Lines} 句，错误回应 第一题 {a} 次 / 第二题 {b} 次，0 重复，0 无法继续；菜单 {g.Menus} 次，建议 {g.Suggested} 次；交玩家定位 {g.Handovers} 次");
+        }
+    });
+else Console.WriteLine("SKIP 现行 ch19 不在 " + liveCh19);
+
+string liveCh29 = Environment.GetEnvironmentVariable("LIVE_CH29") ?? "/workspace/fixture047/ch29/pack-6d0e13cd.json";
+if (File.Exists(liveCh29))
+    // menu-020（12点 / 3点 / 6点方向）是关卡行为树按钮菜单（行为 752013 节点 158205，各按钮有自己的已选标记 4006 / 4007），游戏不做同回应隐藏：
+    // 没有原表 Action、不在白名单 → 不是 Movie 选择，不分组；3点 / 6点各读一次。
+    Test("现行 ch29（6d0e13cd）29-1：第一 337 / 第二 327 / 手动倒计时同默认，0 停 0 重复，menu-026 记空出口；29-1 无同回应分组（menu-020 关卡按钮菜单不隐藏）", () =>
+    {
+        var pack = Pack.Load(liveCh29); const string Sec = "ch29-1dc1158611c810722709";
+        Check(!MenuShape.Of(pack, pack.ById[Sec + "-menu-020"]).Quiz && MenuShape.MovieSource(pack, pack.ById[Sec + "-menu-020"]) == null, "menu-020 仍被当作 Movie 问答菜单");
+        Check(pack.Nodes.Where(n => n.SectionId == Sec && n.Kind == "choice").All(n => MenuShape.Of(pack, n).ResponseMatch.Count == 0), "29-1 出现同回应分组");
+        foreach (var (policy, number, want) in new[] { (ListeningBranchPolicy.First, 1, 337), (ListeningBranchPolicy.Second, 2, 327), (ListeningBranchPolicy.Manual, 1, 337), (ListeningBranchPolicy.Manual, 2, 327) })
+        {
+            var r = Listen(pack, Sec, policy, number);
+            Check(r.Lines.Count == want && r.Lines.Distinct().Count() == want && r.Stops == 0, $"{policy}/{number}: {r.Lines.Count} 句（去重 {r.Lines.Distinct().Count()}），停 {r.Stops}，预期 {want}");
+            Console.WriteLine($"   {policy}/默认{number}：29-1 {r.Lines.Count} 句，0 停 0 重复，倒计时处理 {r.Auto} 处");
+        }
+        var core = new CoreSession(pack, ChapterFor(pack, Sec), ListeningBranchPolicy.First);
+        Check(core.ChoicePoints.Any(c => c.SectionId == Sec && c.EmptyExitLabel == "离开营地"), "menu-026 没有记空出口");
+        foreach (var (number, want) in new[] { (1, 337), (2, 327) })
+        {
+            var g = Game(pack, Sec, number);
+            Check(g.Lines == want && g.Repeats == 0 && g.Stops == 0 && g.Handovers == 0, $"游戏配音 n={number}: {g.Lines} 句，重复 {g.Repeats}，无法继续 {g.Stops}，预期 {want}");
+            Console.WriteLine($"   游戏配音 默认{number}：29-1 {g.Lines} 句，0 重复，0 无法继续；菜单 {g.Menus} 次，其中单选项 / 探索建议 {g.Suggested} 次；未核出口交玩家定位 {g.Handovers} 次");
+        }
+    });
+else Console.WriteLine("SKIP 现行 ch29 不在 " + liveCh29);
+
+string postCh29 = Environment.GetEnvironmentVariable("POST_CH29") ?? "/workspace/v31/edited/01_主线/第29章_源解信标/pack.json";
+if (File.Exists(postCh29))
+    Test("探索批次 v3.1 后 ch29（18458a11）29-1：第一 336 / 第二 327，menu-020 及其汇合点已归档——听书 / 游戏配音都不进入；0 停 0 重复", () =>
+    {
+        var pack = Pack.Load(postCh29); const string Sec = "ch29-1dc1158611c810722709";
+        Check(pack.ById[Sec + "-menu-020"].Archived && pack.ById[Sec + "-menu-020-merge"].Archived, "夹具不是归档后的 ch29");
+        bool InMenu020(string id) => pack.ById[id].Archived || pack.ById[id].PathId.StartsWith(Sec + "-route-020", StringComparison.Ordinal) || id.StartsWith(Sec + "-menu-020", StringComparison.Ordinal);
+        foreach (var (policy, number) in new[] { (ListeningBranchPolicy.First, 1), (ListeningBranchPolicy.Second, 2), (ListeningBranchPolicy.Manual, 1), (ListeningBranchPolicy.Manual, 2) })
+        {
+            var r = Listen(pack, Sec, policy, number);
+            var core = new CoreSession(pack, ChapterFor(pack, Sec), policy);
+            Check(r.Lines.Count == (number == 1 ? 336 : 327) && r.Stops == 0 && r.Lines.Distinct().Count() == r.Lines.Count && !r.Lines.Any(InMenu020) && !core.ChoicePoints.Any(c => c.Item.Node?.Id == Sec + "-menu-020"), $"{policy}/{number}: {r.Lines.Count} 句 停 {r.Stops}，进入归档 menu-020");
+            Console.WriteLine($"   {policy}/默认{number}：29-1（18458a11）{r.Lines.Count} 句（去重 {r.Lines.Distinct().Count()}），0 停 0 重复，未进入 menu-020");
+        }
+        foreach (var number in new[] { 1, 2 })
+        {
+            var g = Game(pack, Sec, number);
+            Check(g.Lines == (number == 1 ? 336 : 327) && g.Repeats == 0 && g.Stops == 0 && !g.Read.Any(InMenu020), $"游戏配音 n={number}: {g.Lines} 句 重复 {g.Repeats} 无法继续 {g.Stops}，进入归档 menu-020");
+            Console.WriteLine($"   游戏配音 默认{number}：29-1（18458a11）{g.Lines} 句，0 重复，0 无法继续，未进入 menu-020");
+        }
+    });
+else Console.WriteLine("SKIP 探索批次后 ch29 不在 " + postCh29);
+
+// 同回应隐藏适用范围：只对 Movie 选择菜单（选项有原表 Action，或在 19-14 白名单）生效。
+Pack Variant(string file, Func<string, string> edit, string tag)
+{
+    var tmp = Path.Combine(Path.GetTempPath(), "quizscope-desk-" + tag + "-" + Environment.ProcessId + ".json");
+    File.WriteAllText(tmp, edit(File.ReadAllText(file))); try { return Pack.Load(tmp); } finally { File.Delete(tmp); }
+}
+Test("同回应隐藏适用范围（合成问答包）：去掉原表 Action（= 关卡按钮菜单）后同文错误答案不分组、不隐藏，听书 / 游戏配音各读一次", () =>
+{
+    const string S = Syn;
+    var level = Variant(Path.Combine(baseDir, "QuizHide.pack.json"), t => t.Replace("冻结来源的此选项直接目标：", "（已去除）"), "level");
+    foreach (var m in new[] { "-q1", "-q2", "-c" })
+    {
+        var menu = level.ById[S + m]; var shape = MenuShape.Of(level, menu);
+        Check(MenuShape.MovieSource(level, menu) == null && !shape.Quiz && shape.ResponseMatch.Count == 0 && shape.Options.All(o => shape.VisibleAfter(o.Id).Count == shape.Options.Count), m + " 关卡按钮菜单仍被分组 / 隐藏");
+    }
+    var r = Listen(level, S, ListeningBranchPolicy.First, 1);
+    var ids = r.Lines.Select(x => x[(S.Length + 1)..]).ToList();
+    Check(ids.Contains("q1-a") && ids.Contains("q1-b") && ids.Contains("q2-a") && ids.Contains("q2-b") && r.Stops == 0 && ids.Count == ids.Distinct().Count(), "听书应各回环读一次：" + string.Join(",", ids));
+    var g = Game(level, S, 1);
+    Check(g.Repeats == 0 && g.Stops == 0 && g.Read.Count(x => x.EndsWith("-q1-a") || x.EndsWith("-q1-b")) == 2, "游戏配音应各回环读一次：" + string.Join(",", g.Read.Select(x => x[(S.Length + 1)..])));
+    Console.WriteLine($"   关卡按钮菜单（去掉 Action）：听书 {string.Join(",", ids)}");
+});
+if (File.Exists(liveCh19))
+    Test("同回应隐藏白名单（现行 ch19 5ca198d0）：19-14 menu-000 / menu-001 按白名单原表 Action（A176 / A195）分组；改动错误答案文字（模拟错字修订）不影响；换包编号即不生效", () =>
+    {
+        const string Sec = "ch19-185fecd83dca9abdd3cc";
+        var live = Pack.Load(liveCh19);
+        foreach (var m in new[] { "-menu-000", "-menu-001" })
+        {
+            var shape = MenuShape.Of(live, live.ById[Sec + m]);
+            Check(MenuShape.MovieSource(live, live.ById[Sec + m]) == MenuShape.MatchAllowlist && shape.Quiz && shape.ResponseMatch.Values.Single() == MenuShape.MatchAllowlist, m + " 白名单没有生效");
+        }
+        var w = live.ById[Sec + "-2611b7e646192f3dc62e"].Text;
+        var typo = Variant(liveCh19, t =>
+        {
+            int i = t.IndexOf("\"id\": \"" + Sec + "-2611b7e646192f3dc62e\"", StringComparison.Ordinal);
+            int j = t.IndexOf("\"text\": \"", i, StringComparison.Ordinal) + "\"text\": \"".Length; int k = t.IndexOf('"', j);
+            return t[..j] + "（修订后的错误答案文字）" + t[k..];
+        }, "typo");
+        Check(typo.ById[Sec + "-2611b7e646192f3dc62e"].Text != w && MenuShape.Of(typo, typo.ById[Sec + "-menu-000"]).Quiz, "改动错误答案文字后白名单失效");
+        var other = Variant(liveCh19, t => t.Replace("\"id\": \"pgr-ch19\"", "\"id\": \"pgr-ch19-other\""), "other");
+        Check(other.Id == "pgr-ch19-other" && MenuShape.MovieSource(other, other.ById[Sec + "-menu-000"]) == null, "白名单不应匹配其他包编号");
+    });
+
+string liveCh38 = Environment.GetEnvironmentVariable("LIVE_CH38") ?? "/workspace/fixture047/ch38/pack.json";
+if (File.Exists(liveCh38))
+    Test("现行 ch38 38-1：第一 / 第二 / 手动倒计时，0 停 0 重复", () =>
+    {
+        var pack = Pack.Load(liveCh38);
+        var sec = pack.Chapters.SelectMany(c => c.Sections).First(s => s.Title.StartsWith("38-1")).Id;
+        foreach (var (policy, number) in new[] { (ListeningBranchPolicy.First, 1), (ListeningBranchPolicy.Second, 2), (ListeningBranchPolicy.Manual, 1), (ListeningBranchPolicy.Manual, 2) })
+        {
+            var r = Listen(pack, sec, policy, number);
+            Check(r.Lines.Count > 0 && r.Lines.Distinct().Count() == r.Lines.Count && r.Stops == 0, $"{policy}/{number}: {r.Lines.Count} 句（去重 {r.Lines.Distinct().Count()}），停 {r.Stops}");
+            Console.WriteLine($"   {policy}/默认{number}：38-1 {r.Lines.Count} 句，0 停 0 重复，倒计时处理 {r.Auto} 处（{string.Join("/", r.Kinds.GroupBy(k => k).Select(g => g.Key + "×" + g.Count()))}）");
+        }
+        foreach (var number in new[] { 1, 2 })
+        {
+            var g = Game(pack, sec, number);
+            Check(g.Lines == 128 && g.Repeats == 0 && g.Stops == 0, $"游戏配音 n={number}: {g.Lines} 句，重复 {g.Repeats}，无法继续 {g.Stops}，交手动 {g.Handovers}");
+            Console.WriteLine($"   游戏配音 默认{number}：38-1 {g.Lines} 句，0 重复，0 无法继续；菜单 {g.Menus} 次，其中单选项 / 探索建议 {g.Suggested} 次；未核出口交玩家定位 {g.Handovers} 次");
+        }
+    });
+else Console.WriteLine("SKIP 现行 ch38 不在 " + liveCh38);
+
+// ---- 游戏配音终点规则（桌面文字跟随共用 GameEndWaitPolicy）：末句后不点击，提示终点文字等待；读到的文字在终点小节 + 下一小节里找，同文时只认下一小节首句 ----
+PgrVoice.Following.GameEndWait EndWaitAt(PlaybackEngine e, string label)
+{
+    var decision = e.EvaluateCommonAutoPlayNext();
+    Check(!(decision.Allowed && decision.Next != null), label + "：终点前竟允许自动点击 " + decision.Next?.Id);
+    Check(!decision.Reason.Contains("共同剧情已结束"), label + "：仍是旧的结束提示 " + decision.Reason);
+    Check(PgrVoice.Following.GameEndWaitPolicy.TryBegin(e, decision, out var wait) && wait != null, label + "：没有进入终点等待（" + decision.Code + "）");
+    return wait!;
+}
+Node? TextLocate(Pack pack, PgrVoice.Following.GameEndWait wait, string text)
+{
+    // 与 MainWindow.MatchGameText 相同：终点小节 + 下一小节里按文字全等找台词，排除末句本身；多句同文只认下一小节首句。
+    var exact = pack.Nodes.Where(n => n.Kind == "line" && n.Id != wait.SourceId && wait.SearchSections.Contains(n.SectionId) && n.Text == text).ToList();
+    return PgrVoice.Following.GameEndWaitPolicy.Pick(pack, wait, exact);
+}
+void Resume(PlaybackEngine e, PgrVoice.Following.GameEndWait wait, Node next, string label)
+{
+    var source = e.Pack.ById[wait.SourceId];
+    Check(TextLocate(e.Pack, wait, source.Text) == null || !PgrVoice.Following.GameEndWaitPolicy.CanResume(e, wait, source, out _, out _), label + "：画面仍是末句时结束了等待");
+    var found = TextLocate(e.Pack, wait, next.Text);
+    Check(found?.Id == next.Id, label + "：读到下一句却没有唯一定位到 " + next.Id + "（" + found?.Id + "）");
+    Check(PgrVoice.Following.GameEndWaitPolicy.CanResume(e, wait, found!, out _, out var why), label + "：定位后仍不能续接：" + why);
+    Check(e.ConfirmGameLine(found!.Id) && e.CurrentId == found.Id, label + "：导航器没有确认定位句");
+}
+var gameEnd = Pack.Load(Path.Combine(baseDir, "GameEnd.pack.json"));
+Test("游戏配音终点（合成）：小节末尾提示「原表终点」等待 → 读到下一小节首句续接；选项出口无文字终点用兜底提示 → 读到 l9 续接", () =>
+{
+    var e = new PlaybackEngine(gameEnd);
+    Check(e.ConfirmGameLine("syn-sec-s9"), "无法定位 s9");
+    var w = EndWaitAt(e, "小节末尾");
+    Check(w.Hint == "原表终点" && w.NextSectionId == "syn-sec2", "提示 / 下一小节不对：" + w.Hint + " / " + w.NextSectionId);
+    Check(PgrVoice.Following.GameEndWaitPolicy.LogReason(w).Contains("原表终点") && PlaybackLog.Types.EndWait == "终点等待定位", "记录类型 / 原因不对");
+    Resume(e, w, gameEnd.ById["syn-sec2-a"], "小节末尾");
+    var e2 = new PlaybackEngine(gameEnd);
+    Check(e2.ConfirmGameLine("syn-sec-n2"), "无法定位 n2");
+    var w2 = EndWaitAt(e2, "选项出口");
+    Check(w2.EndId == "syn-sec-n-end" && w2.Hint == PgrVoice.Following.GameEndWaitPolicy.FallbackHint, "无文字终点没有用兜底提示：" + w2.Hint);
+    Resume(e2, w2, gameEnd.ById["syn-sec-l9"], "选项出口");
+});
+if (File.Exists(liveCh38))
+    Test("游戏配音终点（现行 ch38）：38-1 末句提示「小节结束」等待 → 读到 38-2 首句（与节内另一句同文，只认首句）续接", () =>
+    {
+        var pack = Pack.Load(liveCh38);
+        var sec = pack.Chapters.SelectMany(c => c.Sections).First(x => x.Id == "ch38-71dc2c5d361c068b1528");
+        var e = new PlaybackEngine(pack);
+        var last = pack.Nodes.Where(n => n.SectionId == sec.Id && n.Kind == "line").First(n => PgrVoice.Following.GameEndWaitPolicy.EndAhead(Probe(pack, n.Id)) != null);
+        Check(e.ConfirmGameLine(last.Id), "无法定位 38-1 末句");
+        var w = EndWaitAt(e, "38-1 末尾");
+        Check(w.Hint == "小节结束" && w.NextSectionId != null, "提示 / 下一小节不对：" + w.Hint);
+        var next = PgrVoice.Following.GameEndWaitPolicy.ExpectedNext(pack, w)!;
+        Check(pack.Nodes.Count(n => n.Kind == "line" && n.SectionId == w.NextSectionId && n.Text == next.Text) > 1, "夹具变化：38-2 首句不再同文");
+        Resume(e, w, next, "38-1 末尾");
+        Console.WriteLine($"   38-1 {last.Id} →「{w.Hint}」等待 → 定位 38-2 首句「{next.Text}」续接");
+    });
+string ex02 = "/workspace/fixture047/probe/062.json";
+if (File.Exists(ex02))
+    Test("游戏配音终点（EX02）：SIXSUP_15021401 经 Gap 到终点，提示「请按游戏画面定位后续」等待", () =>
+    {
+        var pack = Pack.Load(ex02);
+        var src = pack.Nodes.First(n => n.Kind == "line" && n.Id.Contains("SIXSUP_15021401"));
+        var e = new PlaybackEngine(pack);
+        Check(e.ConfirmGameLine(src.Id), "无法定位 " + src.Id);
+        var w = EndWaitAt(e, "EX02");
+        Check(w.Hint == "请按游戏画面定位后续" && (w.EndId ?? "").Contains("E-M04_END"), "终点不对：" + w.EndId + " / " + w.Hint);
+    });
+PlaybackEngine Probe(Pack pack, string id) { var p = new PlaybackEngine(pack); p.ConfirmGameLine(id); return p; }
+
+Console.WriteLine($"Desktop047Tests：{passed} 通过，{failed} 失败");
+return failed == 0 ? 0 : 1;

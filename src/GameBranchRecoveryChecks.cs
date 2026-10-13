@@ -160,15 +160,47 @@ public partial class MainWindow
             ordinary = new(true, "", false); Sample();
             UpdateExperienceStatus();
             Check(!StripState.Text.Contains("多个位置"), "正文清空后不沿用上一帧同文歧义原因");
-            var target = engine.Pack.ById["a1"]; string? audioFile = target.Audio; target.Audio = null;
-            Read("a1"); target.Audio = audioFile;
-            Check(engine.CurrentId == "choice" && playCalls == before && gameTextNotice.Text.Contains("暂无可用配音"), "缺音不误称已经接上");
-            UpdateExperienceStatus();
-            Check(StripState.Text.Contains("暂无可用配音"), "悬浮条明确指出当前句缺配音");
-            Read("b1"); Check(engine.CurrentId == "b1" && playCalls == before + 1, "歧义或缺音后出现下一条明确正文可自行接上");
-            UpdateExperienceStatus();
-            Check(!StripState.Text.Contains("暂无可用配音") && StripText.Text.StartsWith("分支二："),
-                "成功续接后清除上一句缺音原因并显示实际第二支");
+            var target = engine.Pack.ById["a1"]; string? audioFile = target.Audio, audioStatus = target.AudioStatus;
+            // 0.4.7：缺音正文也能按游戏画面对齐。playCalls 是播放入口请求数，不代表有声音。
+            // 临时监听仍在对齐后退出，下一次原输入推进下一句，不自行跨路线追踪或增加倒计时。
+            foreach (var missing in new (string? Audio, string? Status, string Tag, string Label)[] {
+                (null, null, "无配音", "未引用音频"),
+                (null, "draft-missing", "待配音", "待配音"),
+                (null, "subtitle-only", "", "仅字幕"),
+                ("missing.wav", null, "无配音", "引用文件不存在") })
+            {
+                await Start(); before = playCalls;
+                try
+                {
+                    target.Audio = missing.Audio; target.AudioStatus = missing.Status;
+                    Read("a1");
+                    Check(engine.CurrentId == "a1" && engine.Choices.GetValueOrDefault("choice") == "a" &&
+                        playCalls == before + 1 && playingId == null && !audio.Playing &&
+                        !textArmed && inputBranchRecovery == null && textAutoLine == null && !automaticRunning &&
+                        textProbes.All(p => !p.AutoConnect && p.Binding == null),
+                        missing.Label + "：唯一正文对齐并显示字幕，结束临时监听而不启动声音或自动推进");
+                    Check(gameTextNotice.Text.Contains("已对齐：") && gameTextNotice.Text.Contains(target.Text) &&
+                        gameTextNotice.Text.Contains("显示字幕") && !gameTextNotice.Text.Contains("先播放本句") &&
+                        !gameTextNotice.Text.Contains("并播放"), missing.Label + "：对齐提示不误称已经播音");
+                    UpdateState();
+                    Check(StripText.Text == "分支一：" + target.Text &&
+                        (missing.Tag.Length > 0 ? StripState.Text.Contains(missing.Tag) && gameTextNotice.Text.Contains(missing.Tag) :
+                            !StripState.Text.Contains("无配音") && !StripState.Text.Contains("待配音") &&
+                            !gameTextNotice.Text.Contains("无配音") && !gameTextNotice.Text.Contains("待配音")) &&
+                        CurrentBranchWaitReason().Length == 0 && !compactFollowActions["continuation"].IsEnabled,
+                        missing.Label + "：悬浮条保留当前正文和准确标签，不误报续接阻断");
+                    long alignedAudio = audioRequest;
+                    Read("a1"); Read("b1");
+                    Check(engine.CurrentId == "a1" && playCalls == before + 1 && audioRequest == alignedAudio,
+                        missing.Label + "：临时监听退出后迟到正文不重播或偷偷切换另一支");
+                    RequestFollowNext(FollowInputSource.Keyboard, Stopwatch.GetTimestamp());
+                    UpdateState();
+                    Check(engine.CurrentId == "a2" && playCalls == before + 2 && playingId == "a2" &&
+                        !StripState.Text.Contains("无配音") && !StripState.Text.Contains("待配音"),
+                        missing.Label + "：新的原输入正常播放下一句并清除旧缺音标签");
+                }
+                finally { target.Audio = audioFile; target.AudioStatus = audioStatus; }
+            }
 
             await Start(); before = playCalls;
             ordinary = new(true, target.Text, true, Active:true, Speaker:target.Speaker);

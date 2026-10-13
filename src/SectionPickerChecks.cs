@@ -76,6 +76,22 @@ public partial class MainWindow
                 Check(ReferenceEquals(SectionBox.SelectedItem, original) && owner.CurrentId == node && playCalls == calls, "浏览分组和片段均不提交位置或触发播放");
                 picker.Groups.Focus(); picker.GamepadAction("confirm");
                 Check(picker.IsVisible && picker.Segments.IsKeyboardFocusWithin && picker.Result == null, "手柄确认小节只聚焦片段列表");
+                {
+                    // 02-A2 出场角色条：窄到放不下时可横向滑动，滚轮 / 箭头只滚动角色条，不改变所选小节或片段。
+                    var cast = picker.CastStrip; double oldWidth = picker.Width; var group = picker.Groups.SelectedItem; var segment = picker.Segments.SelectedItem;
+                    picker.Width = 700; picker.UpdateLayout();
+                    if (cast.IsVisible && cast.CanScroll)
+                    {
+                        Check(!cast.LeftButton.IsEnabled && cast.RightButton.IsEnabled, "出场角色条溢出时显示右箭头，左箭头不可用");
+                        double x0 = cast.Viewer.HorizontalOffset;
+                        cast.Viewer.RaiseEvent(new MouseWheelEventArgs(Mouse.PrimaryDevice, Environment.TickCount, -120) { RoutedEvent = Mouse.PreviewMouseWheelEvent }); picker.UpdateLayout();
+                        cast.RightButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); picker.UpdateLayout();
+                        Check(cast.Viewer.HorizontalOffset > x0 && cast.LeftButton.IsEnabled, "出场角色条滚轮 / 右箭头横向滚动");
+                    }
+                    else Check(!cast.IsVisible || (!cast.LeftButton.IsVisible && !cast.RightButton.IsVisible), "出场角色放得下时不显示滚动箭头");
+                    Check(ReferenceEquals(picker.Groups.SelectedItem, group) && ReferenceEquals(picker.Segments.SelectedItem, segment), "滑动出场角色条不改变所选小节或片段");
+                    picker.Width = oldWidth; picker.UpdateLayout();
+                }
                 Capture(picker, "section-picker-hyena.png"); picker.GamepadAction("back"); return Task.CompletedTask;
             }, keyboard: true);
             Check(ReferenceEquals(SectionBox.SelectedItem, original) && owner.CurrentId == node, "取消或返回保留原来浏览和播放位置");

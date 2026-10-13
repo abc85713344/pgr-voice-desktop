@@ -25,7 +25,7 @@ internal sealed class DesktopAutoPlaybackCycle
     {
         DesktopAutoPlaybackPhase.StartingAudio => ClickSubmitted ? "已发送一次点击 · 等待下一句开播" : "正在等待当前句开播",
         DesktopAutoPlaybackPhase.Playing => "正在播音 · 读完后再点下一句",
-        DesktopAutoPlaybackPhase.SilentPause => "标点停顿 · 稍后自动继续",
+        DesktopAutoPlaybackPhase.SilentPause => SilentLabel + " · 稍后自动继续",
         DesktopAutoPlaybackPhase.WaitingToClick => "语音已结束 · 等待点击下一句",
         DesktopAutoPlaybackPhase.Clicking => "正在提交一次点击 · 不会重复补点",
         DesktopAutoPlaybackPhase.WaitingForTransition => "已发送一次点击 · 等待转场",
@@ -75,10 +75,12 @@ internal sealed class DesktopAutoPlaybackCycle
         Phase = DesktopAutoPlaybackPhase.WaitingToClick; ExpectedNext = null;
         Deadline = Add(now, delayMs + 4_000); return true;
     }
-    public bool BeginSilentPause(long epoch, long ticket, long now)
+    public string SilentLabel { get; private set; } = "标点停顿";
+    public bool BeginSilentPause(long epoch, long ticket, long now, long durationMs = AutoPlaybackLinePolicy.SilentPauseMilliseconds, string label = "标点停顿")
     {
-        if (!Accept(epoch, now) || Phase != DesktopAutoPlaybackPhase.StartingAudio || ticket <= 0 || ticket != AudioTicket) return false;
-        SilentPauseUntil = Add(now, AutoPlaybackLinePolicy.SilentPauseMilliseconds);
+        if (!Accept(epoch, now) || Phase != DesktopAutoPlaybackPhase.StartingAudio || ticket <= 0 || ticket != AudioTicket || durationMs < 0 || durationMs > 600_000) return false;
+        SilentLabel = label;
+        SilentPauseUntil = Add(now, durationMs);
         Deadline = Add(SilentPauseUntil, 10_000); Phase = DesktopAutoPlaybackPhase.SilentPause;
         ClickAttempted = ClickSubmitted = false;
         return true;

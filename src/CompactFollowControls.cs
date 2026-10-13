@@ -93,9 +93,10 @@ public partial class MainWindow
                 StripText.Text = current?.Kind == ListeningItemKind.Line ? current.Node?.Text ?? "" : current?.Notice ?? "本章已听完";
                 StripState.Text = (listeningRunning ? "听书播放中" : current?.Kind == ListeningItemKind.Choice ? "听书等待选择路线 · 展开后选择" : "听书已暂停")
                     + (current == null ? "" : " · " + current.PositionLabel);
-                compactFollowActions["pause"].Content = listeningRunning ? "暂停听书" : "继续听书";
+                compactFollowActions["pause"].Content = CompactListeningPauseCaption;
                 compactFollowActions["ocr"].ToolTip = "听书不使用游戏定位；展开听书页可选择章节与台词";
                 StripView.BorderBrush = current?.Kind == ListeningItemKind.Choice ? LineRow.BranchAccent : Theme.Brush("NormalAccent");
+                StripState.Foreground = Theme.Brush("MutedText");
             }
             else
             {
@@ -107,9 +108,12 @@ public partial class MainWindow
                     : preferences.DialogueGuardEnabled && (dialogueHeld || dialogueChecking) ? dialogueMessage
                     : mouseFollowNeedsConfirmation ? mouseFollowNotice : StateText.Text + " · " + FollowReason();
                 if (engine?.Pack.IsDraft == true) StripState.Text = "抽检草稿 · " + StripState.Text;
+                bool native = engine?.MenuWaiting != true && NativeVoiceLine(engine?.Current);
+                if (native) StripState.Text = NativeVoiceWave + " " + NativeVoiceStatus + " · " + StripState.Text;
+                StripState.Foreground = Theme.Brush(native ? "TealText" : "MutedText");
                 compactFollowActions["pause"].Content = engine?.Mode == RunMode.Paused && !automaticRunning ? "恢复跟随" : "暂停跟随";
                 compactFollowActions["ocr"].ToolTip = "识别一次游戏画面，在候选页确认位置";
-                StripView.BorderBrush = engine?.MenuWaiting == true ? LineRow.BranchAccent : Theme.Brush("NormalAccent");
+                StripView.BorderBrush = engine?.MenuWaiting == true ? LineRow.BranchAccent : Theme.Brush(native ? "Teal" : "NormalAccent");
             }
             RefreshBranchFeedbackPresentation();
             StripState.ToolTip = StripState.Text;

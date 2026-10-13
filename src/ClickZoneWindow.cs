@@ -8,7 +8,7 @@ using System.Windows.Media;
 
 namespace PgrVoice;
 
-// 屏幕上的「下一句」点击热区，外观与播放器悬浮球同尺寸同形状（64 × 64，圆角 23）。
+// 屏幕上的「下一句」点击热区（64 × 64，ClickZone 01 徽记）。
 //
 // 平时整块完全穿透鼠标（WS_EX_TRANSPARENT），所以它只是画个标记给玩家看：
 // 点下去这一下照样落到游戏里，游戏照常推进；播放器通过 Raw Input 旁听到这次点击，
@@ -31,16 +31,13 @@ public sealed class ClickZoneWindow : Window
     const int WsExNoActivate = 0x08000000;    // 不抢焦点
     const int WsExToolWindow = 0x00000080;    // 不出现在 Alt+Tab
 
-    readonly Border frame;
-    readonly Border grip;
-    readonly TextBlock glyph;
-    readonly TextBlock hint;
+    readonly ClickZoneGlyph glyph = new();
 
     public bool Draggable { get; private set; }
 
     public ClickZoneWindow()
     {
-        // 与悬浮球一致：64 × 64、圆角 23、1 像素描边，顶部一条小握把。
+        // ClickZone 01（HANDOFF 10-CZ）：64×64 矢量徽记，空中花园轨道 + 鸦羽 V 标 + 红潮线；拖动态换青灰描边、四角与十字。
         Width = 64;
         Height = 64;
         WindowStyle = WindowStyle.None;
@@ -50,36 +47,24 @@ public sealed class ClickZoneWindow : Window
         ShowInTaskbar = false;
         ShowActivated = false;
         ResizeMode = ResizeMode.NoResize;
-        SnapsToDevicePixels = true;
-
-        grip = new Border { Width = 18, Height = 2, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 7, 0, 0) };
-        glyph = new TextBlock { Text = "下", FontSize = 23, FontWeight = FontWeights.SemiBold, TextAlignment = TextAlignment.Center };
-        hint = new TextBlock { Text = "下一句", FontSize = 9, TextAlignment = TextAlignment.Center };
-        var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 4, 0, 0) };
-        stack.Children.Add(glyph);
-        stack.Children.Add(hint);
-        var grid = new Grid();
-        grid.Children.Add(grip);
-        grid.Children.Add(stack);
-        frame = new Border { BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(23), Child = grid };
-        Content = frame;
-        ApplyTheme();
+        // 细线与 0.5 像素坐标按设计稿绘制，不对齐像素网格。
+        SnapsToDevicePixels = false;
+        UseLayoutRounding = false;
+        Content = glyph;
+        SetDraggableVisuals(false);
 
         MouseLeftButtonDown += (_, _) => { if (Draggable) { try { DragMove(); } catch { } Moved?.Invoke(); } };
     }
 
     public event Action? Moved;
 
-    void ApplyTheme()
+    void SetDraggableVisuals(bool draggable)
     {
-        frame.BorderBrush = Theme.Brush("NormalAccent");
-        grip.Background = Theme.Brush("Accent");
-        glyph.Foreground = Theme.Brush("NormalAccent");
-        hint.Foreground = Theme.Brush("MutedText");
-        // 与悬浮球同色系，但做成半透明，免得挡住底下那格游戏画面。
-        var ball = Theme.Brush("BallNormal") as SolidColorBrush;
-        var color = ball?.Color ?? Color.FromRgb(20, 22, 26);
-        frame.Background = new SolidColorBrush(Color.FromArgb(150, color.R, color.G, color.B));
+        glyph.Drag = draggable;
+        Cursor = draggable ? Cursors.SizeAll : Cursors.Arrow;
+        ToolTip = draggable
+            ? "正在调整位置：拖到游戏里“点击继续”的位置，然后点击完成或收起播放器面板。"
+            : "在游戏里点这个框会请求配音跟随。点击照常传给游戏；在设置里选择调整位置后可拖动。";
     }
 
     protected override void OnSourceInitialized(EventArgs e)
@@ -106,13 +91,7 @@ public sealed class ClickZoneWindow : Window
         if (Draggable == draggable) return;
         Draggable = draggable;
         ApplyClickThrough(!draggable);
-        frame.BorderThickness = new Thickness(draggable ? 2 : 1);
-        frame.BorderBrush = draggable ? Theme.Brush("PlayingAccent") : Theme.Brush("NormalAccent");
-        hint.Text = draggable ? "拖动" : "下一句";
-        Cursor = draggable ? Cursors.SizeAll : Cursors.Arrow;
-        ToolTip = draggable
-            ? "正在调整位置：拖到游戏里“点击继续”的位置，然后点击完成或收起播放器面板。"
-            : "在游戏里点这个框会请求配音跟随。点击照常传给游戏；在设置里选择调整位置后可拖动。";
+        SetDraggableVisuals(draggable);
     }
 
     public void PlaceAt(double left, double top)
@@ -144,5 +123,69 @@ public sealed class ClickZoneWindow : Window
         if (hwnd == IntPtr.Zero) return false;
         if (!GetWindowRect(hwnd, out var rect)) return false;
         return x >= rect.Left && x <= rect.Right && y >= rect.Top && y <= rect.Bottom;
+    }
+}
+
+/// <summary>ClickZone 01 徽记（64×64 视框，原创矢量）：底板 → 空中花园轨道与站点 → 鸦羽 V 标 / 拖动十字 → 文字 → 红潮线 → 描边与拖动角标。</summary>
+public sealed class ClickZoneGlyph : FrameworkElement
+{
+    public static readonly DependencyProperty DragProperty = DependencyProperty.Register(nameof(Drag), typeof(bool), typeof(ClickZoneGlyph), new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsRender));
+    public bool Drag { get => (bool)GetValue(DragProperty); set => SetValue(DragProperty, value); }
+    public ClickZoneGlyph() { SnapsToDevicePixels = false; UseLayoutRounding = false; }
+
+    static Geometry G(string data) { var g = Geometry.Parse(data); g.Freeze(); return g; }
+    static readonly Geometry Plate = G("M0.5,0.5 H53.5 L63.5,10.5 V63.5 H10.5 L0.5,53.5 Z");
+    static readonly Geometry Station = G("M32,4.6 l2.1,2.6 l-2.1,2.6 l-2.1,-2.6 z");
+    static readonly Geometry Spars = G("M27.5,7.2 h-3.4 M36.5,7.2 h3.4");
+    static readonly Geometry FeatherL = G("M21,21 L24.2,21 L32,32.8 L32,38 Z");
+    static readonly Geometry FeatherR = G("M43,21 L39.8,21 L32,32.8 L32,38 Z");
+    static readonly Geometry Notches = G("M22.7,26.3 l2.2,-0.9 M25.45,30.55 l2.2,-0.9 M41.3,26.3 l-2.2,-0.9 M38.55,30.55 l-2.2,-0.9");
+    static readonly Geometry InnerV = G("M26.28,16 L32,27 L37.72,16");
+    static readonly Geometry Cross = G("M23,30 H41 M32,21 V39");
+    static readonly Geometry Arrows = G("M32,18 l-2,3 h4 z M32,42 l-2,-3 h4 z M20,30 l3,-2 v4 z M44,30 l-3,-2 v4 z");
+    static readonly Geometry DragCorners = G("M4,9 V4 H9 M55,4 H60 V9 M4,55 V60 H9 M55,60 H60 V55");
+    static readonly Geometry Tide = TideLine.Crest(10, 54, 59, 6, 2.6);
+    static Pen Pen(string hex, double w, double opacity = 1, DashStyle? dash = null)
+    {
+        var c = (Color)ColorConverter.ConvertFromString(hex); c.A = (byte)(c.A * opacity);
+        var p = new Pen(new SolidColorBrush(c), w) { LineJoin = PenLineJoin.Miter, DashStyle = dash }; p.Freeze(); return p;
+    }
+    static Brush Fill(string hex) => Hud.Solid(hex);
+    static readonly Pen Orbit = Pen("#C19A52", 0.8, 0.95, new DashStyle(new[] { 3.2 / 0.8, 1.6 / 0.8 }, 0));
+    static readonly Pen Ink = Pen("#DFE7EE", 0.8);
+    static readonly Pen NotchPen = Pen("#C71A2028", 0.9);
+    static readonly Pen VPen = Pen("#B23A4A", 1.4);
+    static readonly Pen CrossPen = Pen("#8FD3CF", 0.75, 0.9);
+
+    protected override void OnRender(DrawingContext dc)
+    {
+        double k = Math.Min(RenderSize.Width, RenderSize.Height) / 64; if (k <= 0) return;
+        dc.PushTransform(new ScaleTransform(k, k));
+        bool drag = Drag;
+        dc.DrawGeometry(Fill(drag ? "#C71A2028" : "#A81A2028"), null, Plate);
+        dc.DrawEllipse(null, Orbit, new Point(32, 11), 17, 3.6);
+        dc.DrawGeometry(null, Ink, Station); dc.DrawGeometry(null, Ink, Spars);
+        dc.DrawEllipse(Fill("#C19A52"), null, new Point(48.6, 12.2), 1, 1);
+        if (drag)
+        {
+            dc.DrawGeometry(null, CrossPen, Cross);
+            dc.PushOpacity(0.9); dc.DrawGeometry(Fill("#8FD3CF"), null, Arrows); dc.Pop();
+        }
+        else
+        {
+            dc.DrawGeometry(Fill("#DFE7EE"), null, FeatherL); dc.DrawGeometry(Fill("#DFE7EE"), null, FeatherR);
+            dc.DrawGeometry(null, NotchPen, Notches);
+            dc.DrawGeometry(null, VPen, InnerV);
+        }
+        var text = new FormattedText(drag ? "拖动" : "下一句", System.Globalization.CultureInfo.CurrentUICulture, FlowDirection.LeftToRight,
+            new Typeface(Theme.Font("UiFont"), FontStyles.Normal, FontWeights.Medium, FontStretches.Normal), 8.6,
+            Fill(drag ? "#E3F1F0" : "#B4C0CB"), VisualTreeHelper.GetDpi(this).PixelsPerDip);
+        dc.DrawText(text, new Point(32 - text.WidthIncludingTrailingWhitespace / 2, 51 - text.Baseline));
+        dc.DrawGeometry(null, Pen(drag ? "#8CB23A4A" : "#B23A4A", 0.9), Tide);
+        dc.PushOpacity(0.95);
+        dc.DrawGeometry(null, new Pen(drag ? Theme.Brush("DragAccent") : Fill("#8FA6BF"), drag ? 2 : 1) { LineJoin = PenLineJoin.Miter }, Plate);
+        dc.Pop();
+        if (drag) dc.DrawGeometry(null, new Pen(Theme.Brush("DragAccentLight"), 1) { StartLineCap = PenLineCap.Square, EndLineCap = PenLineCap.Square, LineJoin = PenLineJoin.Miter }, DragCorners);
+        dc.Pop();
     }
 }

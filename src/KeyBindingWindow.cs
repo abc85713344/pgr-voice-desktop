@@ -19,36 +19,53 @@ public sealed class KeyBindingWindow : Window
     readonly TextBlock status;
     readonly ComboBox choices;
     public TextBox CaptureField { get; }
+    readonly StackPanel table = new();
     public Button SaveButton { get; }
     public Key? SelectedKey { get; private set; }
 
     public KeyBindingWindow(Window owner, string action, Dictionary<string,string> bindings, Dictionary<string,string> labels)
     {
         Owner = owner; this.action = action; this.bindings = bindings; this.labels = labels;
-        Title = "自定义按键 · " + labels[action]; Width = 440; SizeToContent = SizeToContent.Height;
+        Title = "自定义按键 · " + labels[action]; Width = 700; SizeToContent = SizeToContent.Height;
         WindowStartupLocation = WindowStartupLocation.CenterOwner; ResizeMode = ResizeMode.NoResize;
-        ShowInTaskbar = false; Topmost = true; Background = Theme.Brush("Bg");
-        FontFamily = new FontFamily("Microsoft YaHei UI"); FontSize = 14;
-        var panel = new StackPanel { Margin = new Thickness(22) }; Content = panel;
-        panel.Children.Add(new TextBlock { Text = labels[action], FontSize = 20, FontWeight = FontWeights.Bold });
-        panel.Children.Add(new TextBlock { Text = "点击下方输入框，按下要使用的键；也可以从列表选择。点击保存才生效。", Margin = new Thickness(0,12,0,8) });
-        CaptureField = new TextBox { IsReadOnly = true, IsReadOnlyCaretVisible = false, TextAlignment = TextAlignment.Center, FontSize = 22, MinHeight = 50, ToolTip = "点击这里后按一个键" };
-        // 此处录入的是按键，不是文字；避免中文输入法拦截字母和 Esc。
-        InputMethod.SetIsInputMethodEnabled(CaptureField, false);
-        AutomationProperties.SetAutomationId(CaptureField, "KeyCapture"); panel.Children.Add(CaptureField);
+        ShowInTaskbar = false; Topmost = true; Theme.ApplyDialog(this); FontSize = 14;
+        // 07-B：左侧录入（档案纸面 + 键帽 +「原按键 →」对照）/ 右侧只读「当前键位」表（正在改的行绯红边，被占用行绯红虚线）。
+        var outer = new StackPanel { Margin = new Thickness(22, 18, 22, 18) }; Content = outer;
+        outer.Children.Add(Theme.Title(labels[action], "ASSIGN KEY", new Thickness(0)));
+        var columns = new Grid { Margin = new Thickness(0, 12, 0, 0) };
+        columns.ColumnDefinitions.Add(new()); columns.ColumnDefinitions.Add(new() { Width = new GridLength(260) });
+        outer.Children.Add(columns);
+        var panel = new StackPanel { Margin = new Thickness(0, 0, 16, 0) }; columns.Children.Add(panel);
+        panel.Children.Add(new TextBlock { Text = "点击下方输入框，按下要使用的键；也可以从列表选择。点击保存才生效。", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0,0,0,8) });
+        CaptureField = new TextBox { IsReadOnly = true, IsReadOnlyCaretVisible = false, TextAlignment = TextAlignment.Center, FontSize = 26, MinHeight = 54, MinWidth = 150, ToolTip = "点击这里后按一个键", FontFamily = Theme.Font("NumberFont"),
+            Background = Hud.Solid("#2E363F"), Foreground = Brushes.White, BorderThickness = new Thickness(0), VerticalContentAlignment = VerticalAlignment.Center, CaretBrush = Brushes.Transparent };
+        var keycap = new Border { BorderBrush = Theme.Brush("Accent"), BorderThickness = new Thickness(0, 3, 0, 0), Child = CaptureField };
+        var keycapBase = new Border { BorderBrush = Hud.Solid("#1B2026"), BorderThickness = new Thickness(0, 0, 0, 5), Child = keycap, HorizontalAlignment = HorizontalAlignment.Center };
+        var compare = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(14, 18, 14, 18) };
+        var original = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0) };
+        original.Children.Add(new TextBlock { Text = "原按键", FontSize = 11, Foreground = Theme.Brush("MutedText"), HorizontalAlignment = HorizontalAlignment.Center });
+        original.Children.Add(Archive.Keycap(Enum.TryParse<Key>(bindings[action], out var was) ? Display(was) : "未设置", true));
+        compare.Children.Add(original);
+        compare.Children.Add(new TextBlock { Text = "→", FontSize = 20, Foreground = Theme.Brush("MutedText"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 10, 12, 0) });
+        compare.Children.Add(keycapBase);
+        var paper = new ArchivePaper { Child = compare, ShowRail = false, EmblemSize = 96, EmblemRight = -10, EmblemBottom = -14, TideHeight = 26, ShowOrbits = false };
+        panel.Children.Add(new Border { BorderBrush = Theme.Brush("Stroke"), BorderThickness = new Thickness(1), Child = paper });
         CaptureField.PreviewKeyDown += CaptureKey;
         panel.Children.Add(new TextBlock { Text = "或直接选择按键", Margin = new Thickness(0,14,0,5) });
         choices = new ComboBox { ItemsSource = Enum.GetValues<Key>().Distinct().Where(IsAllowed).Select(k=>new Choice(k,Display(k))).ToList() };
         AutomationProperties.SetAutomationId(choices, "KeyChoices"); panel.Children.Add(choices);
         choices.SelectionChanged += (_,_) => { if (choices.SelectedItem is Choice choice) Pick(choice.Key); };
-        status = new TextBlock { MinHeight = 44, Margin = new Thickness(0,12,0,8), Foreground = Theme.Brush("BranchAccent") }; panel.Children.Add(status);
-        var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right }; panel.Children.Add(buttons);
+        status = new TextBlock { MinHeight = 44, Margin = new Thickness(0,12,0,8), Foreground = Theme.Brush("BranchAccent"), TextWrapping = TextWrapping.Wrap }; panel.Children.Add(status);
+        var tableArea = new StackPanel(); Grid.SetColumn(tableArea, 1); columns.Children.Add(tableArea);
+        tableArea.Children.Add(Archive.Section("当前键位", "CURRENT KEYS"));
+        tableArea.Children.Add(new Border { BorderBrush = Theme.Brush("Stroke"), BorderThickness = new Thickness(1), Background = Brushes.White, Child = table });
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 12, 0, 0) }; outer.Children.Add(buttons);
         var cancel = new Button { Content = "取消", MinWidth = 82, IsCancel = true }; buttons.Children.Add(cancel);
         SaveButton = new Button { Content = "保存", MinWidth = 82, Style=(Style)FindResource("PrimaryButton"), Margin=new Thickness(8,0,0,0) };
         AutomationProperties.SetAutomationId(SaveButton, "SaveKey"); buttons.Children.Add(SaveButton);
         SaveButton.Click += (_,_) => { if (SelectedKey.HasValue && SaveButton.IsEnabled) DialogResult = true; };
         PreviewKeyDown += (_,e) => { if (EventKey(e) == Key.Escape) { e.Handled = true; DialogResult = false; } };
-        if (Enum.TryParse<Key>(bindings[action],out var initial) && IsAllowed(initial)) Pick(initial);
+        if (Enum.TryParse<Key>(bindings[action],out var initial) && IsAllowed(initial)) Pick(initial); else RenderTable(null);
         Loaded += (_,_) => Dispatcher.BeginInvoke(DispatcherPriority.Input, () => { Activate(); CaptureField.Focus(); Keyboard.Focus(CaptureField); });
     }
     public static string Display(Key key) => key switch
@@ -69,7 +86,7 @@ public sealed class KeyBindingWindow : Window
         if (!IsAllowed(key) || Keyboard.Modifiers != ModifierKeys.None)
         {
             SelectedKey = null; SaveButton.IsEnabled = false;
-            status.Text = "请选择一个单键；↑↓、回车和 Esc 保留给菜单操作。"; return;
+            status.Text = "请选择一个单键；↑↓、回车和 Esc 保留给菜单操作。"; RenderTable(null); return;
         }
         Pick(key);
     }
@@ -81,5 +98,39 @@ public sealed class KeyBindingWindow : Window
         var conflict = bindings.FirstOrDefault(b => b.Key != action && Matches(b.Value, key));
         SaveButton.IsEnabled = conflict.Key == null;
         status.Text = conflict.Key == null ? "点击“保存”后生效。取消会保留原按键。" : "这个键已用于“" + labels.GetValueOrDefault(conflict.Key,conflict.Key) + "”，请换一个。";
+        RenderTable(conflict.Key);
+    }
+    // 只读键位表：行内无装饰；正在改的行 = 绯红实边 +「原键 → ?」，被占用行 = 绯红虚线 + 红键签 +「已占用」。
+    void RenderTable(string? conflict)
+    {
+        table.Children.Clear();
+        int index = 0;
+        foreach (var (key, label) in labels.Where(l => bindings.ContainsKey(l.Key)).Select(l => (l.Key, l.Value)))
+        {
+            bool editing = key == action, taken = key == conflict;
+            string current = Enum.TryParse<Key>(bindings[key], out var k) ? Display(k) : bindings[key];
+            var row = new DockPanel { Margin = new Thickness(8, 4, 8, 4) };
+            var number = new TextBlock { Text = (++index).ToString("00"), FontFamily = Theme.Font("NumberFont"), FontSize = 11, Foreground = Theme.Brush("MutedText"), Width = 22, VerticalAlignment = VerticalAlignment.Center };
+            DockPanel.SetDock(number, Dock.Left); row.Children.Add(number);
+            var right = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            if (editing)
+            {
+                right.Children.Add(Archive.Keycap(current, true));
+                right.Children.Add(new TextBlock { Text = " → " + (SelectedKey.HasValue && conflict == null ? Display(SelectedKey.Value) : "?"), FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = Theme.Brush("BranchAccent"), VerticalAlignment = VerticalAlignment.Center });
+            }
+            else if (taken)
+            {
+                var tag = Archive.Tag("已占用", "red"); tag.Margin = new Thickness(0, 0, 6, 0); right.Children.Add(tag);
+                right.Children.Add(new Border { Background = Theme.Brush("BranchAccent"), Padding = new Thickness(6, 1, 6, 2), Child = new TextBlock { Text = current, Foreground = Brushes.White, FontSize = 11.5, FontFamily = Theme.Font("NumberFont") } });
+            }
+            else right.Children.Add(Archive.Keycap(current, true));
+            DockPanel.SetDock(right, Dock.Right); row.Children.Add(right);
+            row.Children.Add(new TextBlock { Text = label, FontSize = 12.5, FontWeight = editing ? FontWeights.SemiBold : FontWeights.Normal, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis });
+            var cell = new Grid { Background = editing ? Hud.Solid("#FBEFF1") : index % 2 == 0 ? Hud.Solid("#F6F7F9") : Brushes.White };
+            cell.Children.Add(row);
+            if (editing) cell.Children.Add(new Border { BorderBrush = Theme.Brush("Accent"), BorderThickness = new Thickness(3, 0, 0, 0), IsHitTestVisible = false });
+            if (taken) cell.Children.Add(new System.Windows.Shapes.Rectangle { Stroke = Theme.Brush("Accent"), StrokeThickness = 1.2, StrokeDashArray = new DoubleCollection { 3, 2 }, IsHitTestVisible = false });
+            table.Children.Add(cell);
+        }
     }
 }

@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup>
+    <BaseIntermediateOutputPath>../../scratch/desktop047-tests-obj/</BaseIntermediateOutputPath>
+    <BaseOutputPath>../../scratch/desktop047-tests-bin/</BaseOutputPath>
+  </PropertyGroup>
+</Project>

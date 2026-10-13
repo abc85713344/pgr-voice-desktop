@@ -60,11 +60,22 @@ public partial class MainWindow
         await Choose("menu",1);
         check(StripText.Text=="分支二：第二条路线正文。","按实际第二个选项显示分支二");
         var missing=engine.Pack.ById["b1"];string? savedAudio=missing.Audio;missing.Audio=null;engine.Replay();await Drain();
-        check(CurrentBranchWaitReason().Length>0 && compactFollowActions["continuation"].IsEnabled &&
-            !StripState.Text.Contains("跟随中"),"手动进入的分支句缺音也明确等待原因并提供续接");
+        check(engine.CurrentId=="b1" && playingId==null && !audio.Playing &&
+            CurrentBranchWaitReason().Length==0 && !compactFollowActions["continuation"].IsEnabled &&
+            StripState.Text.Contains("无配音") && StripText.Text=="分支二：第二条路线正文。",
+            "手动进入的分支句缺音显示当前字幕与无配音标签，不误报续接阻断" +
+            $" [node={engine.CurrentId}, playing={playingId}, audio={audio.Playing}, wait={CurrentBranchWaitReason()}, continuation={compactFollowActions["continuation"].IsEnabled}, state={StripState.Text}, text={StripText.Text}]");
+        int missingPlays=playCalls;engine.EnterOriginal();await Drain();
+        check(engine.Mode==RunMode.Original && playCalls==missingPlays &&
+            !StateText.Text.Contains("无配音") && !StateText.Text.Contains("待配音") &&
+            !StripState.Text.Contains("无配音") && !StripState.Text.Contains("待配音") && CurrentBranchWaitReason().Length==0,
+            "缺音句切到游戏原声后移除配音标签，不误报当前原声缺音或提交播放");
+        engine.ConfirmGameLine("b1",resumeOriginal:true);await Drain();
+        check(engine.Mode==RunMode.Following && engine.CurrentId=="b1" && playCalls==missingPlays+1 && playingId==null &&
+            StripState.Text.Contains("无配音"),"明确按游戏当前句恢复配音后重新显示缺音字幕标签");
         missing.Audio=savedAudio;engine.Replay();await Drain();
-        check(CurrentBranchWaitReason().Length==0 && !compactFollowActions["continuation"].IsEnabled,
-            "同一句恢复有效音频并重播后清掉旧播放失败反馈");
+        check(playingId=="b1" && CurrentBranchWaitReason().Length==0 && !compactFollowActions["continuation"].IsEnabled &&
+            !StripState.Text.Contains("无配音"),"同一句恢复有效音频并明确重播后清掉旧缺音标签");
         await Choose("inner",0);
         check(StripText.Text=="分支一：内层第一条路线正文。","外层第二支进入内层第一支后显示内层实际编号");
         engine.ConfirmGameLine("b2");await Drain();

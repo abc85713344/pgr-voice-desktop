@@ -77,8 +77,13 @@ public partial class MainWindow
                 picker.Categories.SelectedItem = "本我回廊"; picker.UpdateLayout(); Capture(picker, "chapter-picker-empty-category.png");
                 picker.Categories.SelectedItem = "主线"; picker.Chapters.UpdateLayout();
                 var scroll = Find<ScrollViewer>(picker.Chapters) ?? throw new Exception("找不到章节滚动区域");
-                scroll.ScrollToTop(); await Task.Delay(70); double before = scroll.VerticalOffset;
-                Wheel(scroll, -120); await Task.Delay(70);
+                // 切类后的容器、焦点和封面布局先稳定，再检查一格滚轮的实际位移。
+                await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                scroll.ScrollToTop(); await Task.Delay(250); picker.UpdateLayout(); double before = scroll.VerticalOffset;
+                var wheel = new MouseWheelEventArgs(Mouse.PrimaryDevice, Environment.TickCount, -120) { RoutedEvent = Mouse.MouseWheelEvent };
+                scroll.RaiseEvent(wheel); picker.UpdateLayout(); double immediate = scroll.VerticalOffset;
+                await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle); await Task.Delay(100);
+                Json.Save(Path.Combine(Log.DataDir, "chapter-wheel-measurement.json"), new { before, immediate, after = scroll.VerticalOffset, viewport = scroll.ViewportHeight, extent = scroll.ExtentHeight, wheelLines = SystemParameters.WheelScrollLines, wheel.Handled, scroll.IsEnabled, sameViewer = ReferenceEquals(scroll, Find<ScrollViewer>(picker.Chapters)) });
                 Check(scroll.VerticalOffset > before && scroll.VerticalOffset - before < scroll.ViewportHeight, "一次真实WPF滚轮事件只滚动一小段，没有整组跳转");
                 for (int i = 0; i < 80; i++) Wheel(scroll, -120);
                 await Task.Delay(70);
@@ -87,6 +92,27 @@ public partial class MainWindow
                 picker.Categories.SelectedItem = "外篇剧情"; picker.UpdateLayout();
                 Check(picker.Chapters.Items.Count > 0 && picker.Chapters.Items.OfType<PackChoice>().All(p => p.Category == "外篇剧情"), "点外篇分类只筛出外篇章节");
                 Check(ReferenceEquals(engine, oldEngine) && preferences.PackFile == oldPath, "点分类不自动载入该类第一章");
+                {
+                    // 01-B 分类页签横向滑动：最窄窗口下 13 类放不下，滚轮 / 箭头可滚动，选中类始终完整可见，且不改变分类筛选。
+                    double oldWidth = picker.Width; var tabs = picker.CategoryStrip;
+                    picker.Width = picker.MinWidth; picker.Categories.SelectedIndex = 0; picker.UpdateLayout(); await Task.Delay(80); picker.UpdateLayout();
+                    string first = (string)picker.Categories.SelectedItem!;
+                    Check(tabs.CanScroll && !tabs.CanScrollLeft && tabs.CanScrollRight && tabs.RightButton.IsVisible && tabs.RightButton.IsEnabled && !tabs.LeftButton.IsEnabled,
+                        "最窄窗口下分类页签可横向滑动，位于首类时只有右箭头可用");
+                    double x0 = tabs.Viewer.HorizontalOffset;
+                    tabs.Viewer.RaiseEvent(new MouseWheelEventArgs(Mouse.PrimaryDevice, Environment.TickCount, -120) { RoutedEvent = Mouse.PreviewMouseWheelEvent }); picker.UpdateLayout();
+                    Check(tabs.Viewer.HorizontalOffset > x0 && (string?)picker.Categories.SelectedItem == first, "页签条上的滚轮横向滚动，不切换分类");
+                    int lastIndex = picker.Categories.Items.Count - 1;
+                    picker.Categories.SelectedIndex = lastIndex; picker.UpdateLayout(); await Task.Delay(80); picker.UpdateLayout();
+                    var lastTab = (FrameworkElement)picker.Categories.ItemContainerGenerator.ContainerFromIndex(lastIndex);
+                    var box = lastTab.TransformToAncestor(tabs.Viewer).TransformBounds(new Rect(0, 0, lastTab.ActualWidth, lastTab.ActualHeight));
+                    Check(box.Left >= -.5 && box.Right <= tabs.Viewer.ViewportWidth + .5 && tabs.LeftButton.IsEnabled && !tabs.CanScrollRight, "选中最后一类时页签自动滚入视野");
+                    Check(picker.Chapters.Items.OfType<PackChoice>().All(p => p.Category == (string)picker.Categories.SelectedItem!), "滑动后分类筛选不变");
+                    double x1 = tabs.Viewer.HorizontalOffset; tabs.LeftButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); picker.UpdateLayout();
+                    Check(tabs.Viewer.HorizontalOffset < x1 && picker.Categories.SelectedIndex == lastIndex, "左箭头只滚动页签，不切换分类");
+                    Capture(picker, "chapter-picker-tab-scroll.png");
+                    picker.Width = oldWidth; picker.Categories.SelectedItem = "外篇剧情"; picker.UpdateLayout();
+                }
                 picker.Categories.Focus(); picker.GamepadAction("confirm");
                 Check(picker.Chapters.IsKeyboardFocusWithin && picker.IsVisible && picker.Result == null, "手柄确认分类只进入章节列表，不提交选章");
                 Capture(picker, "chapter-picker-extras.png"); picker.GamepadAction("back");

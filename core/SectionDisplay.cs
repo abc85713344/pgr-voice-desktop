@@ -10,6 +10,7 @@ public sealed record SectionDisplayGroup(string Title, IReadOnlyList<Section> Se
 public static class SectionDisplay
 {
     static readonly Regex FragmentId = new(@"^(?<root>.+)(?<suffix>-position-[0-9a-fA-F]{12}|-m[0-9]{3})$", RegexOptions.CultureInvariant);
+    static readonly Regex TitledPart = new(@"^(?<stem>.+)-(?<number>[0-9]+)$", RegexOptions.CultureInvariant);
     static readonly IReadOnlyDictionary<string, OrderEntry> SourceOrder = LoadSourceOrder();
 
     sealed class OrderTable
@@ -55,6 +56,33 @@ public static class SectionDisplay
         return result;
     }
 
+    static List<Section> InTitlePartOrder(List<Section> roots)
+    {
+        var result = roots.ToList();
+        // 没有来源名次、整节标题又是「同一篇名-数字」时，按数字排目录。
+        // 只交换这些小节自己占的位置；已有来源顺序、编号重复，或数字后面还有别的字，都保持原位。
+        var parts = new List<(Section Root, int Index, string Stem, int Number)>();
+        for (int i = 0; i < roots.Count; i++)
+        {
+            if (Order(roots[i]) != null) continue;
+            var match = TitledPart.Match(roots[i].Title.Trim());
+            if (!match.Success || !int.TryParse(match.Groups["number"].Value, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int number)) continue;
+            parts.Add((roots[i], i, match.Groups["stem"].Value, number));
+        }
+        foreach (var stem in parts.GroupBy(item => item.Stem, StringComparer.Ordinal))
+        {
+            if (stem.Count() < 2 || stem.Select(item => item.Number).Distinct().Count() != stem.Count()) continue;
+            var sorted = stem.OrderBy(item => item.Number).Select(item => item.Root).ToArray();
+            int next = 0;
+            foreach (var item in stem) result[item.Index] = sorted[next++];
+        }
+        return result;
+    }
+
+    /// <summary>只调整目录和按章节依次收听的顺序，不改小节对象、节点或导航。</summary>
+    public static IReadOnlyList<Section> OrderTitledParts(IEnumerable<Section> sections) =>
+        InTitlePartOrder(sections.ToList()).AsReadOnly();
+
     public static IReadOnlyList<SectionDisplayGroup> Groups(IEnumerable<Section> sections)
     {
         var items = sections.ToList();
@@ -78,9 +106,13 @@ public static class SectionDisplay
             }
             group.Add(section);
         }
-        return InSourceOrder(roots).Select(root => new SectionDisplayGroup(Order(root)?.DisplayTitle ?? root.Title, members[root].AsReadOnly()))
+        return InTitlePartOrder(InSourceOrder(roots)).Select(root => new SectionDisplayGroup(Order(root)?.DisplayTitle ?? root.Title, members[root].AsReadOnly()))
             .ToList().AsReadOnly();
     }
+
+    /// <summary>目录里排在最前的小节；没有进度时从这里开始，而不是包内第一个。</summary>
+    public static Section? FirstListed(IEnumerable<Section> sections) =>
+        Groups(sections).FirstOrDefault()?.Sections.FirstOrDefault();
 
     public static string Title(IEnumerable<Section> sections, string sectionId) =>
         Groups(sections).FirstOrDefault(g => g.Sections.Any(s => s.Id == sectionId))?.Title ?? "";

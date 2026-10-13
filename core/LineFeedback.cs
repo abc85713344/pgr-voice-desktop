@@ -46,7 +46,7 @@ public static class LineFeedback
             .TakeLast(3).Select(n => $"[{n.Id}] {SpeakerVolume.DisplayName(n.Speaker)}：{n.Text}");
         var audio = pack.ResolveAudio(node);
         string status = node.AudioStatus ?? "未标注";
-        status += audio == null ? "；未引用音频" : File.Exists(audio) ? "；文件存在" : "；文件缺失";
+        status += audio == null ? (PgrVoice.Listening.PendingVoice.IsSubtitleOnly(node) ? "；仅字幕，无需配音" : "；未引用音频") : File.Exists(audio) ? "；文件存在" : "；文件缺失";
         return new()
         {
             CapturedUtc = DateTimeOffset.UtcNow,

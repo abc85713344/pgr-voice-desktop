@@ -35,10 +35,11 @@ public sealed class Pack
     public int SchemaVersion { get; set; } = 1;
     public string Id { get; set; } = "";
     public string Title { get; set; } = "";
+    public string? StoryRevision { get; set; }
     public PackDelivery? Delivery { get; set; }
     [System.Text.Json.Serialization.JsonIgnore] public bool IsDraft => Delivery?.Status == "draft";
     [System.Text.Json.Serialization.JsonIgnore] public string DraftSummary => !IsDraft ? "" :
-        $"抽检草稿 · 未逐句核验 · 可听 {Nodes.Count(n => n.Kind == "line" && n.Audio != null)} 句 · 待补 {Nodes.Count(n => n.Kind == "line" && n.Audio == null && n.AudioStatus != "not-spoken")} 句";
+        $"抽检草稿 · 未逐句核验 · 可听 {Nodes.Count(n => n.Kind == "line" && n.Audio != null)} 句 · 待补 {Nodes.Count(n => n.Kind == "line" && n.Audio == null && n.AudioStatus != "not-spoken" && n.AudioStatus != "subtitle-only")} 句"; // 0.4.7 仅字幕不算待补
     public List<Chapter> Chapters { get; set; } = new();
     public List<Node> Nodes { get; set; } = new();
     public Dictionary<string,string> Migrations { get; set; } = new();
@@ -46,15 +47,20 @@ public sealed class Pack
     public List<string> CompatibleNavigationFingerprints { get; set; } = new();
     public List<NavigationResumeRepair> NavigationResumeRepairs { get; set; } = new();
     [System.Text.Json.Serialization.JsonIgnore] public string Root { get; set; } = "";
+    [System.Text.Json.Serialization.JsonIgnore] public bool BundledCorrectionHandled { get; set; }
+    [System.Text.Json.Serialization.JsonIgnore] public string BundledCorrectionNotice { get; set; } = "";
     [System.Text.Json.Serialization.JsonIgnore] public Dictionary<string, Node> ById { get; private set; } = new();
     [System.Text.Json.Serialization.JsonIgnore] public FixedVoicePackage? FixedVoices { get; private set; }
     string fixedVoiceNotice = "角色固定声线：等待配音包，未开启";
     [System.Text.Json.Serialization.JsonIgnore] public string FixedVoiceStatus => FixedVoices?.Status ?? fixedVoiceNotice;
     public static Pack Load(string file)
     {
-        var pack = Json.Read<Pack>(file);
+        byte[] bytes = File.ReadAllBytes(file);
+        var pack = JsonSerializer.Deserialize<Pack>(bytes.AsSpan(bytes.AsSpan().StartsWith(new byte[] { 239, 187, 191 }) ? 3 : 0), Json.Options)
+            ?? throw new InvalidDataException("文件内容为空");
         pack.Root = Path.GetDirectoryName(Path.GetFullPath(file))!;
         pack.Validate();
+        pack = BundledPackCorrections.Apply(pack, bytes);
         pack.PrepareFixedVoices();
         return pack;
     }
@@ -129,6 +135,7 @@ public sealed class Pack
             "draft-missing" => "缺句 · " + (node.AudioReason ?? "正在补配"),
             "not-found" => "未找到对应配音",
             "not-spoken" => "无可朗读正文",
+            "subtitle-only" => "仅字幕 · 无需配音", // 0.4.7：不需要配音的台词（系统提示等），不称缺失
             "generation-failed" => "补配未通过核验",
             _ => "配音待核对"
         };
@@ -195,6 +202,8 @@ public sealed class Node
     public string Text { get; set; } = "";
     public string? Audio { get; set; }
     public string? AudioStatus { get; set; }
+    public string? TextVersion { get; set; }
+    public string? AudioTextVersion { get; set; }
     public string? AudioReason { get; set; }
     public string? RawText { get; set; }
     public string? RenderSource { get; set; }

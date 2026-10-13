@@ -6,5 +6,7 @@
   <ItemGroup>
     <Compile Remove="IntegrationTests/**;CoreAudit/**;CoreLogStub.cs" />
     <ProjectReference Include="../core/PgrVoice.Core.csproj" />
+    <!-- 0.4.7：CharacterArt.cs 已移出核心工程（与安卓核心一致），测试直接链接桌面源文件。 -->
+    <Compile Include="../src/CharacterArt.cs" Link="CharacterArt.cs" />
   </ItemGroup>
 </Project>

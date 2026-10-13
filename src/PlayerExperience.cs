@@ -123,6 +123,7 @@ public partial class MainWindow
         AddButton(preferencesPanel, "角色音量…", OpenSpeakerVolumes);
         preferencesPanel.Children.Add(new TextBlock { Text = "按配音包中的角色名字分别调节，默认 100%，再乘以总音量。不会改变已有录音的音色。", TextWrapping = TextWrapping.Wrap, FontSize = 11, Foreground = Theme.Brush("MutedText") });
         preferencesPanel.Children.Add(new TextBlock { Text = "角色固定声线：等待配音包，未开启", TextWrapping = TextWrapping.Wrap, FontSize = 11, Foreground = Theme.Brush("MutedText") });
+        AddNativeVoiceSettings(preferencesPanel);
         AddButton(NavigationToolbar, "反馈当前句", FeedbackGameLine);
         AddButton(NavigationToolbar, "搜索全部章节", OpenLibrarySearch);
         preferencesPanel = InputSettingsContent;
@@ -175,7 +176,7 @@ public partial class MainWindow
         text.SetValue(FrameworkElement.MarginProperty, new Thickness(6));
         return new DataTemplate { VisualTree = text };
     }
-    static void AddHeading(Panel panel, string text) => panel.Children.Add(new TextBlock { Text = text, Foreground = Theme.Brush("NormalAccent"), Margin = new Thickness(0, 12, 0, 6), FontWeight = FontWeights.SemiBold });
+    static void AddHeading(Panel panel, string text) => panel.Children.Add(Theme.Heading(text, new Thickness(0, 14, 0, 7)));
     static void AddButton(Panel panel, string label, Action action)
     {
         var button = new Button { Content = label, Margin = new Thickness(0, 3, 5, 3), Padding = new Thickness(8, 5, 8, 5) };
@@ -193,7 +194,7 @@ public partial class MainWindow
         bool strip = preferences.CompactMode == "strip";
         BallView.Visibility = strip ? Visibility.Collapsed : Visibility.Visible;
         StripView.Visibility = strip ? Visibility.Visible : Visibility.Collapsed;
-        Width = strip ? Math.Min(460, SystemParameters.WorkArea.Width - 20) : 64;
+        Width = strip ? Math.Min(QuickStripWidth, SystemParameters.WorkArea.Width - 20) : 64;
         Height = strip ? Math.Min(PreferredCompactHeight, SystemParameters.WorkArea.Height - 20) : 64;
         UpdateExperienceStatus();
     }
@@ -207,6 +208,13 @@ public partial class MainWindow
     void UpdateExperienceStatus()
     {
         if (!experienceReady) return;
+        // Replay 不改变导航状态，也不会触发引擎 Changed；每次状态刷新按当前音频重算标签。
+        string state = StateText.Text;
+        foreach (string prefix in new[] { "无配音 · ", "待配音 · " })
+            if (state.StartsWith(prefix, StringComparison.Ordinal)) state = state[prefix.Length..];
+        if (!ListeningActive && engine?.Mode != RunMode.Original && engine?.Current is { Kind: "line" } line && GameVoiceTag(line) is { } voiceTag)
+            state = voiceTag + " · " + state;
+        StateText.Text = state;
         UndoCorrectionButton.IsEnabled = engine?.CanUndoCorrection == true && engine.Mode != RunMode.Original;
         StripSpeaker.Text = engine?.Current?.Speaker ?? "剧情配音";
         StripText.Text = GameBranchLineText();

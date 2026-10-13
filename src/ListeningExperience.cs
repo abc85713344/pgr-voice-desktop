@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Threading;
 using PgrVoice.Listening;
 
@@ -107,9 +108,10 @@ public partial class MainWindow
         });
         listeningSaveTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
         listeningSaveTimer.Tick += (_, _) => { if (listeningRunning) { SaveListeningProgress(); RefreshListeningStatus(); } };
+        InitializeListening047(); RefreshListeningPolicyLabels();
         listeningSaveTimer.Start(); listeningReady = true; RefreshListening();
     }
-    ListeningBranchPolicy ListeningSelectedPolicy => listeningPolicy.SelectedIndex switch { 1 => ListeningBranchPolicy.First, 2 => ListeningBranchPolicy.All, _ => ListeningBranchPolicy.Manual };
+    ListeningBranchPolicy ListeningSelectedPolicy => listeningPolicy.SelectedIndex switch { 1 => ListeningDefaultNumber == 2 ? ListeningBranchPolicy.Second : ListeningBranchPolicy.First, 2 => ListeningBranchPolicy.All, _ => ListeningBranchPolicy.Manual };
     void ActivateListening()
     {
         if (!listeningActive) { SuspendGameForListening(); listeningActive = true; }
@@ -184,7 +186,9 @@ public partial class MainWindow
             listeningPausedUtc = restored ? resume!.PausedUtc ?? resume.UpdatedUtc : null;
             listeningExactResumePosition = !restored || resume!.ExactResumePosition;
             listeningRecentNodes.Clear();
-            listeningSkipped = listeningNotices = 0; listeningRouteNotice = "";
+            listeningSkipped = listeningNotices = listeningPendingVoiceItems = listeningSubtitleOnlyItems = 0; listeningRouteNotice = "";
+            listeningLoggedChoicePoints.Clear(); CancelListeningCountdown(); listeningAutoNotice = null; // 换章/换包：上一章的「已自动选择」提示不带过来
+            listeningPendingStop = null; listeningStopItem = null;
             listeningMessage = notice.Length > 0 ? notice : restoredNotice.Length > 0 ? restoredNotice : restored ? "已恢复上回位置，点击播放继续。" : "已打开大章，点击播放开始。";
             listeningLast = new() { File = file, ChapterId = chapterId }; SaveListeningSelection(); RefreshListeningPacks(file); RefreshListening();
         }
@@ -198,7 +202,7 @@ public partial class MainWindow
     void StartListening()
     {
         if (listeningRunning) return;
-        if (listeningPreviewTicket != 0 && !PauseListening()) return;
+        if (listeningPreviewTicket != 0 && !PauseListening(true)) return;
         if (listeningSession == null) { OpenSelectedListeningChapter(); if (listeningSession == null) return; }
         if (listeningSession.HasBlockingNotice) { ShowListeningWait(); return; }
         if (listeningSession.Completed) { listeningMessage = "本章已听完，可从目录选择小节重听。"; RefreshListening(); return; }
@@ -215,6 +219,7 @@ public partial class MainWindow
         for (int i = 0; i < 32; i++)
         {
             var current = listeningSession.Current;
+            LogListeningPassedChoicePoints();
             if (current == null)
             { listeningRunning = false; listeningTicket = 0; listeningOffset = 0; listeningMessage = "本章已听完。"; SaveListeningProgress(); RefreshListening(); return; }
             if (current.Kind == ListeningItemKind.Choice)
@@ -223,7 +228,7 @@ public partial class MainWindow
                 listeningMessage = current.Notice.StartsWith("等待互动", StringComparison.Ordinal)
                     ? "等待互动：请选择下面的互动选项，确认后继续本节。"
                     : "遇到支线，请选择要听的路线。";
-                SaveListeningProgress(); RefreshListening(); return;
+                SaveListeningProgress(); BeginListeningStop(); return;
             }
             if (current.Kind == ListeningItemKind.Notice)
             {
@@ -234,10 +239,14 @@ public partial class MainWindow
             if (current.Node?.AudioStatus == "not-spoken")
             { listeningSession.MoveNext(); listeningOffset = 0; continue; }
             string? file = current.Node == null ? null : listeningSession.Pack.ResolveAudio(current.Node);
+            // 0.4.7（J）没有可用音频的台词：不跳过、不暂停——显示字幕并按字数停留后进入下一句（待配音 / 无配音签）。
+            if ((file == null || !File.Exists(file)) && PendingVoice.IsFlagged(current.Node))
+            { StartListeningDwell(request, current); return; }
+            // 纯标点句：本来不朗读，静默越过（不计入“未收录配音”）。
             if (file == null || !File.Exists(file))
-            { listeningSkipped++; listeningSession.MoveNext(); listeningOffset = 0; continue; }
+            { listeningSession.MoveNext(); listeningOffset = 0; continue; }
             listeningTicket = request; listeningStarting = true;
-            listeningMessage = "正在收听" + (current.BranchLabel.Length > 0 ? " · " + current.BranchLabel : "");
+            listeningMessage = "正在收听" + (current.DraftContinuation ? ListeningText.DraftStatusPart : "") + (current.BranchLabel.Length > 0 ? " · " + current.BranchLabel : "");
             if (listeningRestartNotice) { listeningMessage += " · 离开较久，已从本句开头续听"; listeningRestartNotice = false; }
             SaveListeningProgress(); RefreshListening();
             SetListeningVolume((float)preferences.Volume / 100);
@@ -279,15 +288,20 @@ public partial class MainWindow
         long next = ++listeningRequest;
         Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() => PlayListeningCurrent(next)));
     }
-    bool PauseListening()
+    /// <summary>keepCountdownPause：停下处倒计时已暂停时（目录试听、从本句开头、重选分支等），操作后仍保留「已暂停 + 剩余秒数」，不让之后按播放重开 15 秒。</summary>
+    bool PauseListening(bool keepCountdownPause = false)
     {
+        var held = keepCountdownPause ? HoldListeningPause() : null;
         // 重复暂停、保存、打开选项均不刷新原暂停时刻。
         if (listeningRunning) { listeningPausedUtc = DateTimeOffset.UtcNow; listeningExactResumePosition = false; }
         if (listeningTicket != 0) listeningOffset = ListeningPositionMs;
+        CancelListeningCountdown(); listeningDwellTimer?.Stop();
         ++listeningRequest; listeningRunning = false; listeningTicket = 0; listeningPreviewTicket = 0; listeningPreviewNode = null; listeningStarting = false;
         QueueListeningStop(listeningRequest); bool saved = SaveListeningProgress();
         listeningMessage = saved ? "听书已暂停，位置已保存。" : "听书已暂停，当前位置暂未保存。";
-        RefreshListening(); return saved;
+        RefreshListening();
+        if (held != null) ReinstateListeningPause(held);
+        return saved;
     }
     void QueueListeningStop(long request)
     {
@@ -323,6 +337,8 @@ public partial class MainWindow
         if (move() || listeningSession.Completed) { listeningOffset = 0; MarkExplicitListeningPosition(); listeningPreserveResume = false; listeningBrowsingLocation = false; SaveListeningProgress(); listeningMessage = listeningSession.Completed ? "本章已听完。" : listeningSession.HasPendingChoice ? "已打开本节选项，确认后继续收听。" : "已定位，点击播放继续。"; }
         else listeningMessage = listeningSession.HasBlockingNotice ? ListeningWaitText : listeningSession.HasPendingChoice ? "请选择分支，或明确跳过本处选择。" : "已经到达可用台词边界。";
         RefreshListening();
+        // 0.4.7：停在等待确认续接处即准备停下处理（倒计时 / 下一句），不依赖先点播放。
+        if (listeningSession.HasBlockingNotice) BeginListeningStop();
     }
     bool SaveListeningProgress()
     {
@@ -381,15 +397,16 @@ public partial class MainWindow
             var current = listeningSession?.Current;
             var sectionTitles = SectionDisplay.Groups(listeningSession?.Pack.Chapters.SelectMany(c => c.Sections) ?? Enumerable.Empty<Section>())
                 .SelectMany(g => g.Sections.Select(s => (s.Id, g.Title))).ToDictionary(x => x.Id, x => x.Title);
-            listeningPolicy.SelectedIndex = listeningSession?.Policy switch { ListeningBranchPolicy.First => 1, ListeningBranchPolicy.All => 2, _ => 0 };
+            listeningPolicy.SelectedIndex = listeningSession?.Policy switch { ListeningBranchPolicy.First or ListeningBranchPolicy.Second => 1, ListeningBranchPolicy.All => 2, _ => 0 };
             string currentPosition = current == null ? "已听完" : sectionTitles.GetValueOrDefault(current.SectionId, current.SectionTitle)
                 + (current.LineNumber > 0 ? " · 第 " + current.LineNumber + " 句" : "");
             if (current?.IsBlocking == true) currentPosition += " · 等待续接";
             listeningPosition.Text = listeningSession == null ? "尚未选择大章" : "收听位置：" + listeningSession.ChapterTitle + " · " + currentPosition;
             if (Tabs.SelectedItem == listeningTab) HeaderChapter.Text = "听书 · " + (listeningSession?.ChapterTitle ?? "选择章节");
             listeningText.Text = current?.Kind == ListeningItemKind.Line ? (String.IsNullOrEmpty(current.Node?.Speaker) ? "" : current.Node.Speaker + "\n") + current.Node?.Text : current?.Notice ?? "";
-            listeningPlay.Content = listeningPreviewTicket != 0 ? "停止试听" : listeningRunning ? "暂停" : "播放 / 续听";
-            listeningChoices.Children.Clear();
+            listeningPlay.Content = ListeningPlayCaption;
+            listeningChoices.Children.Clear(); listeningPauseDock.Children.Clear(); listeningCountdownNumbers.Clear(); listeningCountdownRails.Clear(); listeningCountdownRings.Clear();
+            RefreshListeningTags(current); RefreshListeningExplore(); RefreshListeningNotice();
             long choiceVersion = ++listeningChoiceUiVersion;
             UpdateListeningViewport();
             listeningRechoose.IsEnabled = listeningSession?.Policy == ListeningBranchPolicy.Manual &&
@@ -400,6 +417,7 @@ public partial class MainWindow
                 var choiceKey = current.ChoiceKey;
                 bool IsCurrentChoice() => choiceVersion == listeningChoiceUiVersion && ReferenceEquals(listeningSession, choiceSession)
                     && listeningSession?.Current?.Kind == ListeningItemKind.Choice && listeningSession.Current.ChoiceKey == choiceKey;
+                Button? autoButton = null; string? autoId = ListeningCountdownOptionId; int optionNumber = 0;
                 foreach (var option in current.Options ?? Array.Empty<ChoiceOption>())
                 {
                     string id = option.Id;
@@ -409,6 +427,8 @@ public partial class MainWindow
                         if (!PauseListening()) return;
                         if (listeningSession!.Choose(id)) { listeningOffset = 0; listeningBrowsingLocation = false; StartListening(); }
                     });
+                    ((Button)listeningChoices.Children[^1]).Tag = ++optionNumber; // 0.4.7 选项行编号块（01 / 02…）
+                    if (id == autoId) autoButton = (Button)listeningChoices.Children[^1];
                 }
                 AddButton(listeningChoices, "跳过本处选择", () =>
                 {
@@ -422,12 +442,16 @@ public partial class MainWindow
                     label.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding());
                     label.SetValue(TextBlock.TextWrappingProperty, TextWrapping.Wrap);
                     button.ContentTemplate = new DataTemplate { VisualTree = label };
+                    ApplyListeningOptionRow(button);
                     button.HorizontalContentAlignment = HorizontalAlignment.Stretch;
                 }
+                if (autoButton != null) MarkListeningAutoOption(autoButton);
+                ListeningChoiceHead();
                 // 上一个长句可能滚到了底部；进入菜单后让提示与首项立即可见。
                 listeningCurrentView.ScrollToTop();
             }
-            var sections = listeningSession?.Chapter.Sections.Select(s => new ListeningEntry(s.Id, sectionTitles[s.Id])).ToList() ?? new();
+            if (current?.IsBlocking == true && ListeningPendingStop is { Action: not ListeningStopAction.Choose } blockingStop) ListeningStopCard(blockingStop);
+            var sections = listeningSession == null ? new() : SectionDisplay.OrderTitledParts(listeningSession.Chapter.Sections).Select(s => new ListeningEntry(s.Id, sectionTitles[s.Id])).ToList();
             string? selectedSection = listeningBrowsingLocation ? (listeningSections.SelectedItem as ListeningEntry)?.Id : current?.SectionId;
             listeningSections.ItemsSource = sections; listeningSections.SelectedItem = sections.FirstOrDefault(s => s.Id == selectedSection) ?? sections.FirstOrDefault();
             RefreshListeningLineChoices();
@@ -440,6 +464,7 @@ public partial class MainWindow
         }
         finally { listeningRefreshing = false; }
         RefreshListeningStatus();
+        RefreshCompactFollowControls(); // 紧凑小窗暂停键与主按钮同步
     }
     void RefreshListeningLineChoices()
     {
@@ -458,7 +483,7 @@ public partial class MainWindow
         var lines = source.Select((n, index) =>
         {
             bool preview = !available.ContainsKey(n.Id);
-            string label = $"{index + 1}. {n.Speaker}：{n.Text}";
+            string label = $"{index + 1}. {(n.Speaker.Length == 0 ? "旁白" : n.Speaker)}：{n.Text}";
             if (preview) label += pending != null ? "\n〔待选择后收听〕" : "\n〔未接入当前收听路线〕";
             return new ListeningEntry(n.Id, label, ItemId: available.GetValueOrDefault(n.Id)?.Id, IsPreview: preview);
         }).ToList();
@@ -531,14 +556,14 @@ public partial class MainWindow
         var owner = listeningSession;
         var points = owner?.ChoicePoints.Where(p => p.IsResolved && p.SectionId == owner.Current?.SectionId).ToArray();
         if (owner == null || owner.Policy != ListeningBranchPolicy.Manual || points == null || points.Length == 0) return;
-        if (!PauseListening()) return;
+        if (!PauseListening(true)) return; // 只打开不选就关掉：倒计时暂停保持
         long version = listeningChoiceUiVersion;
-        var menu = new ContextMenu { PlacementTarget = listeningRechoose, Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom };
-        foreach (var point in points)
+        // 13-B：切角菜单框与不可点的页眉 / 页脚在 RechoiceMenu 模板里；菜单项只换成结构化 Header，Tag / Click 不变。
+        var menu = new ContextMenu { PlacementTarget = listeningRechoose, Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom, Style = Theme.Style("RechoiceMenu") };
+        for (int i = 0; i < points.Length; i++)
         {
-            string selected = point.IsSkipped ? "已跳过" : point.Item.Options?.FirstOrDefault(o => o.Id == point.SelectedOptionId)?.Label ?? "已选择";
-            var item = new MenuItem { Header = new TextBlock { Text = "重选：" + selected + "\n" +
-                string.Join(" / ", (point.Item.Options ?? Array.Empty<ChoiceOption>()).Select(o => o.Label)), MaxWidth = 410, TextWrapping = TextWrapping.Wrap }, Tag = point.ChoiceKey };
+            var point = points[i];
+            var item = new MenuItem { Header = RechoiceHeader(point, i), Tag = point.ChoiceKey };
             item.Click += (_, _) =>
             {
                 if (IsCurrentListeningRechoiceMenu(menu, owner, version)) OpenListeningRechoice(point.ChoiceKey);
@@ -547,6 +572,46 @@ public partial class MainWindow
         }
         PrepareListeningRechoiceGamepad(menu, owner, version);
         listeningRechoose.ContextMenu = menu; menu.IsOpen = true;
+    }
+    // 重选条目：描边序号（高亮时实心雾蓝）+ 绯红「重选」签 + 已选选项（跳过时雾蓝虚线「已跳过」）+ 右侧「重开」图标；
+    // 第二行为全部选项标签，已选项黄铜底 + 菱形。
+    static FrameworkElement RechoiceHeader(ListeningChoicePoint point, int index)
+    {
+        var options = point.Item.Options ?? Array.Empty<ChoiceOption>();
+        string selected = point.IsSkipped ? "已跳过" : options.FirstOrDefault(o => o.Id == point.SelectedOptionId)?.Label ?? "已选择";
+        var highlighted = new Binding(nameof(MenuItem.IsHighlighted)) { RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor, typeof(MenuItem), 1) };
+        var stack = new StackPanel { MaxWidth = 410 };
+        var top = new DockPanel { LastChildFill = true };
+        var reopen = new System.Windows.Shapes.Path { Data = ActionIcons.Reopen, Stroke = Theme.Brush("Slate"), StrokeThickness = 1.25, Width = 14, Height = 14, Margin = new Thickness(10, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, ToolTip = "重开" };
+        DockPanel.SetDock(reopen, Dock.Right); top.Children.Add(reopen);
+        var number = new OutlinedText { Text = (index + 1).ToString("00"), FontSize = 18, StrokeThickness = 1, Stroke = Hud.Solid("#6F8FB0"), Margin = new Thickness(0, 0, 9, 0), VerticalAlignment = VerticalAlignment.Center };
+        number.SetBinding(OutlinedText.FillProperty, new Binding(nameof(MenuItem.IsHighlighted)) { RelativeSource = highlighted.RelativeSource, Converter = new FuncConverter(v => v is true ? Hud.Solid("#6F8FB0") : null) });
+        DockPanel.SetDock(number, Dock.Left); top.Children.Add(number);
+        var tag = new Border { Background = Theme.Brush("AccentFill"), BorderBrush = Theme.Brush("Accent"), BorderThickness = new Thickness(1), Padding = new Thickness(5, 0, 5, 1), Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center,
+            Child = new TextBlock { Text = "重选", FontSize = 11, Foreground = Theme.Brush("AccentText") } };
+        DockPanel.SetDock(tag, Dock.Left); top.Children.Add(tag);
+        if (point.IsSkipped)
+        {
+            var skipped = new Grid { HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center };
+            skipped.Children.Add(new System.Windows.Shapes.Rectangle { Stroke = Theme.Brush("Slate"), StrokeThickness = 1, StrokeDashArray = new System.Windows.Media.DoubleCollection { 2, 2 }, Fill = Theme.Brush("SlateFill") });
+            skipped.Children.Add(new TextBlock { Text = selected, FontSize = 12.5, Foreground = Theme.Brush("NormalAccent"), Margin = new Thickness(6, 1, 6, 2) });
+            top.Children.Add(skipped);
+        }
+        else top.Children.Add(new TextBlock { Text = selected, FontSize = 13.5, FontWeight = FontWeights.Bold, TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center });
+        stack.Children.Add(top);
+        var chips = new WrapPanel { Margin = new Thickness(27, 6, 0, 0) };
+        foreach (var o in options)
+        {
+            bool on = !point.IsSkipped && o.Id == point.SelectedOptionId;
+            chips.Children.Add(new Border
+            {
+                Background = on ? Theme.Brush("BranchFill") : Hud.Solid("#FAFBFC"), BorderBrush = on ? Theme.Brush("Brass") : Theme.Brush("Stroke"), BorderThickness = new Thickness(1),
+                Padding = new Thickness(6, 1, 6, 2), Margin = new Thickness(0, 0, 5, 4),
+                Child = new TextBlock { Text = (on ? "◆ " : "") + o.Label, FontSize = 11.5, Foreground = on ? Theme.Brush("BrassText") : Theme.Brush("Fg"), TextWrapping = TextWrapping.Wrap },
+            });
+        }
+        stack.Children.Add(chips);
+        return stack;
     }
     void LocateListeningEntry()
     {
@@ -559,9 +624,12 @@ public partial class MainWindow
     void RefreshListeningStatus()
     {
         RefreshListeningRemainingTime();
-        listeningStatus.Text = listeningMessage
-        + (listeningRunning ? $" · 本句 {ListeningPositionMs / 1000} 秒" : "")
-        + (listeningSkipped > 0 ? $"；已跳过 {listeningSkipped} 句未收录配音" : "")
+        // 追加项以「；」连接；前文已以句末标点结尾时先去掉，避免「。；」。
+        string head = listeningMessage + (listeningRunning ? $" · 本句 {ListeningPositionMs / 1000} 秒" : "");
+        string extra = (listeningSkipped > 0 ? $"；已跳过 {listeningSkipped} 句未收录配音" : "")
+            + (listeningPendingVoiceItems > 0 ? $"；{listeningPendingVoiceItems} 句无配音已按字幕停留" : "");
+        if (extra.Length > 0) head = head.TrimEnd('。', '；', '，', ' ');
+        listeningStatus.Text = head + extra
         + (listeningNotices > 0 ? $"\n路线提示：{listeningRouteNotice}" : "")
         + (listeningSaveWarning.Length > 0 ? "\n" + listeningSaveWarning : "");
     }

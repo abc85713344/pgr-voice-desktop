@@ -326,7 +326,14 @@ public sealed class Preferences
     public Dictionary<string, string> Choices { get; set; } = new();
     public double Volume { get; set; } = 80;
     public Dictionary<string, int> SpeakerVolumes { get; set; } = new();
+    /// <summary>游戏有原配的台词静音配音包（只在边玩边听）；DubPacks 为按章选了“用配音包”的章节。</summary>
+    public bool NativeVoiceMute { get; set; }
+    public HashSet<string> NativeVoiceDubPacks { get; set; } = new();
     public bool SmartListeningResume { get; set; } = true;
+    /// <summary>0.4.7：分支自动选择（默认开启）。听书待选支线 / 未核续接 / 无文本死角 15 秒倒计时后自动处理；关闭后停下等待。</summary>
+    public bool BranchAutoSelect { get; set; } = true;
+    /// <summary>0.4.7：默认分支，1 = 第一个选项，2 = 第二个选项（只有一个选项时按第一个）。</summary>
+    public int DefaultBranchOption { get; set; } = 1;
     public double Left { get; set; } = 60;
     public double Top { get; set; } = 100;
     public double PanelWidth { get; set; } = 580;
@@ -336,6 +343,15 @@ public sealed class Preferences
     public bool DialogueGuardEnabled { get; set; }
     public DialogueRegion DialogueRegion { get; set; } = new();
     public bool ShowArtwork { get; set; } = true;
+    // 角色头像与立绘：图片只从本机文件夹读取；旧配置缺少这些字段时使用下列默认值。
+    public bool ShowSpeakerPortraits { get; set; } = true;
+    public bool ShowStandee { get; set; } = true;
+    public double StandeeOpacity { get; set; } = 0.55;
+    public string CharacterArtFolder { get; set; } = "";
+    public bool ReduceMotion { get; set; }
+    // 章节封面：图片同样只从本机文件夹读取（默认查找「章节封面」）；旧配置缺少时显示封面、自动查找。
+    public bool ShowChapterCovers { get; set; } = true;
+    public string ChapterCoverFolder { get; set; } = "";
     public double ReadingScale { get; set; } = 1;
     public string CompactMode { get; set; } = "ball";
     public bool CompactControlsEnabled { get; set; } = true;
@@ -362,10 +378,17 @@ public sealed class Preferences
     public double TextAutoDelaySeconds { get; set; } = 1.5;
     public double ClickZoneLeft { get; set; } = -1;   // 小于 0 表示还没定位过
     public double ClickZoneTop { get; set; } = -1;
+    // 0.4.8：分支选择窗口用户拖动后的位置；null 表示沿用默认（主窗口右侧）。
+    public double? BranchMenuLeft { get; set; }
+    public double? BranchMenuTop { get; set; }
     public Dictionary<string, string> Keys { get; set; } = new()
     {
-        ["next"]="Space", ["previous"]="PageUp", ["manualNext"]="PageDown", ["replay"]="F5", ["panel"]="F6", ["pause"]="F7", ["original"]="F8", ["ocr"]="F9", ["catalog"]="F4", ["reselect"]="F3", ["history"]="F2", ["interactions"]="F1"
+        ["next"]="Space", ["previous"]="PageUp", ["manualNext"]="PageDown", ["replay"]="F5", ["panel"]="F6", ["pause"]="F7", ["original"]="F8", ["ocr"]="F9", ["catalog"]="F4", ["reselect"]="F3", ["history"]="F2", ["interactions"]="F1", ["connect"]="F10"
     };
+    // 0.4.7 悬浮快捷窗（设计稿 17–19）：按显示器记住位置（物理像素，键为显示器设备名）、是否置顶、独占全屏提示是否已显示。
+    public Dictionary<string, int[]> QuickWindowPositions { get; set; } = new();
+    public bool QuickWindowPinned { get; set; } = true;
+    public bool QuickFullscreenHintShown { get; set; }
 }
 public sealed class OcrResponse
 {

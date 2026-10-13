@@ -57,7 +57,7 @@ public partial class MainWindow
         var panel = new StackPanel { Margin = new Thickness(0, 8, 5, 8) };
         gameTextTab.Content = new ScrollViewer { Content = panel, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
         Tabs.Items.Insert(0, gameTextTab);
-        panel.Children.Add(new TextBlock { Text = "选择你的跟随方式", FontSize = 18, FontWeight = FontWeights.SemiBold });
+        panel.Children.Add(Theme.Title("选择你的跟随方式", "FOLLOW MODE", new Thickness(0, 2, 0, 0), 18));
         panel.Children.Add(new TextBlock { Text = "先选章节，再选下方方式。切换选项只查看设置，点击开始才启用。", FontSize = 11, Foreground = Theme.Brush("MutedText"), Margin = new Thickness(0, 4, 0, 10) });
         var activeMode = new TextBlock { FontSize = 11, Foreground = Theme.Brush("PlayingAccent"), Margin = new Thickness(0, 0, 0, 8) };
         activeMode.SetBinding(TextBlock.TextProperty, new Binding("Text") { Source = StateText, StringFormat = "运行状态：{0}" }); panel.Children.Add(activeMode);
@@ -70,8 +70,8 @@ public partial class MainWindow
         Mirror(gameTextLibrary, LibraryBox); Mirror(gameTextSection, SectionBox); Mirror(gameTextChapter, ChapterBox);
         var selectors = new Grid { Margin = new Thickness(0, 0, 0, 10) };
         selectors.ColumnDefinitions.Add(new() { Width = new GridLength(1, GridUnitType.Star) }); selectors.ColumnDefinitions.Add(new() { Width = new GridLength(1.2, GridUnitType.Star) });
-        var chapter = new StackPanel { Margin = new Thickness(0, 0, 8, 0) }; chapter.Children.Add(new TextBlock { Text = "章节", FontSize = 11, Foreground = Theme.Brush("MutedText") }); chapter.Children.Add(gameTextLibrary); chapter.Children.Add(ChapterPickerControls(gameTextLibrary));
-        var section = new StackPanel(); section.Children.Add(new TextBlock { Text = "小节", FontSize = 11, Foreground = Theme.Brush("MutedText") }); section.Children.Add(gameTextSection); section.Children.Add(SectionPickerControl(gameTextSection));
+        var chapter = new StackPanel { Margin = new Thickness(0, 0, 8, 0) }; chapter.Children.Add(new TextBlock { Text = "章节", Style = Theme.Style("SectionLabel") }); chapter.Children.Add(gameTextLibrary); chapter.Children.Add(ChapterPickerControls(gameTextLibrary));
+        var section = new StackPanel(); section.Children.Add(new TextBlock { Text = "小节", Style = Theme.Style("SectionLabel") }); section.Children.Add(gameTextSection); section.Children.Add(SectionPickerControl(gameTextSection));
         Grid.SetColumn(section, 1); selectors.Children.Add(chapter); selectors.Children.Add(section); panel.Children.Add(selectors);
         gameTextChapter.SetBinding(VisibilityProperty, new Binding("Visibility") { Source = ChapterSelector }); panel.Children.Add(gameTextChapter);
         panel.Children.Add(followModeTabs);
@@ -116,10 +116,10 @@ public partial class MainWindow
             probe.ExportConnection.Click += (_, _) => ExportDiagnostics(); body.Children.Add(probe.ExportConnection);
         }
         gameTextLive.FontSize = 14; gameTextLive.Margin = new Thickness(0);
-        panel.Children.Add(new Border { Background = Theme.Brush("Surface"), Padding = new Thickness(12, 9, 12, 9), CornerRadius = new CornerRadius(4), Margin = new Thickness(0, 3, 0, 8),
+        panel.Children.Add(new CutFrame { Background = Theme.Brush("CurrentCardNormal"), BorderBrush = Theme.Brush("Accent"), OutlineBrush = Theme.Brush("Stroke"), EdgeWidth = 3, Cut = 10, Corners = CutCorners.BottomRight, Padding = new Thickness(14, 9, 12, 9), Margin = new Thickness(0, 3, 0, 8),
             Child = new ScrollViewer { Content = gameTextLive, MaxHeight = 88, VerticalScrollBarVisibility = ScrollBarVisibility.Auto } });
         var automatic = new StackPanel { Margin = new Thickness(0, 0, 0, 5) }; InitializeTextAutoAdvance(automatic);
-        var automaticCard = new Border { BorderBrush = Theme.Brush("Stroke"), BorderThickness = new Thickness(1), Padding = new Thickness(10, 4, 10, 6), CornerRadius = new CornerRadius(4), Child = automatic, Margin = new Thickness(0, 4, 0, 0) };
+        var automaticCard = new CutFrame { BorderBrush = Theme.Brush("Stroke"), Background = Theme.Brush("PanelBg"), Cut = 8, Corners = CutCorners.BottomRight, Padding = new Thickness(10, 4, 10, 6), Child = automatic, Margin = new Thickness(0, 4, 0, 0) };
         var playback = new WrapPanel { Margin = new Thickness(0, 10, 0, 0) }; panel.Children.Add(playback);
         gameTextResume.Style = (Style)FindResource("PrimaryButton"); gameTextResume.Margin = new Thickness(0, 3, 6, 3); playback.Children.Add(gameTextResume);
         gameTextResume.Click += (_, _) => BeginTextMonitoring();
@@ -127,8 +127,9 @@ public partial class MainWindow
         AddButton(playback, "断开连接", () => StopGameText("已断开游戏文字连接。"));
         AddButton(playback, "反馈当前句", FeedbackGameLine);
         gameTextNotice.FontSize = 11; gameTextNotice.Foreground = Theme.Brush("MutedText"); panel.Children.Add(gameTextNotice);
+        InitializeGameEndWait(panel);
         panel.Children.Add(automaticCard);
-        var help = new TextBlock { Text = "无需 OCR。只读监听游戏已有的对白框；首次寻找可能需要数秒。缺音频、对白未出现或当前句不明确时等待。切场景后后台重新寻找；暂停或断开后不会自行恢复播放。", TextWrapping = TextWrapping.Wrap, FontSize = 11, Foreground = Theme.Brush("MutedText"), Margin = new Thickness(0, 5, 0, 5) };
+        var help = new TextBlock { Text = "无需 OCR。只读监听游戏已有的对白框；首次寻找可能需要数秒。缺音频时显示字幕并继续跟随；对白未出现或当前句不明确时等待。切场景后后台重新寻找；暂停或断开后不会自行恢复播放。", TextWrapping = TextWrapping.Wrap, FontSize = 11, Foreground = Theme.Brush("MutedText"), Margin = new Thickness(0, 5, 0, 5) };
         panel.Children.Add(new Expander { Header = "连接说明", Content = help, Margin = new Thickness(0, 5, 0, 0) });
         UpdateGameTextModeLabel();
     }
@@ -141,6 +142,7 @@ public partial class MainWindow
         bool branchRecovery = inputBranchRecovery != null;
         inputBranchRecovery = null;
         CancelTextAutoAdvance();
+        ClearGameEndWait();
         textArmed = false;
         foreach (var probe in textProbes)
         {
@@ -310,6 +312,7 @@ public partial class MainWindow
             if (textActiveConflict) ClearObservedBranchWaitReason();
             textActiveConflict = false;
             TickTextAutoAdvance();
+            TickTextEndWait();
             // 读取和播放不依赖焦点；只有向游戏发送鼠标点击才需要前台。
             if (!textArmed || ListeningActive || locating || KeyTesting || recordingAction != null || engine?.Mode == RunMode.Original) return;
             foreach (var probe in textProbes)
@@ -336,10 +339,12 @@ public partial class MainWindow
         probe.Status.Text = reason; TextNotice(reason);
         CaptureBranchWaitReason(reason);
     }
+    string GameLinePlaybackAction(Node node) => AutoPlaybackLinePolicy.IsSilentPunctuation(node) ? "标点停顿" :
+        GameSilentDwell(node) ? (GameVoiceTag(node) is { } tag ? tag + " · " : "") + "显示字幕" : "先播放本句";
     void CommitMemoryGameText(TextProbe probe, PlaybackEngine owner, string text, string speaker = "")
     {
         if (!textArmed || owner != engine || owner != textOwner || owner.Mode == RunMode.Original) return;
-        var node = GameTextPolicy.Match(owner.Pack, textSection, text, out string reason, speaker);
+        var node = MatchGameText(owner, text, speaker, out string reason);
         if (node == null) { Log.Write("game-text-wait", $"角色={speaker}\t正文={text}"); WaitForNextMemoryLine(probe, reason); return; }
         if (inputBranchRecovery is { } recovery &&
             (!InputBranchRecoveryCurrent() || node.Id == recovery.PreviousLine || node.Id == recovery.Boundary)) return;
@@ -353,9 +358,10 @@ public partial class MainWindow
             if (!owner.ConfirmGameLine(node.Id)) { WaitForNextMemoryLine(probe, owner.NavigationError + "；继续等待下一句。"); return; }
             lastTextPlayed = key; textSoundSource = probe; singleResume = false; DialoguePositionConfirmed();
             if (inputBranchRecovery == null) CaptureTextAutoLine(probe, owner, text, speaker);
+            ArmTextEndWait(owner, node);
             Log.Write("game-text-line", $"节点={node.Id}\t角色={node.Speaker}\t读取角色={speaker}\t正文={text}");
             TextNotice(probe.Title + " · 已匹配 " + node.Speaker +
-                (AutoPlaybackLinePolicy.IsSilentPunctuation(node) ? " · 标点停顿" : " 并播放"));
+                (AutoPlaybackLinePolicy.IsSilentPunctuation(node) || GameSilentDwell(node) ? " · " + GameLinePlaybackAction(node) : " 并播放"));
             CompleteInputBranchRecovery();
         }
         finally { applyingMemoryLine = false; }

@@ -89,6 +89,35 @@ public partial class MainWindow
                 await Click("回到当前句", NavigationToolbar);
                 Check(SectionBox.SelectedIndex == 0 && SearchBox.Text.Length == 0 && (LinesList.SelectedItem as LineRow)?.Node.Id == current, "回到当前句按钮清搜索并返回所在小节");
             });
+            await Scenario("节点名称牌", () =>
+            {
+                // 「配音上一句 / 重播 / 配音下一句」名称牌整块在暗红确认铭牌下沿之下，彼此不重叠；文字与代码一致。
+                Prepare(); UpdateLayout();
+                var nodes = ManualPlaybackButtons.Children.OfType<Button>().Take(3).ToArray();
+                var plate = ConfirmPlayButton.TransformToAncestor(this).TransformBounds(new Rect(ConfirmPlayButton.RenderSize));
+                var caps = new List<Rect>();
+                foreach (var node in nodes)
+                    if (node.Template?.FindName("Label", node) is FrameworkElement label && label.IsVisible)
+                        caps.Add(label.TransformToAncestor(this).TransformBounds(new Rect(label.RenderSize)));
+                Check(caps.All(r => r.Top >= plate.Bottom - .5), "节点名称牌整块位于确认铭牌下沿之下");
+                var ordered = caps.OrderBy(r => r.Left).ToList();
+                Check(ordered.Zip(ordered.Skip(1)).All(p => p.First.Right <= p.Second.Left + .5), "节点名称牌之间不重叠");
+                Check(nodes.Select(n => n.Content?.ToString()).Take(2).SequenceEqual(new[] { "配音上一句", "重播" }), "节点名称文字与代码一致");
+                return Task.CompletedTask;
+            });
+            await Scenario("标题区档案徽记", () =>
+            {
+                // F1b 徽记只在标题文字右侧的空位出现，不压标题 / SECTION 行；标题区被压矮时隐藏。
+                Prepare(); UpdateLayout();
+                if (HeroArchive.IsVisible)
+                {
+                    var mark = HeroArchive.TransformToAncestor(Hero).TransformBounds(new Rect(HeroArchive.RenderSize));
+                    var text = HeroTitleStack.TransformToAncestor(Hero).TransformBounds(new Rect(HeroTitleStack.RenderSize));
+                    Check(mark.Left >= text.Right + 8 && Hero.ActualHeight >= 100, "标题区档案徽记位于标题文字右侧且不重叠");
+                }
+                else Check(Hero.ActualHeight < 100 || Hero.ActualWidth - HeroTitleStack.ActualWidth < 160, "标题区空间不足时隐藏档案徽记");
+                return Task.CompletedTask;
+            });
             await Scenario("游戏原声", async () =>
             {
                 Prepare(); int plays = playCalls; await Click("游戏原声", PlaybackBar);

@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- 0.4.7 桌面播放规则回归：只引用核心与桌面非 WPF 源文件（探索建议、无音频停留、播放记录）；不依赖音频设备或游戏。 -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Program.cs.txt" />
+    <Compile Include="../../src/DesktopExploration.cs" Link="DesktopExploration.cs" />
+    <Compile Include="../../src/AutoPlaybackLinePolicy.cs" Link="AutoPlaybackLinePolicy.cs" />
+    <ProjectReference Include="../../core/PgrVoice.Core.csproj" />
+    <None Include="EmptyExit.pack.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="GameEnd.pack.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="QuizHide.pack.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="SubtitleOnly.pack.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

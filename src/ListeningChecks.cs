@@ -25,6 +25,8 @@ public partial class MainWindow
         {
             if (!testUi) throw new InvalidOperationException("听书检查只允许在隔离测试入口运行。");
             listeningTestAudio = true;
+            // 旧有检查按“停下等待”验证（分支自动选择关闭）；0.4.7 倒计时与自动处理由 --test-047-ui 单独验收。
+            preferences.BranchAutoSelect = false; listeningDwellScale = 0.02;
             string root = Path.Combine(Log.DataDir, "fixtures", "desktop-listening"); Directory.CreateDirectory(root);
             using (var wave = new BinaryWriter(File.Create(Path.Combine(root, "audio.wav"))))
             {
@@ -75,8 +77,14 @@ public partial class MainWindow
             Check(listeningOffset == 1234 && !listeningRunning, "同章重开恢复句内断点并保持静音");
             listeningBookmarkName.Text = "验收书签"; AddListeningBookmark();
             Check(ListeningProgress!.Bookmarks.Count == 1 && ListeningProgress.Bookmarks[0].Snapshot.PositionMs == 1234, "命名书签保留本句与句内位置");
+            listeningDwellScale = 0.5; // 本步要在停留期间核对字幕，用 1 秒停留避免空闲调度时已越过
             StartListening(); long first = listeningTicket; OnListeningCompleted(first); await DrainListeningUi();
-            Check(listeningSession.HasPendingChoice && !listeningRunning && listeningSkipped == 1, $"自然结束跳过缺音频，遇手动分支停止（{listeningSession.Current?.NodeId}；跳过 {listeningSkipped}；播放 {listeningRunning}）");
+            // 0.4.7（J）：缺音频台词显示字幕并按字数停留后继续（测试缩短停留），不再跳过。
+            Check(listeningSession.Current?.NodeId == "missing" && listeningRunning && listeningMessage.StartsWith("无配音 · "), "0.4.7：缺音频句显示字幕与「无配音」签，按字数停留：" + listeningMessage);
+            var dwellDeadline = DateTime.UtcNow.AddSeconds(3);
+            while (!listeningSession.HasPendingChoice && DateTime.UtcNow < dwellDeadline) await Task.Delay(20);
+            listeningDwellScale = 0.02;
+            Check(listeningSession.HasPendingChoice && !listeningRunning && listeningSkipped == 0 && listeningPendingVoiceItems == 1, $"停留后遇手动分支停止（{listeningSession.Current?.NodeId}；无配音 {listeningPendingVoiceItems}；播放 {listeningRunning}）");
             Check(listeningSession.Choose("one"), "可选择有效分支"); StartListening();
             long branchTicket = listeningTicket;
             OnListeningCompleted(first); Check(listeningSession.Current?.NodeId == "b", "上一句重复完成事件不能推进新一句");
@@ -146,7 +154,16 @@ public partial class MainWindow
         async Task Click(string label)
         {
             listeningOptions.IsExpanded = true; UpdateLayout();
-            var button = Elements<Button>((DependencyObject)listeningTab.Content).Single(b => b.Content?.ToString() == label);
+            // 0.4.7 视口随提示 / 标签增高后，选项按钮可能尚未进入可视树；回退到逻辑树查找（与 --test-047-ui 相同）。
+            Button? Logical(DependencyObject root)
+            {
+                if (root is Button b && b.Content?.ToString() == label) return b;
+                foreach (var child in LogicalTreeHelper.GetChildren(root).OfType<DependencyObject>())
+                    if (Logical(child) is { } found) return found;
+                return null;
+            }
+            var button = Elements<Button>((DependencyObject)listeningTab.Content).SingleOrDefault(b => b.Content?.ToString() == label)
+                ?? Logical((DependencyObject)listeningTab.Content) ?? throw new InvalidOperationException("找不到听书按钮：" + label);
             button.BringIntoView(); UpdateLayout();
             var invoke = new ButtonAutomationPeer(button).GetPattern(PatternInterface.Invoke) as IInvokeProvider
                 ?? throw new InvalidOperationException("听书按钮没有 UIA Invoke：" + label);
@@ -192,7 +209,9 @@ public partial class MainWindow
         await LocateLine("s1", "d"); check(listeningSession.Current?.NodeId == "d", "UIA可定位全部听取中的第二路线");
         listeningPolicy.SelectedIndex = 0;
         await LocateLine("s1", "a"); await Click("播放 / 续听"); OnListeningCompleted(listeningTicket); await Drain();
-        check(listeningSession.HasPendingChoice, "手动策略显示真实分支按钮");
+        // 0.4.7：中间的「未补配音」句按字数停留（测试缩放 0.02）后才到选项，等停留结束再核对。
+        for (int i = 0; i < 100 && !listeningSession.HasPendingChoice; i++) { await Task.Delay(20); await Drain(); }
+        check(listeningSession.HasPendingChoice, "手动策略显示真实分支按钮（无音频句停留后）");
         await Click("路线二");
         check(listeningSession.Current?.NodeId == "d" && listeningRunning, "UIA第二路线按钮确实选择第二项并开始收听");
         Select(listeningSections, "s2"); Select(listeningLines, "c");
@@ -201,6 +220,7 @@ public partial class MainWindow
             "自然换句刷新不会覆盖用户正在浏览的定位目标");
         await Click("暂停"); listeningPolicy.SelectedIndex = 1; listeningPolicy.SelectedIndex = 0;
         await LocateLine("s1", "a"); await Click("播放 / 续听"); OnListeningCompleted(listeningTicket); await Drain();
+        for (int i = 0; i < 100 && !listeningSession.HasPendingChoice; i++) { await Task.Delay(20); await Drain(); }
         await Click("跳过本处选择");
         check(listeningSession.Current?.NodeId == "z" && listeningRunning, "UIA跳过分支按钮进入共同线并继续收听");
         await Click("暂停");
@@ -310,10 +330,10 @@ public partial class MainWindow
                 check(listeningSession!.HasPendingChoice && !listeningRunning && listeningTicket == 0,
                     "手动策略遇等待互动停止，未跳过本节余下内容");
                 check(listeningText.Text.StartsWith("等待互动", StringComparison.Ordinal) && listeningStatus.Text.Contains("确认后继续本节"),
-                    "手动策略明确显示等待互动和选后续听提示");
+                    "手动策略明确显示等待互动和选后续听提示：" + listeningText.Text.Split('\n')[0] + " | " + listeningStatus.Text);
                 var inspectButton = listeningChoices.Children.OfType<Button>().Single(b => b.Content?.ToString() == "与地上的构造体互动");
-                check(inspectButton.IsVisible && listeningCurrentView.MaxHeight == 175 && listeningCurrentView.ViewportHeight > 105,
-                    "手动策略互动选项实际可见，选择区增加高度");
+                check(inspectButton.IsVisible && listeningCurrentView.MaxHeight >= 175 && listeningCurrentView.ViewportHeight > 105,
+                    $"手动策略互动选项实际可见，选择区增加高度：visible={inspectButton.IsVisible} max={listeningCurrentView.MaxHeight} viewport={listeningCurrentView.ViewportHeight}");
                 string pending = listeningSession.Current!.Id;
                 listeningLines.SelectedIndex = 0; inspectButton.Focus(); await Drain(); OnListeningCompleted(beforeTicket); await Drain();
                 check(listeningSession.Current?.Id == pending && !listeningRunning && listeningTicket == 0,

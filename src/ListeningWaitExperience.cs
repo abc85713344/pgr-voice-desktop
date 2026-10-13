@@ -16,7 +16,9 @@ public partial class MainWindow
         listeningPreviewTicket = 0; listeningPreviewNode = null; listeningStarting = false;
         QueueListeningStop(listeningRequest);
         listeningMessage = ListeningWaitText;
-        SaveListeningProgress(); RefreshListening();
+        SaveListeningProgress();
+        // 0.4.7（I/L）：等待确认续接 / 无文本死角——倒计时后按顺序继续或跳下一小节；「下一句」始终可点。
+        BeginListeningStop();
     }
 
     void PreviewListeningLine(string nodeId)
@@ -24,7 +26,7 @@ public partial class MainWindow
         var session = listeningSession;
         if (session == null || !session.Pack.ById.TryGetValue(nodeId, out var node) || node.Archived || node.Kind != "line") return;
         // 暂停只保存原位置；试听不 Seek/Choose，不改历史或书签，不消费分支。
-        if (!PauseListening()) return;
+        if (!PauseListening(true)) return; // 停下处倒计时已暂停时，试听不解除暂停
         ActivateListening();
         string notice = session.Pack.AudioNotice(node);
         string? file = session.Pack.ResolveAudio(node);

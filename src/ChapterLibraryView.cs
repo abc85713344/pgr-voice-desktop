@@ -47,6 +47,18 @@ public partial class MainWindow
         if (choices.Count == 0) return;
         var picker = new ChapterPickerWindow(choices, model.SelectedItem as PackChoice, focusCategory) { Owner = this };
         chapterPicker = picker;
+        if (!ReferenceEquals(model, listeningPacks))
+        {
+            picker.NativeVoiceCount = NativeVoiceCount; picker.NativeVoiceToggles = preferences.NativeVoiceMute;
+            picker.NativeVoiceUsesNative = id => preferences.NativeVoiceDubPacks?.Contains(id) != true;
+            picker.SetNativeVoiceUse = SetNativeVoiceForPack;
+        }
+        if (preferences.ShowChapterCovers)
+            picker.CoverLoader = (choice, apply) =>
+            {
+                string? path = chapterCovers.Find(choice.Title, choice.PackId, null, null, PackFolderName(choice.File), choice.Category);
+                if (path == null) apply(null); else LoadCharacterImage(path, CoverDecodeHeight, image => apply(image));
+            };
         if (testUi && chapterPickerTest != null) picker.Loaded += (_, _) => chapterPickerTest(picker);
         try
         {
@@ -103,6 +115,7 @@ public partial class MainWindow
         label.SetValue(TextBlock.FontWeightProperty, FontWeights.SemiBold);
         label.SetValue(TextBlock.ForegroundProperty, Theme.Brush("NormalAccent"));
         label.SetValue(TextBlock.MarginProperty, new Thickness(10, 12, 10, 5));
+        label.SetValue(TextBlock.FontSizeProperty, 11.5);
         return new GroupStyle { HeaderTemplate = new DataTemplate { VisualTree = label } };
     }
 }

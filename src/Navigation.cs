@@ -60,7 +60,7 @@ public sealed record InteractionMenuTarget(string MenuId, string Label, string K
     public override string ToString() => Label;
 }
 public sealed record StoryMenuTarget(string MenuId, string Label, string Kind, string Preview, string Status,
-    bool CanOpen, string Reason, string? FallbackMenuId, bool IsCurrent, bool IsVisited)
+    bool CanOpen, string Reason, string? FallbackMenuId, bool IsCurrent, bool IsVisited, string TakenOptionLabel = "", int Index = 0)
 {
     public override string ToString() => Label;
 }
@@ -243,7 +243,9 @@ public sealed partial class PlaybackEngine
             .Where(s => !string.IsNullOrWhiteSpace(s)).Distinct().Take(2).Select(s => MenuExcerpt(s, 90)).ToList();
         if (firstLines.Count > 0) preview += "\n首句：" + string.Join(" ／ ", firstLines);
         string label = $"{index + 1:00} · " + (string.IsNullOrWhiteSpace(node.Text) ? "选择点" : node.Text);
-        return new(node.Id, label, node.MenuType, preview, status, open, reason, fallback, node.Id == CurrentId, visited);
+        // 只读展示：曾在此选择点选过的选项（按 PathId 对回选项名），供「全部选择点」视图高亮。
+        string taken = Choices.TryGetValue(node.Id, out var path) ? node.Options.FirstOrDefault(o => o.PathId == path)?.Label ?? "" : "";
+        return new(node.Id, label, node.MenuType, preview, status, open, reason, fallback, node.Id == CurrentId, visited, taken, index + 1);
     }
     public List<StoryMenuTarget> StoryMenus => GetStoryMenus();
     public List<StoryMenuTarget> GetStoryMenus(string? sectionId = null)

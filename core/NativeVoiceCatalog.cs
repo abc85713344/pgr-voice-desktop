@@ -44,6 +44,9 @@ public sealed class NativeVoiceCatalog
             ?? throw new InvalidDataException("没有预装原声配置清单。");
         return Load(stream);
     }
+    static readonly Lazy<NativeVoiceCatalog?> shared = new(() => { try { return LoadEmbedded(); } catch { return null; } });
+    /// <summary>预装清单；缺失或损坏时为 null，调用方按“没有原配”处理，照常播放配音包。</summary>
+    public static NativeVoiceCatalog? Shared => shared.Value;
     public static NativeVoiceCatalog Load(string path)
     {
         using var stream = File.OpenRead(path); return Load(stream);
@@ -92,6 +95,19 @@ public sealed class NativeVoiceCatalog
     public NativeVoiceEntry? FindConfiguredVoice(string packId, string nodeId) => entries.GetValueOrDefault((packId, nodeId));
     public int CountConfiguredVoices(string packId) => packCounts.GetValueOrDefault(packId);
     public IReadOnlyDictionary<string, int> ConfiguredCountsByPack() => new System.Collections.ObjectModel.ReadOnlyDictionary<string, int>(new Dictionary<string, int>(packCounts, StringComparer.Ordinal));
+
+    /// <summary>
+    /// “游戏有原配时静音配音包”用：当前包这一句是否就是清单里核过的那句原配台词。
+    /// 只核台词身份（节点、小节、路线、正文、说话人），不核整包哈希——换音频入包会改变包哈希但不改变台词。
+    /// </summary>
+    public NativeVoiceEntry? FindLineVoice(Pack? pack, Node? node)
+    {
+        if (pack == null || node == null) return null;
+        var entry = FindConfiguredVoice(pack.Id, node.Id);
+        return entry != null && pack.ById.TryGetValue(node.Id, out var actual) && ReferenceEquals(actual, node) && !node.Archived &&
+            node.Kind == "line" && node.SectionId == entry.SectionId && node.PathId == entry.PathId && node.Text == entry.Text &&
+            node.RawText == entry.RawText && node.Speaker == entry.Speaker ? entry : null;
+    }
 
     /// <summary>仅未来适配流程明确调用；只允许清单核准版本。Enable 本身绝不表示可以跳过。</summary>
     public bool Enable(string verifiedGameVersion)

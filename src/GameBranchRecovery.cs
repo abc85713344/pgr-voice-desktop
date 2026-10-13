@@ -23,6 +23,8 @@ public partial class MainWindow
         bool native = testUi ? branchRecoveryEnvironmentTest?.Invoke() == true :
             Native.IsGameWindow(game.Handle, preferences.GameExecutablePath) &&
             GameInstallation.IsNativeClientExecutable(Native.ExecutablePath(game.Handle));
+        // 0.4.7 设计稿 14：探索菜单读不到游戏画面时，菜单卡显示兜底「没能从游戏画面认出是谁」。
+        if (engine.MenuWaiting && engine.CurrentId is { } waitingMenu) DesktopExploration.SetFollowUnavailable(engine, waitingMenu, !native);
         if (!native) return; // 非原生客户端沿用已有的手动续接入口。
         ClearBranchWaitReason();
         inputBranchRecovery = new(engine, engine.CurrentId!, section.Id, game.Handle, previousLine, beforeBranch);
@@ -50,6 +52,19 @@ public partial class MainWindow
             !ListeningActive && !locating && !KeyTesting && !closing;
     }
 
+    /// <summary>0.4.7 设计稿 14：按游戏对话框接上探索菜单的某个选项时，记下「已根据游戏画面跳转：选项／读到：说话人「台词」」，并把该选项记为已读。</summary>
+    void RecordExploreJump(InputBranchRecovery recovery)
+    {
+        if (engine?.Current is not { Kind: "line" } line || !engine.Pack.ById.TryGetValue(recovery.Boundary, out var menu) || menu.Kind != "choice") return;
+        var option = menu.Options.FirstOrDefault(o => o.TargetId == line.Id || o.LineIds.Contains(line.Id) || o.SegmentIds.Contains(line.Id));
+        if (option == null) return;
+        PgrVoice.Listening.MenuShapeInfo? shape = null;
+        try { shape = PgrVoice.Listening.MenuShape.Of(engine.Pack, menu); } catch { }
+        if (shape?.Exploration != true) return;
+        DesktopExploration.Add(engine, menu.Id, option.Id);
+        DesktopExploration.RecordJump(engine, menu.Id, new(option.Id, option.Label, (line.Speaker.Length > 0 ? line.Speaker : "") + "「" + line.Text + "」"));
+    }
+
     void CancelInputBranchRecovery(string reason)
     {
         if (inputBranchRecovery != null) PauseTextPlayback(reason);
@@ -60,8 +75,10 @@ public partial class MainWindow
         if (inputBranchRecovery == null) return;
         // 先脱开临时探针的声音所有权；关闭扫描不会切断刚确认的新句。
         textSoundSource = null;
-        string aligned = engine?.Current is { Kind: "line" } line ? line.Speaker + "：" + line.Text : "游戏当前句";
-        PauseTextPlayback("已对齐：" + aligned + "；先播放本句，继续原来的跟随方式。", preserveBranchAudio: true);
+        string aligned = engine?.Current is { Kind: "line" } line ? (line.Speaker.Length == 0 ? "旁白" : line.Speaker) + "：" + line.Text : "游戏当前句";
+        string action = engine?.Current is { Kind: "line" } current ? GameLinePlaybackAction(current) : "继续当前句";
+        RecordExploreJump(inputBranchRecovery);
+        PauseTextPlayback("已对齐：" + aligned + "；" + action + "，继续原来的跟随方式。", preserveBranchAudio: true);
         DialoguePositionConfirmed();
         // 松开选项键后才接收手柄推进；选择那次按压不能再消耗第一句。
         ResetGamepadContext();

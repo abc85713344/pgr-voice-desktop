@@ -15,6 +15,9 @@ internal static class AutoPlaybackLinePolicy
     public static bool IsSilentPunctuation(Node node) => node.Kind == "line" &&
         string.IsNullOrWhiteSpace(node.Audio) && IsPunctuationText(node.Text);
 
-    public static bool CanPlay(Pack pack, Node node) => IsSilentPunctuation(node) ||
+    public static bool CanPlay(Pack pack, Node node) => IsSilentPunctuation(node) || PgrVoice.Listening.PendingVoice.Applies(pack, node) ||
         pack.AudioNotice(node).Length == 0 && pack.ResolveAudio(node) != null;
+    /// <summary>0.4.7（J）：无音频台词按字数停留（每字 0.25 秒，至少 2 秒）；标点句仍为短停顿；其余为 null（正常播放）。</summary>
+    public static long? SilentMilliseconds(Pack pack, Node node) => IsSilentPunctuation(node) ? SilentPauseMilliseconds :
+        PgrVoice.Listening.PendingVoice.Applies(pack, node) ? PgrVoice.Listening.PendingVoice.DwellMilliseconds(node.Text) : null;
 }

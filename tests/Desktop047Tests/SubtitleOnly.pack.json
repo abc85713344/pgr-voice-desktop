@@ -1,0 +1,67 @@
+{
+ "schemaVersion": 3,
+ "id": "synthetic-subtitle-only",
+ "title": "【测试夹具·合成】仅字幕（subtitle-only）/ 待配音（draft-missing）/ 无配音（not-found）各一句",
+ "chapters": [
+  {
+   "id": "sub",
+   "title": "合成章节",
+   "sections": [
+    {
+     "id": "sub-sec",
+     "title": "S-1 仅字幕合成小节",
+     "startId": "sub-sec-so"
+    }
+   ]
+  }
+ ],
+ "nodes": [
+  {
+   "id": "sub-sec-so",
+   "sectionId": "sub-sec",
+   "kind": "line",
+   "pathId": "",
+   "speaker": "系统",
+   "text": "获得道具：信标残片×1。按住方向键可以切换查看对象。",
+   "rawText": "获得道具：信标残片×1。按住方向键可以切换查看对象。",
+   "nextId": "sub-sec-dm",
+   "audioStatus": "subtitle-only",
+   "audioReason": "仅字幕"
+  },
+  {
+   "id": "sub-sec-dm",
+   "sectionId": "sub-sec",
+   "kind": "line",
+   "pathId": "",
+   "speaker": "卡朋特",
+   "text": "这句台词还没有录音，等配音补上。",
+   "rawText": "这句台词还没有录音，等配音补上。",
+   "nextId": "sub-sec-nf",
+   "audioStatus": "draft-missing",
+   "audioReason": "待配音"
+  },
+  {
+   "id": "sub-sec-nf",
+   "sectionId": "sub-sec",
+   "kind": "line",
+   "pathId": "",
+   "speaker": "戴里克",
+   "text": "这句台词没有找到对应的配音。",
+   "rawText": "这句台词没有找到对应的配音。",
+   "nextId": "sub-sec-s9",
+   "audioStatus": "not-found"
+  },
+  {
+   "id": "sub-sec-s9",
+   "sectionId": "sub-sec",
+   "kind": "line",
+   "pathId": "",
+   "speaker": "旁白",
+   "text": "一行人离开了营地。",
+   "rawText": "一行人离开了营地。",
+   "nextId": null,
+   "audioStatus": "subtitle-only",
+   "audioReason": "仅字幕"
+  }
+ ]
+}

@@ -41,6 +41,13 @@ public partial class MainWindow
         var sections = PickerSections(model).ToArray(); if (pack == null || sections.Length == 0) return;
         var picker = new SectionPickerWindow(pack, sections, sections.FirstOrDefault(s => s.Id == PickerSectionId(model))) { Owner = this };
         sectionPicker = picker;
+        if (preferences.ShowChapterCovers)
+            picker.CoverLoader = (section, apply) =>
+            {
+                string chapterTitle = PackChoice.ChapterTitle(pack.Title);
+                string? path = chapterCovers.Find(chapterTitle, pack.Id, SectionDisplayTitle(section.Id, pack), section.Id, PackFolderName(pack.Root), ChapterCatalog.Category(pack.Id, chapterTitle));
+                if (path == null) apply(null); else LoadCharacterImage(path, CoverDecodeHeight, image => apply(image));
+            };
         if (testUi && sectionPickerTest != null) picker.Loaded += (_, _) => sectionPickerTest(picker);
         try
         {

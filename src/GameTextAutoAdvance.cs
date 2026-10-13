@@ -131,7 +131,13 @@ public partial class MainWindow
         var current = line.Owner.Current;
         if (current?.NextId == null || !line.Owner.Pack.ById.TryGetValue(current.NextId, out var next) || next.Archived ||
             next.Kind != "line" || next.SectionId != textSection || next.PathId != current.PathId)
-        { CancelTextAutoAdvance("本段已到分支或边界，请手动继续；读到新台词后会接上配音。"); return false; }
+        {
+            // 0.4.7 终点规则：前方是 end 节点时不点击，转入终点等待（提示终点文字）；其余边界照旧由玩家继续。
+            if (PgrVoice.Following.GameEndWaitPolicy.EndAhead(line.Owner) is var end && (end != null || current?.NextId == null))
+                CancelTextAutoAdvance(PgrVoice.Following.GameEndWaitPolicy.HintOf(end) + " · 不点击游戏，播完后等待游戏画面出现下一句。");
+            else CancelTextAutoAdvance("本段已到分支或边界，请手动继续；读到新台词后会接上配音。");
+            return false;
+        }
         if (!AutoPlaybackLinePolicy.CanPlay(line.Owner.Pack, next))
         { CancelTextAutoAdvance("下一句暂缺可用配音，请手动继续。后面的台词仍会自动匹配。"); return false; }
         return true;

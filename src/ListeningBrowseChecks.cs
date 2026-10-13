@@ -39,7 +39,8 @@ public partial class MainWindow
                 new() { Id = "browse-one", Title = "第一节互动", StartId = "browse-before" },
                 new() { Id = "browse-two", Title = "第二节收听", StartId = "browse-current" },
                 new() { Id = "browse-three", Title = "首项分支", StartId = "browse-first-menu" },
-                new() { Id = "browse-four", Title = "未知正文边界", StartId = "browse-known" }
+                new() { Id = "browse-four", Title = "未知正文边界", StartId = "browse-known" },
+                new() { Id = "browse-single", Title = "首项单选", StartId = "browse-single-menu" }
             } } },
             Nodes = new()
             {
@@ -59,12 +60,21 @@ public partial class MainWindow
                 new() { Id = "browse-archived", SectionId = "browse-one", Archived = true, Text = "已归档旧正文，不应进入目录。" },
                 new() { Id = "browse-current", SectionId = "browse-two", Speaker = "里", Text = "第二节正在收听的句子。", Audio = "audio.wav" },
                 new() { Id = "browse-first-menu", SectionId = "browse-three", Kind = "choice", Options = new()
-                { new() { Id = "browse-first-option", Label = "首项菜单选项", TargetId = "browse-first-line", PathId = "browse-first-option", MergeId = "browse-first-merge", Verified = true } } },
+                {
+                    new() { Id = "browse-first-option", Label = "首项菜单选项", TargetId = "browse-first-line", PathId = "browse-first-option", MergeId = "browse-first-merge", Verified = true },
+                    new() { Id = "browse-first-alternative", Label = "首项菜单另一选项", TargetId = "browse-first-other", PathId = "browse-first-alternative", MergeId = "browse-first-merge", Verified = true }
+                } },
                 new() { Id = "browse-first-line", SectionId = "browse-three", PathId = "browse-first-option", Text = "首项菜单后的正文。", Audio = "audio.wav", NextId = "browse-first-merge" },
+                new() { Id = "browse-first-other", SectionId = "browse-three", PathId = "browse-first-alternative", Text = "首项菜单另一条路线的正文。", Audio = "audio.wav", NextId = "browse-first-merge" },
                 new() { Id = "browse-first-merge", SectionId = "browse-three", Kind = "merge" },
                 new() { Id = "browse-known", SectionId = "browse-four", Text = "未知边界之前的可靠正文。", Audio = "audio.wav", NextId = "browse-unknown" },
-                new() { Id = "browse-unknown", SectionId = "browse-four", Kind = "gap", Text = "正文连接未核实", NextId = "browse-unlinked" },
-                new() { Id = "browse-unlinked", SectionId = "browse-four", Text = "已有录音，但没有可靠连接的正文。", Audio = "audio.wav" }
+                // 无连接预览用例必须确实没有 NextId；现行听书会沿现稿已声明的同小节连接继续。
+                new() { Id = "browse-unknown", SectionId = "browse-four", Kind = "gap", Text = "正文连接未核实" },
+                new() { Id = "browse-unlinked", SectionId = "browse-four", Text = "已有录音，但没有可靠连接的正文。", Audio = "audio.wav" },
+                new() { Id = "browse-single-menu", SectionId = "browse-single", Kind = "choice", Options = new()
+                { new() { Id = "browse-only-option", Label = "唯一选项", TargetId = "browse-single-line", PathId = "browse-only-option", MergeId = "browse-single-merge", Verified = true } } },
+                new() { Id = "browse-single-line", SectionId = "browse-single", PathId = "browse-only-option", Text = "单选自动接入的正文。", Audio = "audio.wav", NextId = "browse-single-merge" },
+                new() { Id = "browse-single-merge", SectionId = "browse-single", Kind = "merge" }
             }
         };
         fixture.Validate();
@@ -134,7 +144,9 @@ public partial class MainWindow
                 "浏览没有待选菜单的小节时隐藏待选互动入口");
             Browse("browse-three"); await Drain();
             var firstChoice = listeningLines.Items.OfType<ListeningEntry>().First();
-            check(firstChoice.IsChoice && listeningLines.Items.OfType<ListeningEntry>().Any(e => e.Id == "browse-first-line" && e.IsPreview),
+            // 0.4.7 单选直接继续；多选才应留下待选菜单与未接入后文。分别验证，不能用单选夹具要求暂停。
+            check(firstChoice.IsChoice && listeningLines.Items.OfType<ListeningEntry>().Any(e => e.Id == "browse-first-line" && e.IsPreview)
+                && listeningLines.Items.OfType<ListeningEntry>().Any(e => e.Id == "browse-first-other" && e.IsPreview),
                 "首项就是分支的小节也显示菜单及后文预览，不呈现空目录");
             listeningLines.SelectedItem = firstChoice; await Invoke(listeningLocate);
             check(listeningSession.Current?.NodeId == "browse-first-menu" && !listeningRunning
@@ -145,6 +157,16 @@ public partial class MainWindow
             check(listeningSession.Current?.Id == beforeUnknown && !listeningRunning && listeningPreviewNode?.Id == "browse-unlinked"
                 && listeningStatus.Text.Contains("仅试听"),
                 "没有待选菜单的未接入正文也可单句试听，保留原路线位置且不连续推进");
+            Browse("browse-single", "browse-single-line"); await Drain();
+            check(listeningLines.Items.OfType<ListeningEntry>().Any(e => e.Id == "browse-single-line" && !e.IsPreview)
+                && !listeningSession.Items.Any(i => i.SectionId == "browse-single" && i.Kind == ListeningItemKind.Choice)
+                && listeningPendingChoice.Visibility != Visibility.Visible,
+                "首项单选自动接入正文，无待选互动或后文预览状态");
+            check(listeningSession.Current?.Id == beforeUnknown && !listeningRunning,
+                "浏览首项单选小节仍不改变原收听位置或自行播放");
+            await Invoke(listeningLocate);
+            check(listeningSession.Current?.NodeId == "browse-single-line" && !listeningSession.HasPendingChoice && !listeningRunning,
+                "显式定位首项单选正文可静音到达，无需再确认唯一选项");
             check(engine == null || System.Text.Json.JsonSerializer.Serialize(engine.ExportNavigation()) == gameBefore,
                 "完整目录浏览、互动确认及后文续听都不改变游戏路线进度");
 

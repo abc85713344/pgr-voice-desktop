@@ -6,6 +6,7 @@
     <AssemblyName>PgrVoice.Core</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
+    <EmbeddedResource Include="PackCorrections.20261012.zip" LogicalName="PgrVoice.PackCorrections.20261012.zip" Condition="Exists('PackCorrections.20261012.zip')" />
     <EmbeddedResource Include="ChapterCatalog.json" LogicalName="PgrVoice.ChapterCatalog.json" />
     <EmbeddedResource Include="SectionOrder.json" LogicalName="PgrVoice.SectionOrder.json" />
     <EmbeddedResource Include="NativeVoiceCatalog.json" LogicalName="PgrVoice.NativeVoiceCatalog.json" Condition="Exists('NativeVoiceCatalog.json')" />

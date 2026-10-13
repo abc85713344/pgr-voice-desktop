@@ -13,6 +13,9 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        TrimTips.Register();
+        // 未单独设置图标的窗口（含代码创建的对话框）统一使用应用图标。
+        EventManager.RegisterClassHandler(typeof(Window), FrameworkElement.LoadedEvent, new RoutedEventHandler((s, _) => { if (s is Window w && w.Icon == null) w.Icon = Theme.AppIcon; }));
         CoreDiagnostics.Message += (category, message) => Log.Write(category, message);
         DispatcherUnhandledException += (_, args) => { Log.Write("error", args.Exception.ToString()); MessageBox.Show(args.Exception.Message, "剧情配音播放器"); args.Handled = true; };
         bool draftPlayer = e.Args.Contains("--draft-player");

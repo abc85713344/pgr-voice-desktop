@@ -16,6 +16,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 
+using PgrVoice.Listening;
 namespace PgrVoice;
 public sealed class LineRow : INotifyPropertyChanged
 {
@@ -32,7 +33,7 @@ public sealed class LineRow : INotifyPropertyChanged
     public bool IsBranch => Node.Kind == "choice" || Node.Kind == "line" && !string.IsNullOrEmpty(Node.PathId);
     public string Caption => string.Join(" · ", new[] { playing ? "▶ 正在播放" : "", Node.Kind switch { "choice" => "◆ 分支选择", "merge" => "共同线", "gap" => "待续接", "line" when IsBranch => "分支台词", _ => "" }, Node.Speaker, pack.AudioNotice(Node) }.Where(s => !string.IsNullOrEmpty(s)));
     public Brush Accent => IsBranch ? BranchAccent : playing ? Theme.Brush("PlayingAccent") : Theme.Brush("NormalAccent");
-    public Brush Border => IsBranch ? BranchAccent : Brushes.Transparent;
+    public Brush Border => IsBranch ? Theme.Brush("Brass") : Brushes.Transparent;
     public Brush Background => playing ? Theme.Brush("PlayingFill") : Node.Kind == "choice" ? BranchFill : IsBranch ? RouteFill : Brushes.Transparent;
     public bool Playing { get => playing; set { if (playing == value) return; playing = value; PropertyChanged?.Invoke(this, new(nameof(Caption))); PropertyChanged?.Invoke(this, new(nameof(Background))); PropertyChanged?.Invoke(this, new(nameof(Accent))); } }
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -102,7 +103,7 @@ public partial class MainWindow : Window
     volatile bool audioStarting;
     readonly Dictionary<string, string> actionLabels = new()
     {
-        ["next"]="游戏同步下一句", ["previous"]="配音上一句", ["manualNext"]="配音下一句", ["replay"]="重播当前句", ["panel"]="展开/收起", ["pause"]="暂停/恢复跟随", ["original"]="游戏原声", ["ocr"]="OCR 定位", ["catalog"]="章节目录", ["reselect"]="重选分支", ["history"]="历史与试听", ["interactions"]="手动选择分支"
+        ["next"]="游戏同步下一句", ["previous"]="配音上一句", ["manualNext"]="配音下一句", ["replay"]="重播当前句", ["panel"]="展开/收起", ["pause"]="暂停/恢复跟随", ["original"]="游戏原声", ["ocr"]="OCR 定位", ["catalog"]="章节目录", ["reselect"]="重选分支", ["history"]="历史与试听", ["interactions"]="手动选择分支", ["connect"]="连接普通对白"
     };
     public MainWindow(string[] args)
     {
@@ -114,16 +115,18 @@ public partial class MainWindow : Window
         testUi |= args.Contains("--test-section-picker-ui");
         testUi |= args.Contains("--test-branch-mouse-ui");
         testUi |= args.Contains("--test-listening-ui") || args.Contains("--test-autoplay-ui");
-        testUi |= args.Contains("--test-player-experience-ui");
+        testUi |= args.Contains("--test-player-experience-ui") || args.Contains("--test-native-voice-ui");
         testUi |= args.Contains("--test-onboarding-ui");
         testUi |= args.Contains("--test-library-search-ui");
         testUi |= args.Contains("--test-shortcuts-ui") || args.Contains("--test-action-buttons-ui");
-        testUi |= args.Contains("--test-gamepad-ui");
+        testUi |= args.Contains("--test-gamepad-ui") || args.Contains("--test-ball-ui") || args.Contains("--test-ui-review");
         testUi |= args.Contains("--test-compact-follow-ui") || args.Contains("--test-mouse-follow-ui");
         testUi |= args.Contains("--test-input-switch-ui");
-        testUi |= args.Contains("--test-game-text-ui");
+        testUi |= args.Contains("--test-game-text-ui") || args.Contains("--test-game-text-match");
         testUi |= args.Contains("--test-game-branch-recovery-ui");
         testUi |= args.Contains("--test-game-location-ui");
+        testUi |= args.Contains("--test-047-ui");
+        testUi |= args.Contains("--test-quick-window-ui");
         testUi |= args.Contains("--test-text-auto-ui") || args.Contains("--test-route-compat-ui") || args.Contains("--test-story-reference-ui") || args.Contains("--test-preference-validation-ui");
         stateFile = Path.Combine(Log.DataDir, "preferences.json");
         // 在初始化控件、恢复章节可能保存默认设置之前冻结新旧用户判断。
@@ -152,12 +155,14 @@ public partial class MainWindow : Window
         InitializeMouseFollow();
         InitializeCompactFollowControls();
         InitializeGameText();
+        InitializeQuickExperience();
         InitializeModeLayout();
         InitializeOnboarding();
         if(recoveredSettings) Tell("已从备份恢复设置与进度，损坏文件已保留。");
         LoadArtwork();
         ArtworkEnabledBox.IsChecked = preferences.ShowArtwork;
         ApplyArtwork();
+        InitializeCharacterArt();
         branchMenu.Confirm+=ConfirmSmallBranch;
         branchMenu.Cancel+=DismissSmallMenu;
         branchMenu.Interactions+=OpenInteractions;
@@ -165,6 +170,9 @@ public partial class MainWindow : Window
         branchMenu.ReturnTopic+=ReturnToTopic;
         branchMenu.Locate+=()=>{singleResume=engine?.ReviewRoute!=null;HideBranchMenu();_=Locate();};
         branchMenu.Manual+=OpenManualContinuation;
+        // 0.4.8：分支窗口可拖动，位置记入设置；双击把手复位为跟随主窗口。
+        if(preferences.BranchMenuLeft is {} bmLeft && preferences.BranchMenuTop is {} bmTop) branchMenu.UserPosition=new Point(bmLeft,bmTop);
+        branchMenu.UserMoved+=p=>{preferences.BranchMenuLeft=p?.X;preferences.BranchMenuTop=p?.Y;Save();Log.Write("branch-menu",p==null?"分支窗口位置已复位为跟随主窗口。":$"分支窗口已拖到 {p.Value.X:0},{p.Value.Y:0}。");};
         branchMenu.Options.SelectionChanged+=(_,_)=>{if(branchMenu.MenuId!=null)preferences.MenuSelections[branchMenu.MenuId]=branchMenu.Options.SelectedIndex;};
         clickZone.Moved += () =>
         {
@@ -243,16 +251,21 @@ public partial class MainWindow : Window
                 SectionBox.SelectedItem = textStartSection;
             if (args.Contains("--text-tracking")) Expand(gameTextTab);
             Log.Write("startup", $"窗口已就绪，PID={Environment.ProcessId}，面板={expanded}，位置={Left:0},{Top:0}");
-            if (args.Contains("--test-preference-validation-ui")) await RunPreferenceValidationUiTest();
+            if (args.Contains("--test-047-ui")) await Run047UiTest(args);
+            else if (args.Contains("--test-quick-window-ui")) await RunQuickWindowUiTest(args);
+            else if (args.Contains("--test-ui-review")) await RunUiReviewTest();
+            else if (args.Contains("--test-preference-validation-ui")) await RunPreferenceValidationUiTest();
             else if (args.Contains("--test-story-reference-ui")) await RunStoryReferenceUiTest();
             else if (args.Contains("--test-route-compat-ui")) await RunRouteCompatibilityUiTest();
             else if (args.Contains("--test-onboarding-ui")) await RunOnboardingUiTest();
             else if (args.Contains("--test-library-search-ui")) await RunLibrarySearchUiTest();
             else if (args.Contains("--test-player-experience-ui")) await RunPlayerExperienceUiTest();
+            else if (args.Contains("--test-native-voice-ui")) await RunNativeVoiceUiTest();
             else if (args.Contains("--test-text-auto-ui")) await RunTextAutoUiTest();
             else if (args.Contains("--test-game-location-ui")) await RunGameLocationUiTest();
             else if (args.Contains("--test-game-branch-recovery-ui")) await RunGameBranchRecoveryUiTest();
             else if (args.Contains("--test-game-text-ui")) await RunGameTextUiTest();
+            else if (args.Contains("--test-game-text-match")) await RunGameTextMatchTest();
             else if (args.Contains("--test-input-switch-ui")) await RunHotSwitchUiTest();
             else if (args.Contains("--test-mouse-follow-ui")) await RunMouseFollowUiTest();
             else if (args.Contains("--test-compact-follow-ui")) await RunCompactFollowUiTest();
@@ -274,6 +287,7 @@ public partial class MainWindow : Window
             else if (args.Contains("--test-experience-ui")) await RunExperienceUiTest();
             else if (args.Contains("--test-story-tail-ui")) await RunStoryTailUiTest();
             else if (args.Contains("--test-theme-ui")) await RunThemeUiTest();
+            else if (args.Contains("--test-ball-ui")) await RunBallUiTest();
             else if (args.Contains("--test-capture-ui")) await RunCaptureUiTest();
             else if (args.Contains("--test-library-ui")) await RunLibraryUiTest(args);
             else if (args.Contains("--test-branches-ui")) await RunBranchesUiTest();
@@ -367,10 +381,11 @@ public partial class MainWindow : Window
             ChapterBox.ItemsSource = pack.Chapters; ChapterBox.SelectedIndex = 0;
             UpdateChapterNavigation();
             PackLabel.Text = PackChoice.ChapterTitle(pack.Title);
+            PackLabel.ToolTip = pack.BundledCorrectionNotice;
             UpdateDraftNotice();
             var packInfo = new FileInfo(file); loadedDraftWrite = packInfo.LastWriteTimeUtc; loadedDraftLength = packInfo.Length;
             if (engine.Current != null) BrowseCurrent();
-            Tell("已载入配音包。选择起始台词并确认播放。");
+            Tell(string.IsNullOrEmpty(pack.BundledCorrectionNotice) ? "已载入配音包。选择起始台词并确认播放。" : pack.BundledCorrectionNotice);
             UpdateState(); loadingPack = false; RefreshHistory(); ChapterResumeLabel.Text=progressStore?.GetSummary(pack)??"";LibraryBox.ToolTip=ChapterResumeLabel.Text.Length>0?"上次位置："+ChapterResumeLabel.Text:"从配音包总目录选择章节";
             if(progressStore?.LastError is {Length:>0} problem) Tell(problem);
             Save();
@@ -414,13 +429,23 @@ public partial class MainWindow : Window
                 Tell("标点停顿 · " + node.Speaker);
                 return;
             }
+            // 0.4.7（J）：没有可用音频的台词不停：显示字幕并标「待配音 / 无配音」，自动播放按字数停留后继续，手动一次点击即越过。
+            // 仅字幕（subtitle-only）同样停留后继续，但不标签、记「仅字幕越过」。
+            if (GameSilentDwell(node))
+            {
+                StopAudio(); playingId = null; PaintPlaying();
+                GameLog(PendingVoice.PassType(node), node, node.AudioStatus ?? "无音频");
+                Tell((GameVoiceTag(node) is { } voiceTag ? voiceTag + " · " : "") + node.Speaker + "：显示字幕" + (automaticRunning ? "，按字数停留后继续" : "，点下一句继续"));
+                return;
+            }
             var path = engine.Pack.ResolveAudio(node);
             string notice = engine.Pack.AudioNotice(node);
             if (notice.Length > 0) { if (automaticRunning) StopAutomatic("本句录音不可用，自动播放已暂停。"); lastAudioProblem=notice; diagnosticStatus.Text=notice+" · "+node.Speaker+"："+node.Text; Tell(notice + "。可在设置中查看问题或重试本句。"); CaptureBranchPlaybackProblem("本句未能播放：" + notice); return; }
             if (path == null) { if (automaticRunning) StopAutomatic("本句缺少录音，自动播放已暂停。"); CaptureBranchPlaybackProblem("本句缺少可用录音；可手动选择游戏当前续接句。"); return; }
-            if (!testUi) StartAudio(path, node.Speaker);
+            bool native = NativeVoiceLine(node);
+            if (!testUi) StartAudio(path, node.Speaker, native);
             playingId = node.Id; PaintPlaying();
-            Tell("正在播放 · " + node.Speaker);
+            Tell((native ? NativeVoiceStatus : "正在播放") + " · " + node.Speaker);
         }
         catch (Exception ex) { if (automaticRunning) StopAutomatic("本句播放失败，自动播放已暂停。"); lastAudioProblem=ex.Message; diagnosticStatus.Text="播放失败："+ex.Message; Tell("播放失败：" + ex.Message); CaptureBranchPlaybackProblem("本句播放失败：" + ex.Message); }
     }
@@ -459,10 +484,11 @@ public partial class MainWindow : Window
         }
     }
     // 后台按顺序播放，避免音频设备协商阻塞输入和窗口刷新。
-    void StartAudio(string path, string? speaker = null)
+    void StartAudio(string path, string? speaker = null, bool native = false)
     {
         audioSpeaker = speaker;
-        audio.Volume = SpeakerVolume.Apply((float)preferences.Volume / 100, preferences.SpeakerVolumes, speaker);
+        playingNative = native;
+        audio.Volume = native ? 0 : SpeakerVolume.Apply((float)preferences.Volume / 100, preferences.SpeakerVolumes, speaker);
         long request = ++audioRequest;
         bool historyPreview = previewingHistory;
         string outputDevice = preferences.OutputDeviceId;
@@ -552,6 +578,7 @@ public partial class MainWindow : Window
             status = dialogueHeld ? "请核对当前句" : dialogueChecking ? "核对对白中" : status;
         if (currentStoryEnding && !ListeningActive) status = "当前路线末句 · " + status;
         if (unconfirmedStoryEnding && !ListeningActive) status = "后续待确认";
+        if (textEndWait != null && textArmed && !ListeningActive) status = "终点 · 等待游戏画面定位";
         StateText.Text = status;
         bool choice = engine?.Mode == RunMode.Choice;
         bool route = engine?.Mode != RunMode.Original && engine?.Current is { Kind: "line" } current && !string.IsNullOrEmpty(current.PathId);
@@ -560,16 +587,24 @@ public partial class MainWindow : Window
         CurrentCard.Background = choice ? LineRow.BranchFill : (Brush)FindResource("CurrentCardNormal");
         StateText.Foreground = highlight ? LineRow.BranchAccent : (Brush)FindResource("MutedText");
         if (route) StateText.Text = "分支台词 · " + status;
-        BallView.BorderBrush = highlight ? LineRow.BranchAccent : (Brush)FindResource("NormalAccent");
+        BallView.BorderBrush = highlight ? Theme.Brush("Brass") : (Brush)FindResource("NormalAccent");
         BallView.Background = choice ? LineRow.BranchFill : (Brush)FindResource("BallNormal");
-        BallGlyph.Foreground = BallState.Foreground = highlight ? LineRow.BranchAccent : (Brush)FindResource("NormalAccent");
-        BallState.Text = status.Length > 6 ? status[..6] : status;
-        if (engine?.Pack.IsDraft == true) BallState.Text = "草稿·" + status[..Math.Min(3, status.Length)];
-        BallGlyph.Text = engine?.Mode switch { RunMode.Choice => "选", RunMode.Original => "原", RunMode.Gap => "?", RunMode.Paused => "Ⅱ", _ => audio.Playing ? "♫" : "声" };
+        bool ballPlaying = audio.Playing && engine?.Mode is not (RunMode.Choice or RunMode.Original or RunMode.Gap or RunMode.Paused);
+        BallArt.Highlight = highlight; BallArt.Filled = choice; BallArt.Original = engine?.Mode == RunMode.Original;
+        BallArt.Draft = engine?.Pack.IsDraft == true; BallArt.Playing = ballPlaying;
+        BallArt.Wavy = ballPlaying || highlight || engine?.Mode == RunMode.Original;
+        BallArt.Label = engine?.Pack.IsDraft == true ? "草稿·" + status[..Math.Min(3, status.Length)] : status.Length > 6 ? status[..6] : status;
+        BallArt.Glyph = engine?.Mode switch { RunMode.Choice => "选", RunMode.Original => "原", RunMode.Gap => "?", RunMode.Paused => "Ⅱ", _ => audio.Playing ? "♫" : "声" };
+        // 原配句：球显示“原”、青色外圈（与“游戏原声”模式同字，靠青色区分）。
+        if (!highlight && engine?.Mode is not (RunMode.Original or RunMode.Paused) && NativeVoiceLine(engine?.Current))
+        { BallArt.Glyph = "原"; BallView.BorderBrush = Theme.Brush("Teal"); }
+        BallArt.Icon = BallArt.Glyph switch { "♫" => BallIcon.Note, "Ⅱ" => BallIcon.Pause, _ => BallIcon.Text };
+        System.Windows.Automation.AutomationProperties.SetName(BallView, "悬浮球 · " + status);
         BallView.ToolTip = status + " · 单击打开台词 · " + KeyName("panel") + " 展开";
         if (engine?.Pack.IsDraft == true) BallView.ToolTip = engine.Pack.DraftSummary + "\n" + BallView.ToolTip;
         UpdateExperienceStatus();
         PublishMenuCapture(); UpdateDialogueMonitor();
+        UpdateCharacterVisuals();
     }
     void PaintPlaying()
     {
@@ -657,6 +692,7 @@ public partial class MainWindow : Window
         if(expanded)Collapse(false);
         int selected=preferences.MenuSelections.GetValueOrDefault(engine.CurrentId!,0);
         if(applyReselectHighlight && engine.CurrentReselectOptionId!=null) {int previous=engine.AvailableOptions.FindIndex(o=>o.Id==engine.CurrentReselectOptionId);if(previous>=0)selected=previous;}
+        else selected=GameMenuSuggestion(selected);
         applyReselectHighlight=false;
         branchMenu.Present(engine,Left+70,Top,selected,anchors);
         branchMenu.SetContinuationFeedback(engine,CurrentBranchWaitReason());
@@ -688,14 +724,14 @@ public partial class MainWindow : Window
             else if(!engine.ConfirmGameLine(line.Id)){branchMenu.ShowNavigationNotice(engine.NavigationError);return;}
             DialoguePositionConfirmed();FillLines();
             if(engine.CurrentId==line.Id && engine.Mode==RunMode.Following)
-            {singleResume=false;HideBranchMenu();Collapse(false);Tell("已对齐："+line.Speaker+"："+line.Text+"；先播放本句，继续原跟随。");}
+            {singleResume=false;HideBranchMenu();Collapse(false);Tell("已对齐："+line.Speaker+"："+line.Text+"；"+GameLinePlaybackAction(line)+"，继续原跟随。");}
             return;
         }
         CancelInputBranchRecovery("已手动选择路线，分支监听已取消。");
         StopListeningForGame();
         if(branchMenu.IsNavigation){ConfirmInteractionNavigation();return;}
         int selected=branchMenu.Options.SelectedIndex;
-        if(engine.Mode==RunMode.Gap)engine.SelectContinuation(selected);else engine.SelectBranch(selected);FillLines();
+        if(engine.Mode==RunMode.Gap)engine.SelectContinuation(selected);else {RecordGameMenuChoice(selected);engine.SelectBranch(selected);}FillLines();
         if(engine.Mode==RunMode.Following)
         {
             singleResume=false;HideBranchMenu();Collapse(false);Tell(engine.Notice);
@@ -744,6 +780,7 @@ public partial class MainWindow : Window
         bool windowSwitch = modifiers != ModifierKeys.None || key is Key.LeftAlt or Key.RightAlt or Key.LWin or Key.RWin or Key.Tab;
         ObserveTextAutoInput(!windowSwitch && game != null && foreground == game.Handle && GameIsForeground(), "检测到游戏内手动按键，本句自动点击已取消。");
         if (closing || recordingAction != null || Native.GetForegroundWindow() != foreground) return;
+        if (HandleQuickConnectKey(key, modifiers, foreground)) return; // 「连接普通对白」只由 RegisterHotKey 触发（QuickExperience），避免触发两次
         if (IsLocallyHandledShortcut(key, messageTime)) return;
         // 播放器自身的按键只由 WPF 路由，避免同一次本地按键又从 Raw Input 执行一遍。
         if (foreground == new WindowInteropHelper(this).Handle) return;
@@ -776,6 +813,7 @@ public partial class MainWindow : Window
         if(expanded && IsTextInputSource(e.OriginalSource))
         {
             if(key==Key.Enter && SearchBox.IsKeyboardFocusWithin){e.Handled=true;LinesList.Focus();return;}
+            if(key==Key.Escape && SearchBox.IsKeyboardFocusWithin){e.Handled=true;if(SearchBox.Text.Length>0)SearchBox.Clear();else LinesList.Focus();return;}
             if(key is not (>=Key.F1 and <=Key.F24) && key!=Key.Escape)return;
         }
         if(e.IsRepeat && (key==Key.Escape || preferences.Keys.Values.Any(value => KeyBindingWindow.Matches(value, key)))){e.Handled=true;return;}
@@ -1029,7 +1067,7 @@ public partial class MainWindow : Window
         ResetFollowInputSession(); ResetDialogueObservation();
         lastRegion = null; Save(); Tell("已连接游戏：" + window.Title);
     }
-    void ChapterChanged(object sender, SelectionChangedEventArgs e) { if (!ready) return; CancelOcr(); if (ChapterBox.SelectedItem is Chapter c) { SectionBox.ItemsSource = c.Sections; SectionBox.SelectedIndex = 0; } }
+    void ChapterChanged(object sender, SelectionChangedEventArgs e) { if (!ready) return; CancelOcr(); if (ChapterBox.SelectedItem is Chapter c) { SectionBox.ItemsSource = c.Sections; SectionBox.SelectedItem = SectionDisplay.FirstListed(c.Sections); } }
     void LibraryChanged(object sender, SelectionChangedEventArgs e)
     {
         if (ready && !selectingLibrary && LibraryBox.SelectedItem is PackChoice choice &&
@@ -1047,6 +1085,7 @@ public partial class MainWindow : Window
     }
     void SectionChanged(object sender, SelectionChangedEventArgs e) { if (!ready) return; CancelOcr(); SearchBox.Clear(); FillLines(); HeaderChapter.Text = SectionBox.SelectedItem is Section section ? SectionDisplayTitle(section.Id) : (engine != null ? PackChoice.ChapterTitle(engine.Pack.Title) : "选择章节，继续你的故事"); }
     void SearchChanged(object sender, TextChangedEventArgs e) { if (ready) FillLines(); }
+    void SearchClearClick(object sender, RoutedEventArgs e) { SearchBox.Clear(); SearchBox.Focus(); }
     void LineSelected(object sender, SelectionChangedEventArgs e)
     {
         // 浏览绝不调用播放；只有下面明确按游戏画面确认后才同步位置。
@@ -1155,7 +1194,10 @@ public partial class MainWindow : Window
                     if (!editor.CaptureField.IsKeyboardFocused) throw new Exception("改键窗口未将焦点放到录入框");
                     if (useList)
                     {
-                        var box = ((StackPanel)editor.Content).Children.OfType<ComboBox>().Single();
+                        // 07-B 改键窗口把「或直接选择按键」列表放进了分栏里：按 AutomationId 在逻辑树中找，不依赖层级。
+                        static ComboBox? FindChoices(DependencyObject root) => root is ComboBox c && System.Windows.Automation.AutomationProperties.GetAutomationId(c) == "KeyChoices" ? c
+                            : LogicalTreeHelper.GetChildren(root).OfType<DependencyObject>().Select(FindChoices).FirstOrDefault(x => x != null);
+                        var box = FindChoices(editor) ?? throw new Exception("改键窗口没有按键列表");
                         box.SelectedItem = box.Items.Cast<KeyBindingWindow.Choice>().Single(c=>c.Key==key);
                     }
                     else
@@ -1192,8 +1234,8 @@ public partial class MainWindow : Window
             await Edit("next", Key.K, false);
             if (preferences.Keys["next"] != "J") throw new Exception("取消后改动仍被保存");
             results.Add("PASS: cancelling a valid candidate keeps previous binding");
-            await Edit("ocr", Key.F10, true, false, true);
-            if (preferences.Keys["ocr"] != "F10" || !OcrInstructions.Text.Contains("F10")) throw new Exception("列表改键或界面提示未更新");
+            await Edit("ocr", Key.F11, true, false, true);
+            if (preferences.Keys["ocr"] != "F11" || !OcrInstructions.Text.Contains("F11")) throw new Exception("列表改键或界面提示未更新");
             results.Add("PASS: choosing from key list saves and refreshes on-screen shortcut hints");
             if (playCalls != before || engine?.CurrentId != position) throw new Exception("设置按键时误播放或移动进度");
             results.Add("PASS: key editing never plays audio or moves story progress");

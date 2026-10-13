@@ -79,6 +79,14 @@ public partial class MainWindow
                 return chooser.ShowDialog(owner) == true ? chooser.FolderName : null;
             }, ReadPackChoice, preferences.OutputDeviceId, (int)Math.Round(preferences.Volume), preferences.SpeakerVolumes,
             testUi ? onboardingPreviewTest : null);
+        if (preferences.ShowChapterCovers)
+            dialog.CoverLoader = (file, apply) =>
+            {
+                string? path = null;
+                try { var choice = ReadPackChoice(file); path = chapterCovers.Find(choice.Title, choice.PackId, null, null, PackFolderName(file), choice.Category); }
+                catch (Exception) { }
+                if (path == null) apply(null); else LoadCharacterImage(path, CoverDecodeHeight, image => apply(image));
+            };
         if (ShowExperienceDialog(dialog) == true && dialog.OpenSelectedChapter && dialog.SelectedPackFile.Length > 0)
         {
             // 只有明确的“完成并打开这一章”才提交章节；浏览、试听、跳过均不走这里。

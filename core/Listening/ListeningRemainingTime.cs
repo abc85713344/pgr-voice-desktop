@@ -134,7 +134,8 @@ public sealed class ListeningRemainingTimeCache
                 string? path = null;
                 try { if (item.Node != null) path = pack.ResolveAudio(item.Node); } catch { }
                 var value = ReadDuration(path);
-                if (value.Missing) missing++;
+                if (value.Missing && PendingVoice.IsFlagged(item.Node)) { current = PendingVoice.DwellMilliseconds(item.Node!.Text); total += current; } // 0.4.7 待配音 / 无配音 / 仅字幕按停留时长计
+                else if (value.Missing) missing++;
                 else if (value.Milliseconds is not { } duration) unknown++;
                 else { current = duration; total += duration; }
             }

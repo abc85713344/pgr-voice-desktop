@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
+using PgrVoice.Listening;
 
 namespace PgrVoice;
 
@@ -16,6 +17,7 @@ public partial class MainWindow
     readonly DesktopAutoPlaybackCycle automaticCycle = new();
     readonly StackPanel automaticRecovery = new() { Visibility = Visibility.Collapsed, Margin = new Thickness(0, 5, 0, 4) };
     readonly TextBlock automaticRecoveryText = new() { TextWrapping = TextWrapping.Wrap };
+    readonly Button automaticDeadEndFeedback = new() { Content = "反馈", Visibility = Visibility.Collapsed, Margin = new Thickness(0, 3, 5, 3), Padding = new Thickness(8, 5, 8, 5), ToolTip = "反馈：记录这里后续没有配音文本，游戏里可能还有内容" };
     PlaybackEngine? automaticOwner, automaticPendingOwner, automaticPreparingOwner;
     string? automaticNode;
     long automaticTicket;
@@ -47,6 +49,7 @@ public partial class MainWindow
         var recoveryButtons = new WrapPanel(); automaticRecovery.Children.Add(recoveryButtons);
         AddButton(recoveryButtons, "重新定位并开启", () => _ = BeginAutomatic());
         AddButton(recoveryButtons, "查看当前台词", OpenStory);
+        automaticDeadEndFeedback.Click += (_, _) => GameDeadEndFeedback(); recoveryButtons.Children.Add(automaticDeadEndFeedback);
         strip.Children.Add(automaticRecovery);
         var legacyPanel = sequenceFollowPanel;
         legacyPanel.Children.Add(new TextBlock { Text = "按台本顺序，自动走共同剧情", FontSize = 15, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 8) });
@@ -128,7 +131,7 @@ public partial class MainWindow
         if (decision?.CurrentIsCommon != true)
         { StopAutomatic((decision?.Reason ?? "请先确认共同线当前句。") + "\n" + AutomaticBoundaryNextStep(decision?.Code), false, showRecovery: true); return; }
         if (engine!.Current == null || !AutoPlaybackLinePolicy.CanPlay(engine.Pack, engine.Current))
-        { StopAutomatic("当前句缺少录音，自动播放未开启。\n请手动继续这句，或更新配音包；到有配音的共同剧情后重新定位。", showRecovery: true); return; }
+        { StopAutomatic("当前句的录音不可用，自动播放未开启。\n请手动继续这句，或更新配音包；到有配音的共同剧情后重新定位。", showRecovery: true); return; }
         automaticOwner = engine; automaticNode = engine.CurrentId; automaticTicket = audioRequest;
         automaticWindow = game?.Handle ?? IntPtr.Zero;
         if (automaticEnvironmentTest == null && (!DesktopAdvanceInput.ClientBounds(automaticWindow, out automaticBounds) ||
@@ -146,9 +149,10 @@ public partial class MainWindow
     }
     void BeginAutomaticCurrentLine()
     {
-        if (engine?.Current is { } node && AutoPlaybackLinePolicy.IsSilentPunctuation(node))
+        if (engine?.Current is { } node && AutoPlaybackLinePolicy.SilentMilliseconds(engine.Pack, node) is long silent)
         {
-            if (!automaticCycle.BeginSilentPause(automaticCycle.Epoch, automaticTicket, AutomaticNow()))
+            string label = AutoPlaybackLinePolicy.IsSilentPunctuation(node) ? "标点停顿" : (GameVoiceTag(node) ?? (PendingVoice.IsSubtitleOnly(node) ? "仅字幕" : "无配音")) + " · 按字幕停留";
+            if (!automaticCycle.BeginSilentPause(automaticCycle.Epoch, automaticTicket, AutomaticNow(), automaticTestImmediate && !AutoPlaybackLinePolicy.IsSilentPunctuation(node) ? 1 : silent, label))
             { StopAutomatic("当前停顿状态已变化，请重新定位。"); return; }
             ShowAutomaticPhase();
         }
@@ -221,10 +225,24 @@ public partial class MainWindow
         if (silentPause ? !automaticCycle.CompleteSilentPause(cycleEpoch, ticket, AutomaticNow()) :
             !automaticCycle.CompleteAudio(cycleEpoch, ticket, AutomaticNow(), delay)) return;
         var decision = engine!.EvaluateCommonAutoPlayNext();
-        if (!decision.Allowed) { StopAutomatic(decision.Reason + "\n" + AutomaticBoundaryNextStep(decision.Code)); ShowAutomaticBoundary(); return; }
+        if (!decision.Allowed)
+        {
+            // 0.4.7 终点规则：前方是未归档 end 节点（或共同剧情末句无下一句）——不显示“本段已播完”，转入终点等待。
+            if (PgrVoice.Following.GameEndWaitPolicy.TryBegin(engine, decision, out var endWait) && endWait != null)
+            { HandOverAutomaticToEndWait(endWait); return; }
+            // 0.4.7（L）：后续没有配音文本——提示反馈，不跳转（游戏画面由玩家继续）。
+            bool deadEnd = decision.Code is "missing-next" or "gap" || decision.Code == "end" && engine.Current?.NextId == null;
+            if (deadEnd)
+            {
+                GameLog(PlaybackLog.Types.Stop, engine.Current, "后续没有配音文本：" + decision.Reason);
+                StopAutomatic(GameDeadEndText); automaticDeadEndFeedback.Visibility = Visibility.Visible; ShowAutomaticBoundary(); return;
+            }
+            GameLog(PlaybackLog.Types.Stop, engine.Current, decision.Reason);
+            StopAutomatic(decision.Reason + "\n" + AutomaticBoundaryNextStep(decision.Code)); ShowAutomaticBoundary(); return;
+        }
         var next = decision.Next!;
         if (!AutoPlaybackLinePolicy.CanPlay(engine.Pack, next))
-        { StopAutomatic("下一句缺少录音，自动播放已暂停。\n请手动继续这句，或更新配音包；到有配音的共同剧情后重新定位。" ); ShowAutomaticBoundary(); return; }
+        { GameLog(PlaybackLog.Types.Stop, next, "下一句录音不可用"); StopAutomatic("下一句的录音不可用，自动播放已暂停。\n请手动继续这句，或更新配音包；到有配音的共同剧情后重新定位。" ); ShowAutomaticBoundary(); return; }
         int epoch = automaticEpoch; string current = automaticNode!;
         automaticWaiting = true; ShowAutomaticPhase();
         await Task.Delay(delay);
@@ -276,7 +294,7 @@ public partial class MainWindow
     static string AutomaticBoundaryNextStep(string? code) => code switch
     {
         "choice" or "branch" or "next-branch" => "请在游戏中手动继续，出现选项后，在游戏和配音中选择同一路线；支线使用手动跟随。",
-        "end" => "本段已播完。请手动继续游戏，确认新的共同剧情起点后重新开启。",
+        "end" => PgrVoice.Following.GameEndWaitPolicy.FallbackHint + "；读到下一句后自动接上。",
         _ => "请手动继续游戏，通过台词列表或一次定位核对新的共同剧情起点。"
     };
     void ShowAutomaticBoundary()
@@ -299,7 +317,7 @@ public partial class MainWindow
             automaticRecovery.Visibility = Visibility.Visible;
             reason = detail;
         }
-        automaticCycle.Stop();
+        automaticCycle.Stop(); automaticDeadEndFeedback.Visibility = Visibility.Collapsed;
         automaticRunning = false; automaticWaiting = false; automaticPendingOwner = null; automaticPreparingOwner = null; automaticOwner = null; automaticEpoch++;
         automaticButton.Content = "游戏自动播放（先定位）"; automaticStatus.Text = reason;
         if (wasPreparing) { CancelOcr(); ocr.Stop(); }

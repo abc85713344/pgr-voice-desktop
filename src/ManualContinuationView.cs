@@ -20,8 +20,9 @@ public partial class MainWindow
             else Tell("当前位置不在待选菜单，原位置保持不变。");
         });
         AddButton(manualContinuationTools,"恢复普通台词页",()=>{manualContinuationBrowsing=false;ApplyCompactLayout();});
+        manualContinuationTools.Children.Add(new TextBlock{Text="MANUAL",Style=Theme.Style("SublabelText"),Foreground=Theme.Brush("NormalAccent"),VerticalAlignment=VerticalAlignment.Center,Margin=new Thickness(4,0,8,0)});
         manualContinuationTools.Children.Add(new TextBlock{Text="本节全部正文 · 仅浏览不改变路线",FontSize=11,VerticalAlignment=VerticalAlignment.Center,Foreground=Theme.Brush("MutedText")});
-        if(NavigationToolbar.Parent is StackPanel host)host.Children.Insert(0,manualContinuationTools);
+        ToolbarHost.Children.Insert(0,manualContinuationTools);
         SizeChanged+=(_,_)=>{if(manualContinuationBrowsing)ApplyCompactLayout();};
         Tabs.SelectionChanged+=(_,e)=>
         {

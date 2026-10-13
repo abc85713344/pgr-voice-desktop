@@ -121,10 +121,21 @@ public partial class MainWindow
             try { Arm(); CommitMemoryGameText(textProbes[0], owner, branch.Text); Check(textArmed && playCalls == before, "多处分支同文仅跳过本句，不停整段追踪"); }
             finally { owner.Pack.Nodes.Remove(duplicate); }
             string? audioFile = branch.Audio;
-            try { branch.Audio = null; Arm(); CommitMemoryGameText(textProbes[0], owner, branch.Text); Check(textArmed && playCalls == before, "缺少录音仍继续监听，不触发播放"); }
+            try
+            {
+                branch.Audio = null; Arm(); CommitMemoryGameText(textProbes[0], owner, branch.Text);
+                Check(textArmed && owner.CurrentId == branch.Id && playCalls == before + 1 && playingId == null && !audio.Playing &&
+                    gameTextNotice.Text.Contains("显示字幕") && !gameTextNotice.Text.Contains("并播放"),
+                    "缺音正文照常对齐并显示字幕，持续监听且不误称播音");
+                CommitMemoryGameText(textProbes[0], owner, branch.Text);
+                Check(playCalls == before + 1 && playingId == null, "同一句缺音字幕重复采样不重复提交");
+            }
             finally { branch.Audio = audioFile; }
             CommitMemoryGameText(textProbes[0], owner, branch.Text);
-            Check(textArmed && playCalls == before + 1, "缺音恢复后无需重新定位就能继续播放");
+            Check(textArmed && playCalls == before + 1 && playingId == null, "当前字幕补回音频后相同采样不会突然重播");
+            CommitMemoryGameText(textProbes[0], owner, backgroundNext.Text, backgroundNext.Speaker);
+            Check(textArmed && owner.CurrentId == backgroundNext.Id && playCalls == before + 2 && playingId == backgroundNext.Id &&
+                !gameTextNotice.Text.Contains("显示字幕"), "缺音字幕后出现下一条明确正文仍能继续跟随并播放");
             Check(textProbes.Length == 2 && textProbes[0].Kind == GameTextKind.Ordinary && textProbes[1].Kind == GameTextKind.Scene3D, "普通与 3D 有独立的连接与状态");
             var probe = textProbes[0]; long stamp = Stopwatch.GetTimestamp();
             long At(int ms) => stamp + (long)(Stopwatch.Frequency * (ms / 1000.0));

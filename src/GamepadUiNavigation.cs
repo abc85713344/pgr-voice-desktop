@@ -310,18 +310,44 @@ internal sealed class GamepadUiNavigation : IDisposable
         highlightLayer = null;
     }
 
+    // 手柄焦点（冷灰白）：白色衬底 + 名牌深色切角框 + 暗红角括号，在浅色卡片与暗红主按钮上都清晰可见。
     sealed class FocusAdorner : Adorner
     {
-        static readonly Pen Outline = new(Brushes.Black, 4);
-        static readonly Pen Accent = new(new SolidColorBrush(Color.FromRgb(103, 232, 249)), 2);
+        static readonly Pen Outline = Freeze(new Pen(new SolidColorBrush(Color.FromRgb(255, 255, 255)), 4));
+        static readonly Pen Ring = Freeze(new Pen(new SolidColorBrush(Color.FromRgb(42, 49, 57)), 2));
+        static readonly Pen Bracket = Freeze(new Pen(new SolidColorBrush(Color.FromRgb(163, 40, 58)), 3) { StartLineCap = PenLineCap.Square, EndLineCap = PenLineCap.Square });
+        static readonly Pen CutMark = Freeze(new Pen(new SolidColorBrush(Color.FromRgb(163, 40, 58)), 2) { StartLineCap = PenLineCap.Square, EndLineCap = PenLineCap.Square });
+        static Pen Freeze(Pen pen) { pen.Freeze(); return pen; }
         public FocusAdorner(UIElement element) : base(element) { IsHitTestVisible = false; }
         protected override void OnRender(DrawingContext drawingContext)
         {
             var size = AdornedElement.RenderSize;
             if (size.Width < 4 || size.Height < 4) return;
             var rect = new Rect(2, 2, size.Width - 4, size.Height - 4);
-            drawingContext.DrawRoundedRectangle(null, Outline, rect, 3, 3);
-            drawingContext.DrawRoundedRectangle(null, Accent, rect, 3, 3);
+            double cut = Math.Min(7, Math.Min(rect.Width, rect.Height) / 3);
+            var frame = new StreamGeometry();
+            using (var ctx = frame.Open())
+            {
+                ctx.BeginFigure(rect.TopLeft, false, true);
+                ctx.LineTo(rect.TopRight, true, false);
+                ctx.LineTo(new Point(rect.Right, rect.Bottom - cut), true, false);
+                ctx.LineTo(new Point(rect.Right - cut, rect.Bottom), true, false);
+                ctx.LineTo(rect.BottomLeft, true, false);
+            }
+            frame.Freeze();
+            drawingContext.DrawGeometry(null, Outline, frame);
+            drawingContext.DrawGeometry(null, Ring, frame);
+            double arm = Math.Min(12, Math.Min(rect.Width, rect.Height) / 2.5);
+            var brackets = new StreamGeometry();
+            using (var ctx = brackets.Open())
+            {
+                ctx.BeginFigure(new Point(rect.Left, rect.Top + arm), false, false); ctx.LineTo(rect.TopLeft, true, false); ctx.LineTo(new Point(rect.Left + arm, rect.Top), true, false);
+                ctx.BeginFigure(new Point(rect.Right - arm, rect.Top), false, false); ctx.LineTo(rect.TopRight, true, false); ctx.LineTo(new Point(rect.Right, rect.Top + arm), true, false);
+                ctx.BeginFigure(new Point(rect.Left, rect.Bottom - arm), false, false); ctx.LineTo(rect.BottomLeft, true, false); ctx.LineTo(new Point(rect.Left + arm, rect.Bottom), true, false);
+            }
+            brackets.Freeze();
+            drawingContext.DrawGeometry(null, Bracket, brackets);
+            drawingContext.DrawLine(CutMark, new Point(rect.Right + 3, rect.Bottom - cut + 3), new Point(rect.Right - cut + 3, rect.Bottom + 3));
         }
     }
 }

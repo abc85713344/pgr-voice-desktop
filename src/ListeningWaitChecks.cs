@@ -28,6 +28,8 @@ public partial class MainWindow
             return JsonSerializer.Serialize(snapshot);
         }
         string oldFile = listeningFile, oldChapter = listeningSession!.ChapterId, oldGame = preferences.PackFile;
+        bool oldBranchAutoSelect = preferences.BranchAutoSelect;
+        int oldCountdownTickMs = listeningCountdownTickMs;
         var fixture = new Pack
         {
             SchemaVersion = 3, Id = "desktop-waiting-line-preview", Title = "等待续接与单句试听", Root = root,
@@ -39,7 +41,8 @@ public partial class MainWindow
                 { new() { Id="wait-option", Label="选择这条路线", PathId="wait-option", TargetId="known-line", BodyVerified=true,
                     ExitVerified=false, BoundaryId="wait-gap", SegmentIds=new(){"known-line"}, LineIds=new(){"known-line","unknown-line","missing-line"}, BodyEvidence=new(){"isolated-ui-fixture"} },
                   new() { Id="other-option", Label="另一条待核路线", PathId="other-option", TargetId="other-line", LineIds=new(){"other-line"} } } },
-                new() { Id="known-line", SectionId="wait-section", PathId="wait-option", Speaker="旁白", Text="这里是最后一条已核正文。", Audio="audio.wav", NextId="unknown-line" },
+                // 真正的无连接边界：现行听书会沿已声明的 NextId 继续，不能把直连 unknown-line 当作未接入预览。
+                new() { Id="known-line", SectionId="wait-section", PathId="wait-option", Speaker="旁白", Text="这里是最后一条已核正文。", Audio="audio.wav", NextId="wait-gap" },
                 new() { Id="unknown-line", SectionId="wait-section", PathId="wait-option", Speaker="露西亚", Text="已收录而尚未接入的后一句。", Audio="audio.wav", NextId="missing-line" },
                 new() { Id="missing-line", SectionId="wait-section", PathId="wait-option", Text="这句尚无音频。" },
                 new() { Id="other-line", SectionId="wait-section", PathId="other-option", Speaker="里", Text="这是另一条待核路线的正文。", Audio="audio.wav" },
@@ -50,6 +53,8 @@ public partial class MainWindow
         fixture.Validate(); string file = Path.Combine(root,"waiting-preview.json"); Json.Save(file,fixture);
         try
         {
+            // 先验证关闭自动处理时的等待 / 试听边界；末尾单独验证现行倒计时及显式“下一句”。
+            preferences.BranchAutoSelect = false;
             LoadPack(file); engine!.Commit("wait-menu"); engine.SelectBranch(0); engine.Next();
             Expand(StoryTab); SearchBox.Clear(); showAllSectionLines.IsChecked=false; BrowseCurrent();
             check(engine.Mode == RunMode.Gap && rows.All(r=>r.Node.Id!="other-line"), "游戏范围末端保留Gap，另一条未确认正文原本被资格过滤");
@@ -75,13 +80,17 @@ public partial class MainWindow
             StartListening(); long oldTicket=listeningTicket; OnListeningCompleted(oldTicket); await Drain();
             check(listeningSession.HasBlockingNotice && !listeningSession.Completed && !listeningRunning && listeningTicket==0,
                 "已核末句自然结束后停在明确阻断，不跨到下一小节或标记章末");
-            check(listeningPosition.Text.Contains("等待续接") && listeningStatus.Text.Contains("等待续接")
+            check(listeningPosition.Text.Contains("等待续接") && (listeningStatus.Text.Contains("等待续接") || listeningStatus.Text.Contains("续接未核实") || listeningStatus.Text.Contains("没有配音文本") || listeningStatus.Text.Contains("小节已读完"))
                 && !listeningPosition.Text.Contains("已听完") && ListeningProgress!.Resume?.Completed==false,
                 "等待位置、提示与存档均不误称整章已听完");
             check((listeningLines.SelectedItem as ListeningEntry)?.Id=="known-line", "听书阻断时目录停留最后已播正文，不跳回目录顶部");
-            string blocked=State(); MoveListening(()=>listeningSession.MoveNext()); StartListening(); OnListeningCompleted(oldTicket); await Drain();
+            string blocked=State();
+            check(listeningSession.ResolveStop(ListeningDefaultNumber) is { Action: ListeningStopAction.OrderContinue, LineId: "unknown-line" }
+                && !listeningSession.MoveNext() && State()==blocked,
+                "无连接边界仅提出本节按顺序续接；底层自然推进不能自行越过等待");
+            StartListening(); OnListeningCompleted(oldTicket); await Drain();
             check(State()==blocked && listeningSession.HasBlockingNotice && !listeningRunning,
-                "等待时下一句、续听及旧音频完成均不能越过阻断");
+                "自动处理关闭时续听仍保留等待，旧音频完成不能越过阻断");
             listeningSections.SelectedItem=listeningSections.Items.OfType<ListeningEntry>().Single(x=>x.Id=="wait-section");
             listeningLines.SelectedItem=listeningLines.Items.OfType<ListeningEntry>().Single(x=>x.Id=="unknown-line");
             string bookmarks=JsonSerializer.Serialize(ListeningProgress!.Bookmarks); string choices=JsonSerializer.Serialize(listeningSession.Capture().Choices);
@@ -112,10 +121,41 @@ public partial class MainWindow
             check(listeningSession.HasBlockingNotice && !listeningSession.Completed && !listeningRunning,
                 "关闭重开恢复明确等待位置，不重播或变成已完成");
             double oldHeight=Height; Height=620; ApplyCompactLayout(); UpdateLayout(); await Drain(); Screenshot("等待续接-后文单句试听-620.png"); Height=oldHeight;
+
+            // 0.4.7：主播放按钮暂停 / 恢复停下处倒计时；“下一句”是玩家显式同意按顺序继续。
+            // 先完成全部未接入预览保护，再从同一等待位置验证这些实际 UI 入口。
+            string waiting=State();
+            var choicesBeforeContinue=listeningSession.Capture().Choices.ToDictionary(pair=>pair.Key,pair=>pair.Value);
+            preferences.BranchAutoSelect=true; listeningCountdownTickMs=1000; BeginListeningStop();
+            check(ListeningCounting && !listeningCountdownPaused && State()==waiting && !listeningRunning,
+                "开启自动处理只启动等待处倒计时，不立即接入后文或改变断点");
+            await Invoke(listeningPlay); int heldSeconds=listeningCountdown;
+            check(ListeningCounting && listeningCountdownPaused && heldSeconds>0 && State()==waiting
+                && !listeningRunning && listeningPlay.Content?.ToString()=="继续",
+                "主播放按钮暂停倒计时并保留等待位置，按钮变为继续");
+            OnListeningCompleted(oldTicket); await Task.Delay(1100); await Drain();
+            check(listeningCountdownPaused && listeningCountdown==heldSeconds && State()==waiting
+                && listeningSession.HasBlockingNotice && !listeningRunning,
+                "倒计时暂停跨过一次计时周期仍不减少，旧完成票据不解除暂停或推进");
+            await Invoke(listeningPlay);
+            check(ListeningCounting && !listeningCountdownPaused && State()==waiting && !listeningRunning,
+                "主播放按钮继续仅恢复倒计时，不立即播放未接入后文");
+            await Invoke(listeningPlay);
+            check(listeningCountdownPaused && State()==waiting,"再次暂停倒计时仍保留原等待位置");
+            await Invoke(listeningNextButton); long continuedTicket=listeningTicket;
+            check(listeningSession.Current?.NodeId=="unknown-line" && listeningRunning && continuedTicket>0
+                && !listeningSession.HasBlockingNotice && !ListeningCounting && !listeningSession.Completed,
+                "玩家在倒计时暂停时点击下一句，显式按本节顺序播放unknown-line，不跳到后面小节");
+            OnListeningCompleted(oldTicket); await Drain();
+            check(listeningSession.Current?.NodeId=="unknown-line" && listeningTicket==continuedTicket && listeningRunning
+                && choicesBeforeContinue.All(pair=>listeningSession.Capture().Choices.TryGetValue(pair.Key,out var value) && value==pair.Value)
+                && JsonSerializer.Serialize(ListeningProgress!.Bookmarks)==bookmarks,
+                "显式续接保留原分支选择及书签，旧音频票据不能消耗新句");
         }
         finally
         {
             listeningTestAudio=true; PauseListening(); showAllSectionLines.IsChecked=false;
+            preferences.BranchAutoSelect=oldBranchAutoSelect; listeningCountdownTickMs=oldCountdownTickMs;
             if(File.Exists(oldGame))LoadPack(oldGame);
             OpenListeningPack(oldFile,oldChapter);
         }

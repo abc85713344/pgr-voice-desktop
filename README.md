@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| **版本** | `2026.10.9.9`（`2026.10.09-settings-validation`） |
+| **版本** | `2026.10.13.479`（`2026.10.13-047.9`） |
 | **系统要求** | Windows 10 / 11 **x64** |
 | **运行权限** | **需要管理员权限** —— 读取游戏进程对白所需 |
 | **技术栈** | .NET 10（WPF + WinForms）、NAudio 2.2.1、SDL3 |
@@ -34,6 +34,7 @@
 - **分支锚定与续接** —— 显示当前实际处于哪个分支编号，并在歧义、缺音或未知连接时给出具体等待原因和直接手动续接入口。
 - **内置章节资料** —— 138 章、6142 小节的正文、选项与汇合查询，**只读**，不定位、不播放、不写进度。
 - **听书可重选分支** —— 选过一条路线后仍可改选，只撤销本处及本小节之后的选择，前序与书签保留。
+- **角色头像与章节封面** —— 按说话人显示头像、标题区显示本章封面；图片只从你本机的文件夹读取，不随程序发布，也不上传仓库。
 - **玩家昵称自适应** —— 游戏里动态生成的指挥官昵称不会导致整句漏播。
 - **台词反馈与讲者音量** —— 可对单句提交反馈，并按说话人调整音量。
 - **可选 OCR 定位（F9）** —— 截图识别字幕并列出候选，需要单独安装 OCR 组件。
@@ -72,6 +73,22 @@ dotnet publish src/PgrVoice.csproj -c Release -r win-x64 --self-contained true `
 
 > ⚠️ **`IncludeNativeLibrariesForSelfExtract=true` 不能省** —— 否则 WPF 的原生库（`wpfgfx_cor3.dll` 等）不会打进单文件，玩家解压后只有一个 exe 时会直接闪退。
 
+## 关于游戏衍生资源
+
+本仓库**只包含作者原创的程序代码、工具与文档**，不转载任何游戏内容。以下文件属于游戏厂商的衍生数据，已排除在仓库之外：
+
+| 排除的文件 | 内容 |
+|---|---|
+| `android/StoryReference.*.zip` | 剧情正文与选项（138 章） |
+| `core/PackCorrections.*.zip` | 剧情连接修正包 |
+| `core/NativeVoiceCatalog.json` | 游戏原生语音台词目录 |
+| `android/RouteRepairs.*.json.gz` | 路线差量 |
+| `src/Assets/BundledArt.zip` | 章节封面图 338 张 |
+
+对应的 `EmbeddedResource` 均已加上 `Condition="Exists(...)"`，所以**缺少这些文件仍可正常编译运行**，只是「内置章节资料」与内置封面不可用。自行按原路径放入即可恢复完整功能，是否这样做请自行确认符合游戏厂商的条款。
+
+`src/Assets/GrayRaven.png` 是战双官网「灰鸦」壁纸（出处见 `artwork-source.json`），仅作界面背景，权利归库洛游戏所有。
+
 ## 项目结构
 
 ```text
@@ -88,7 +105,10 @@ core/                   与 Android 版共用的核心（PgrVoice.Core.csproj）
   Following/              自动跟随的安全决策
   Listening/              听书会话与进度
   Packages/               章节 ZIP 的导入与包管理
-tests/                  回归测试工程（CoreTests、IntegrationTests、ListeningTests、CoreAudit）
+android/                与 Android 版共用的两个源码文件（Bundled*.cs），由 src 直接 Compile 引用
+tests/                  回归测试工程（CoreTests、IntegrationTests、ListeningTests、CoreAudit、Desktop047Tests）
+checks/                 内置章节资料的独立检查工程
+packaging/              便携版发布说明与启动入口
 docs/                   工程文档与界面截图
 ```
 

@@ -1,4 +1,4 @@
-﻿# .NET 构建产物
+# .NET 构建产物
 bin/
 obj/
 *.user
@@ -13,3 +13,25 @@ reports/
 # Python 缓存
 __pycache__/
 *.pyc
+
+# 角色图片只放在用户本机，永远不提交
+角色头像/
+**/角色头像/
+**/立绘/
+章节封面/
+**/章节封面/
+
+# 游戏衍生数据属于游戏厂商内容，本仓库不转载。
+# 构建时按 Exists(...) 条件跳过，缺这些文件仍可编译运行，只是内置剧情/语音资料不可用。
+StoryReference.*.zip
+PackCorrections.*.zip
+NativeVoiceCatalog.json
+RouteRepairs.*.json.gz
+SourceChoices.*.json
+BundledArt.zip
+
+# 安卓侧目录：只保留桌面构建直接 Compile 引用的两个源码文件，
+# 其余（符号链接、打包资源）不入库。
+/android/*
+!/android/BundledStoryReference.cs
+!/android/BundledRouteRepairs.cs

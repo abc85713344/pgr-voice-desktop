@@ -14,7 +14,7 @@ public sealed partial class PlaybackEngine
     {
         CommonAutoPlayDecision Deny(string code, string reason, bool common = false) => new(common, false, null, code, reason);
         if (Current == null) return Deny("no-current", "请先确认游戏当前台词。");
-        if (Current.Kind != "line") return Deny(Current.Kind, BoundaryReason(Current.Kind));
+        if (Current.Kind != "line") return Deny(Current.Kind, Current.Kind == "end" ? EndReason(Current) : BoundaryReason(Current.Kind));
         if (Mode != RunMode.Following) return Deny("not-following", "请先确认当前台词并恢复配音，再开启自动播放。");
         if (singleLine || ReviewRoute != null) return Deny("single-line", "单句核对期间不能自动播放，请先确认共同剧情位置。");
         if (Current.Archived || !Allowed(Current)) return Deny("current-unavailable", "当前位置尚未核实，请手动确认。");
@@ -27,12 +27,13 @@ public sealed partial class PlaybackEngine
                     : "无法确认这段属于共同剧情，已暂停自动播放。");
         if (HasCommonAutoPlayCycle(Current, graph.Common))
             return Deny("cycle", "剧情连接存在循环，已暂停自动播放，请手动定位。");
-        if (Current.NextId == null) return Deny("end", "共同剧情已结束，自动播放已暂停。", true);
+        // 0.4.7：游戏模式的终点不再说“剧情已结束”；提示用终点自己的文字（无终点节点时用统一兜底），由调用方进入等待定位。
+        if (Current.NextId == null) return Deny("end", EndReason(null), true);
         if (!Pack.ById.TryGetValue(Current.NextId, out var next))
             return Deny("missing-next", "下一句不存在，已暂停自动播放。", true);
         if (next.Archived || next.SectionId != Current.SectionId)
             return Deny("invalid-next", "下一步跨小节或已经失效，请手动确认。", true);
-        if (next.Kind != "line") return Deny(next.Kind, BoundaryReason(next.Kind), true);
+        if (next.Kind != "line") return Deny(next.Kind, next.Kind == "end" ? EndReason(next) : BoundaryReason(next.Kind), true);
         if (!graph.Common.Contains(next.Id) || !Allowed(next))
             return Deny(graph.Branch.Contains(next.Id) || !string.IsNullOrEmpty(next.PathId) ? "next-branch" : "next-unproven",
                 "下一步进入分支或未核实段落，自动播放已暂停，请按游戏画面手动选择。", true);
@@ -48,9 +49,11 @@ public sealed partial class PlaybackEngine
         "merge" => "已到剧情汇合点，自动播放已暂停。请确认共同剧情后重新开启。",
         "return" => "已到路线返回点，自动播放已暂停，请手动确认共同剧情。",
         "gap" => "下一段尚未核实，自动播放已暂停，请手动定位。",
-        "end" => "共同剧情已结束，自动播放已暂停。",
+        "end" => EndReason(null),
         _ => "当前位置不能自动播放，请手动确认。"
     };
+
+    static string EndReason(Node? end) => PgrVoice.Following.GameEndWaitPolicy.HintOf(end) + "。";
 
     bool HasCommonAutoPlayCycle(Node start, HashSet<string> common)
     {

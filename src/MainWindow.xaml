@@ -1,40 +1,132 @@
-<Window x:Class="PgrVoice.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
- Title="战双 · 剧情配音" Icon="Assets/PgrVoice.ico" Width="64" Height="64" WindowStyle="None" AllowsTransparency="True" Background="Transparent" Topmost="True" ShowInTaskbar="False" ShowActivated="False" ResizeMode="NoResize" FontFamily="Microsoft YaHei UI" FontSize="13" UseLayoutRounding="True" SnapsToDevicePixels="True" PreviewKeyDown="OnPreviewKey">
+<Window x:Class="PgrVoice.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:ui="clr-namespace:PgrVoice"
+ Title="战双 · 剧情配音" Icon="Assets/PgrVoice.ico" Width="64" Height="64" WindowStyle="None" AllowsTransparency="True" Background="Transparent" Topmost="True" ShowInTaskbar="False" ShowActivated="False" ResizeMode="NoResize" FontFamily="{StaticResource UiFont}" FontSize="13" Foreground="{StaticResource Fg}" UseLayoutRounding="True" SnapsToDevicePixels="True" PreviewKeyDown="OnPreviewKey">
  <Grid>
-  <Border x:Name="BallView" Background="{StaticResource BallNormal}" CornerRadius="23" BorderBrush="{StaticResource NormalAccent}" BorderThickness="1" MouseLeftButtonDown="BallDown" MouseMove="BallMove" MouseLeftButtonUp="BallUp" ToolTip="单击查看台词 · 拖动移动 · F6 展开">
-   <Grid><Border Width="18" Height="2" Background="{StaticResource Accent}" VerticalAlignment="Top" Margin="0,7,0,0"/><StackPanel VerticalAlignment="Center" Margin="0,4,0,0"><TextBlock x:Name="BallGlyph" Text="声" FontSize="23" FontWeight="SemiBold" TextAlignment="Center"/><TextBlock x:Name="BallState" Text="待开始" FontSize="9" TextAlignment="Center" Foreground="{StaticResource MutedText}"/></StackPanel></Grid>
-  </Border>
-  <Border x:Name="StripView" Visibility="Collapsed" Background="{StaticResource Bg}" BorderBrush="{StaticResource NormalAccent}" BorderThickness="1" CornerRadius="4" Padding="12,8" MouseLeftButtonDown="StripDrag">
-   <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><StackPanel><TextBlock x:Name="StripSpeaker" Foreground="{StaticResource NormalAccent}" FontSize="11"/><ScrollViewer MaxHeight="86" VerticalScrollBarVisibility="Auto"><TextBlock x:Name="StripText" Text="等待确认播放" FontSize="{DynamicResource CurrentDialogueSize}"/></ScrollViewer><TextBlock x:Name="StripState" FontSize="10" Foreground="{StaticResource MutedText}"/></StackPanel><Button Grid.Column="1" Content="展开" Click="StripExpandClick" Style="{StaticResource QuietButton}" VerticalAlignment="Top" Margin="6,0,0,0"/></Grid>
-  </Border>
-  <Border x:Name="PanelView" Visibility="Collapsed" Background="{StaticResource Bg}" CornerRadius="5" BorderBrush="{StaticResource Stroke}" BorderThickness="1">
+  <!-- 悬浮球 14-02A「轨道弧」：冷灰白双切角钢片 + 巴比伦塔轨道弧 / 空间站节点 + 鸦羽冠 + 红潮；线稿由 BallArt 绘制 -->
+  <ui:CutFrame x:Name="BallView" Background="{StaticResource BallNormal}" Cut="13" Corners="Diagonal" BorderBrush="{StaticResource NormalAccent}" MouseLeftButtonDown="BallDown" MouseMove="BallMove" MouseLeftButtonUp="BallUp" ToolTip="单击查看台词 · 拖动移动 · F6 展开" AutomationProperties.Name="悬浮球">
+   <ui:BallArt x:Name="BallArt"/>
+  </ui:CutFrame>
+  <!-- 小台词条：浅色卡 + 名牌色说话人 -->
+  <ui:CutFrame x:Name="StripView" Visibility="Collapsed" Background="{StaticResource Surface}" BorderBrush="{StaticResource StrokeStrong}" EdgeWidth="3" OutlineBrush="{StaticResource Stroke}" Cut="11" Corners="BottomRight" CornerMark="{StaticResource Accent}" Padding="12,8" MouseLeftButtonDown="StripDrag">
+   <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><ui:SpeakerPortrait x:Name="StripPortrait" Width="34" Height="38" ShowSerial="False" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0,1,0,0"/><StackPanel x:Name="StripBody" Margin="43,0,0,0"><TextBlock x:Name="StripSpeaker" Foreground="{StaticResource NormalAccent}" FontSize="11" FontWeight="SemiBold"/><ScrollViewer MaxHeight="86" VerticalScrollBarVisibility="Auto"><TextBlock x:Name="StripText" Text="等待确认播放" FontSize="{DynamicResource CurrentDialogueSize}"/></ScrollViewer><TextBlock x:Name="StripState" FontSize="10" Foreground="{StaticResource MutedText}"/></StackPanel><Button Grid.Column="1" Content="展开" Click="StripExpandClick" Style="{StaticResource QuietButton}" VerticalAlignment="Top" Margin="6,0,0,0"/></Grid>
+  </ui:CutFrame>
+  <!-- 主面板：左上 / 右下切角；外框单独叠加在最上层 -->
+  <ui:CutFrame x:Name="PanelView" Visibility="Collapsed" Background="{StaticResource Bg}" Cut="14" Corners="Diagonal" ClipContent="True">
    <Grid x:Name="PanelLayout">
     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-    <Grid x:Name="Hero" Height="116" ClipToBounds="True" Background="{StaticResource Inset}" MouseLeftButtonDown="HeaderDrag">
-     <Canvas IsHitTestVisible="False" Opacity="0.25"><Path Data="M300,0 L235,116 M440,0 L375,116 M560,0 L495,116" Stroke="{StaticResource Stroke}" StrokeThickness="24"/><Path Data="M0,114 L580,114" Stroke="{StaticResource Accent}" StrokeThickness="2"/></Canvas>
-     <Image x:Name="HeroArtwork" Width="370" Height="208" Stretch="Uniform" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="0,10,0,0" IsHitTestVisible="False"/>
-     <Rectangle IsHitTestVisible="False"><Rectangle.Fill><LinearGradientBrush StartPoint="0,0" EndPoint="1,0"><GradientStop Color="#FF101214" Offset="0"/><GradientStop Color="#F5101214" Offset="0.28"/><GradientStop Color="#75101214" Offset="0.57"/><GradientStop Color="#15101214" Offset="1"/></LinearGradientBrush></Rectangle.Fill></Rectangle>
-     <Rectangle IsHitTestVisible="False"><Rectangle.Fill><LinearGradientBrush StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#00151719" Offset="0.3"/><GradientStop Color="#DA151719" Offset="1"/></LinearGradientBrush></Rectangle.Fill></Rectangle>
-     <StackPanel x:Name="HeroTitleStack" Margin="18,16,0,0" VerticalAlignment="Top" HorizontalAlignment="Left" IsHitTestVisible="False"><TextBlock x:Name="HeroEyebrow" Text="GRAY RAVEN  /  VOICE TERMINAL" FontFamily="Bahnschrift" FontSize="10" Foreground="{StaticResource MutedText}"/><StackPanel x:Name="HeroHeading" Orientation="Horizontal" Margin="0,8,0,0"><Border Width="3" Background="{StaticResource Accent}" Margin="0,3,9,3"/><TextBlock x:Name="HeroTitle" Text="剧情配音" FontSize="25" FontWeight="SemiBold"/></StackPanel><TextBlock x:Name="HeaderChapter" Text="选择章节，继续你的故事" FontSize="11" Foreground="{StaticResource MutedText}" MaxWidth="280" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" Margin="0,8,0,0"/></StackPanel>
-     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,8,8,0"><Button x:Name="CollapseButton" Content="收起 F6" Click="CollapseClick" Style="{StaticResource QuietButton}" Background="#D0151719" ToolTip="收起为悬浮球"/><Button Content="×" Click="QuitClick" Style="{StaticResource QuietButton}" Background="#D0151719" FontSize="17" Width="30" Margin="3,0,0,0" ToolTip="退出"/></StackPanel>
+    <Rectangle Grid.RowSpan="4" Fill="{StaticResource GridTexture}" IsHitTestVisible="False"/>
+    <!-- 标题区：章节封面横幅；无封面时为冷灰白渐变 + 几何斜片 + 灰鸦插画 -->
+    <Grid x:Name="Hero" Height="140" ClipToBounds="True" Background="{StaticResource HeaderGradient}" MouseLeftButtonDown="HeaderDrag">
+     <Grid x:Name="HeroFallback" IsHitTestVisible="False">
+      <Rectangle Fill="{StaticResource StripeTexture}" Width="230" HorizontalAlignment="Right" Opacity="0.8"/>
+      <Canvas Width="320" HorizontalAlignment="Right">
+       <Path Data="M118,0 L178,0 L112,150 L52,150 Z" Fill="#0D2A3139"/>
+       <Path Data="M196,0 L214,0 L148,150 L130,150 Z" Fill="#0A2A3139"/>
+       <Path Data="M236,0 L320,0 L320,150 L170,150 Z" Fill="#08FFFFFF"/>
+       <Path Data="M228,0 L162,150" Stroke="{StaticResource Accent}" StrokeThickness="1" Opacity="0.6"/>
+      </Canvas>
+      <Image x:Name="HeroArtwork" Width="370" Height="208" Stretch="Uniform" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="0,10,0,0" Opacity="0.9">
+       <Image.OpacityMask><LinearGradientBrush StartPoint="0,0" EndPoint="1,0"><GradientStop Color="#00000000" Offset="0"/><GradientStop Color="#FF000000" Offset="0.45"/></LinearGradientBrush></Image.OpacityMask>
+      </Image>
+     </Grid>
+     <!-- 章节封面（本机图片，不随程序发布）：铺满，左侧与底部压暗保证文字可读 -->
+     <Grid x:Name="HeroCoverLayer" Visibility="Collapsed" IsHitTestVisible="False">
+      <Image x:Name="HeroCover" Stretch="UniformToFill" HorizontalAlignment="Center" VerticalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality"/>
+      <Rectangle><Rectangle.Fill><LinearGradientBrush StartPoint="0,0" EndPoint="1,0"><GradientStop Color="#D91D232A" Offset="0"/><GradientStop Color="#991D232A" Offset="0.42"/><GradientStop Color="#141D232A" Offset="0.85"/></LinearGradientBrush></Rectangle.Fill></Rectangle>
+      <Rectangle><Rectangle.Fill><LinearGradientBrush StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#001D232A" Offset="0.45"/><GradientStop Color="#B31D232A" Offset="1"/></LinearGradientBrush></Rectangle.Fill></Rectangle>
+     </Grid>
+     <!-- 本机立绘：右侧淡入，左右渐隐 -->
+     <Image x:Name="HeroStandee" Height="240" MaxWidth="260" Stretch="Uniform" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="0,-8,64,0" Opacity="0.55" Visibility="Collapsed" IsHitTestVisible="False" RenderOptions.BitmapScalingMode="HighQuality">
+      <Image.OpacityMask><LinearGradientBrush StartPoint="0,0" EndPoint="1,0"><GradientStop Color="#00000000" Offset="0"/><GradientStop Color="#FF000000" Offset="0.3"/><GradientStop Color="#FF000000" Offset="0.78"/><GradientStop Color="#00000000" Offset="1"/></LinearGradientBrush></Image.OpacityMask>
+     </Image>
+     <Rectangle x:Name="HeroFallbackFade" IsHitTestVisible="False"><Rectangle.Fill><LinearGradientBrush StartPoint="0,0" EndPoint="1,0"><GradientStop Color="#F2E4E8EC" Offset="0"/><GradientStop Color="#C7E8EBEE" Offset="0.4"/><GradientStop Color="#00F2F3F5" Offset="0.8"/></LinearGradientBrush></Rectangle.Fill></Rectangle>
+     <!-- F1b 档案徽记（同 04-A6）：标题区右侧，向右 / 下出血；在封面压暗与渐隐之上、文字之下；宽度与显隐由 UpdateHeroArchive 按标题宽度决定，封面模式加一层浅色柔光 -->
+     <Grid x:Name="HeroArchive" Width="160" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,14,-26,0" IsHitTestVisible="False" Visibility="Collapsed">
+      <Ellipse x:Name="HeroArchiveVeil" Margin="-14,6,-14,0" Height="200" VerticalAlignment="Top" Visibility="Collapsed">
+       <Ellipse.Fill><RadialGradientBrush><GradientStop Color="#80F4F6F8" Offset="0"/><GradientStop Color="#40F4F6F8" Offset="0.6"/><GradientStop Color="#00F4F6F8" Offset="1"/></RadialGradientBrush></Ellipse.Fill>
+      </Ellipse>
+      <ui:ArchiveEmblem x:Name="HeroArchiveEmblem" Opacity="0.62"/>
+     </Grid>
+     <!-- 描边大章节号（只描边，不遮挡文字） -->
+     <ui:OutlinedText x:Name="HeroNumber" Text="" FontSize="92" StrokeThickness="1.2" Stroke="#3D2A3139" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="8,0,0,-4" IsHitTestVisible="False"/>
+     <ui:CorruptionMark x:Name="HeroCorruption" Width="120" Height="48" HorizontalAlignment="Left" VerticalAlignment="Top" Opacity="0.85"/>
+     <Rectangle Height="1" VerticalAlignment="Bottom" Fill="{StaticResource Stroke}" IsHitTestVisible="False"/>
+     <Path Data="M0,0 L104,0 L101,3 L0,3 Z" Fill="{StaticResource Accent}" VerticalAlignment="Bottom" HorizontalAlignment="Left" IsHitTestVisible="False"/>
+     <StackPanel x:Name="HeroTitleStack" Margin="18,16,0,0" VerticalAlignment="Top" HorizontalAlignment="Left" IsHitTestVisible="False" TextElement.Foreground="{StaticResource Fg}">
+      <StackPanel x:Name="HeroEyebrow" Orientation="Horizontal"><ui:Emblem x:Name="HeroEmblem" Width="14" Height="14" Margin="0,0,8,0" VerticalAlignment="Center"/><TextBlock x:Name="HeroKicker" Text="GRAY RAVEN · STORY VOICE" FontFamily="{StaticResource LabelFont}" FontSize="10" Opacity="0.72" TextWrapping="NoWrap" VerticalAlignment="Center"/><Border x:Name="HeroNumberChip" Background="{StaticResource Accent}" Padding="6,0,7,1" Margin="10,0,0,0" VerticalAlignment="Center" Visibility="Collapsed"><TextBlock x:Name="HeroNumberChipText" Foreground="#FFFFFF" FontFamily="{StaticResource NumberFont}" FontSize="10.5" FontWeight="Bold"/></Border></StackPanel>
+      <StackPanel x:Name="HeroHeading" Orientation="Horizontal" Margin="0,8,0,0"><Border Width="3" Background="{StaticResource Accent}" Margin="0,3,10,3"/><TextBlock x:Name="HeroTitle" Text="剧情配音" FontSize="25" FontWeight="SemiBold" TextWrapping="NoWrap" MaxWidth="330" TextTrimming="CharacterEllipsis"/></StackPanel>
+      <StackPanel x:Name="HeroSectionRow" Orientation="Horizontal" Margin="13,8,0,0" Visibility="{Binding Visibility,ElementName=HeaderChapter}">
+       <ui:CutFrame x:Name="HeroSectionPlate" Background="{StaticResource Plate}" Cut="6" Corners="BottomRight" Padding="7,1,10,2" VerticalAlignment="Center"><TextBlock x:Name="HeroSectionKind" Text="SECTION" Foreground="{StaticResource PlateFg}" FontFamily="{StaticResource LabelFont}" FontSize="9.5"/></ui:CutFrame>
+       <Grid><TextBlock x:Name="HeaderChapter" Text="选择章节，继续你的故事" FontSize="11.5" Opacity="0.86" MaxWidth="300" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" Margin="8,0,0,0" VerticalAlignment="Center"/></Grid>
+      </StackPanel>
+     </StackPanel>
+     <!-- 灰鸦小队条：当前说话人高亮 -->
+     <StackPanel x:Name="SquadStrip" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,16,10" IsHitTestVisible="False">
+      <StackPanel VerticalAlignment="Bottom" Margin="6,0,8,1"><TextBlock x:Name="SquadLabel" Text="灰鸦小队" FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Right" Foreground="{StaticResource Plate}"/><TextBlock x:Name="SquadSub" Text="GRAY RAVEN" Style="{StaticResource SublabelText}" FontSize="8.5" HorizontalAlignment="Right"/></StackPanel>
+      <ui:SpeakerPortrait x:Name="SquadLucia" Speaker="露西亚" Auto="True" Width="30" Height="34" Margin="0,0,4,0"/>
+      <ui:SpeakerPortrait x:Name="SquadLiv" Speaker="丽芙" Auto="True" Width="30" Height="34" Margin="0,0,4,0"/>
+      <ui:SpeakerPortrait x:Name="SquadLee" Speaker="里" Auto="True" Width="30" Height="34"/>
+     </StackPanel>
+     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,10,10,0"><Button x:Name="CollapseButton" Content="收起 F6" Click="CollapseClick" Style="{StaticResource ChromeButton}" ToolTip="收起为悬浮球"/><Button Content="×" Click="QuitClick" Style="{StaticResource ChromeButton}" FontFamily="{StaticResource UiFont}" FontSize="15" Width="30" Padding="0,1,0,3" Margin="4,0,0,0" ToolTip="退出"/></StackPanel>
     </Grid>
-    <Border x:Name="CurrentCard" Grid.Row="1" Background="{StaticResource CurrentCardNormal}" BorderThickness="2,0,0,0" BorderBrush="{StaticResource Stroke}" CornerRadius="2" Padding="12,9" Margin="16,0,16,9">
-     <StackPanel><DockPanel><TextBlock x:Name="StateText" DockPanel.Dock="Right" Text="待开始" FontSize="10" Foreground="{StaticResource MutedText}" VerticalAlignment="Center" Margin="10,0,0,0"/><TextBlock x:Name="CurrentSpeaker" Text="当前台词" Foreground="{StaticResource NormalAccent}" FontSize="11" FontWeight="SemiBold"/></DockPanel>
-      <ScrollViewer x:Name="CurrentLineScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" MaxHeight="84" Margin="0,5,0,0"><TextBlock x:Name="CurrentText" Text="浏览不会发声。确认台词后才播放。" FontSize="{DynamicResource CurrentDialogueSize}" LineHeight="{DynamicResource CurrentDialogueHeight}"/></ScrollViewer>
+    <!-- 当前台词卡（PGR 对话框）：头像 + 斜切名牌 + 细分隔线 + 台词 -->
+    <ui:CutFrame x:Name="CurrentCard" Grid.Row="1" Background="{StaticResource CurrentCardNormal}" BorderBrush="{StaticResource Stroke}" OutlineBrush="{StaticResource Stroke}" EdgeWidth="3" Cut="10" Corners="BottomRight" Padding="12,9,12,9" Margin="16,10,16,9">
+     <StackPanel><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/></Grid.ColumnDefinitions>
+      <ui:SpeakerPortrait x:Name="CurrentPortrait" Width="64" Height="74" Margin="0,1,12,0" VerticalAlignment="Top"/>
+      <StackPanel Grid.Column="1">
+       <DockPanel>
+        <TextBlock x:Name="StateText" DockPanel.Dock="Right" Text="待开始" FontSize="10" Foreground="{StaticResource MutedText}" Background="#0F1D232A" Padding="7,1,7,2" TextWrapping="NoWrap" VerticalAlignment="Center" Margin="10,0,0,0"/>
+        <StackPanel Orientation="Horizontal">
+         <ui:CutFrame x:Name="SpeakerPlate" Background="{StaticResource Plate}" BorderBrush="{StaticResource Accent}" EdgeWidth="3" Cut="9" Corners="BottomRight" Padding="10,2,16,3" VerticalAlignment="Center"><TextBlock x:Name="CurrentSpeaker" Text="当前台词" Foreground="{StaticResource PlateFg}" FontSize="12" FontWeight="SemiBold" TextWrapping="NoWrap" MaxWidth="220" TextTrimming="CharacterEllipsis"/></ui:CutFrame>
+         <TextBlock x:Name="CurrentFrameName" Visibility="Collapsed" FontSize="10.5" Foreground="{StaticResource MutedText}" VerticalAlignment="Center" Margin="8,0,0,0"/>
+        </StackPanel>
+       </DockPanel>
+       <Grid x:Name="SpeakerRule" Margin="0,6,0,0" Height="5"><Rectangle Height="1" Fill="{StaticResource Stroke}" VerticalAlignment="Center"/><Rectangle Height="1.5" Width="34" Fill="{StaticResource Accent}" HorizontalAlignment="Left" VerticalAlignment="Center"/><Path Data="M0,0 L8,0 L4,5 Z" Fill="{StaticResource Accent}" HorizontalAlignment="Right" VerticalAlignment="Center"/></Grid>
+       <ScrollViewer x:Name="CurrentLineScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" MaxHeight="84" Margin="0,5,0,0"><TextBlock x:Name="CurrentText" Text="浏览不会发声。确认台词后才播放。" FontSize="{DynamicResource CurrentDialogueSize}" LineHeight="{DynamicResource CurrentDialogueHeight}"/></ScrollViewer>
+      </StackPanel></Grid>
       <TextBlock x:Name="StoryContinuationNotice" Visibility="Collapsed" TextWrapping="Wrap" Foreground="{StaticResource NormalAccent}" FontSize="11" Margin="0,6,0,0"/>
       <TextBlock x:Name="DraftNotice" Visibility="Collapsed" Foreground="{StaticResource BranchAccent}" FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"/>
      </StackPanel>
-    </Border>
+    </ui:CutFrame>
     <TabControl x:Name="Tabs" Grid.Row="2" Margin="16,0" Background="Transparent" BorderThickness="0" SelectionChanged="TabChanged">
-     <TabItem Header="台词" x:Name="StoryTab"><Grid Margin="0,10,0,0"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+     <TabItem Header="台词" x:Name="StoryTab"><Grid Margin="0,10,0,0"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
       <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition x:Name="ChapterColumn" Width="0"/><ColumnDefinition Width="1.2*"/></Grid.ColumnDefinitions>
        <StackPanel x:Name="StoryChapterPickerHost" Margin="0,0,8,7"><TextBlock Text="章节" Style="{StaticResource SectionLabel}"/><ComboBox x:Name="LibraryBox" Visibility="Collapsed" DisplayMemberPath="DisplayTitle" SelectionChanged="LibraryChanged"/></StackPanel>
        <StackPanel x:Name="ChapterSelector" Grid.Column="1" Visibility="Collapsed" Margin="0,0,8,7"><TextBlock Text="包内章节" Style="{StaticResource SectionLabel}"/><ComboBox x:Name="ChapterBox" SelectionChanged="ChapterChanged"/></StackPanel>
        <StackPanel x:Name="StorySectionPickerHost" Grid.Column="2" Margin="0,0,0,7"><TextBlock Text="小章节" Style="{StaticResource SectionLabel}"/><ComboBox x:Name="SectionBox" Visibility="Collapsed" SelectionChanged="SectionChanged"/></StackPanel>
       </Grid>
-      <StackPanel Grid.Row="1" Margin="0,0,0,7"><WrapPanel x:Name="NavigationToolbar" Margin="0,0,0,5"><Button x:Name="InteractionsButton" Content="换人/话题 F1" Click="InteractionsClick" Style="{StaticResource QuietButton}"/><Button x:Name="ReselectButton" Content="重选 F3" Click="ReselectClick" Style="{StaticResource QuietButton}"/><Button x:Name="HistoryButton" Content="历史 F2" Click="HistoryClick" Style="{StaticResource QuietButton}"/><Button x:Name="UndoCorrectionButton" Content="撤销纠偏" Click="UndoCorrectionClick" Style="{StaticResource QuietButton}"/><Button Content="记住这里" Click="BookmarkClick" Style="{StaticResource QuietButton}"/><Button Content="回到当前句" Click="CurrentClick" Style="{StaticResource QuietButton}"/><Button Content="剧情资料" Click="StoryReferenceClick" Style="{StaticResource QuietButton}"/></WrapPanel><TextBlock x:Name="ChapterResumeLabel" Visibility="Collapsed"/><Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><CheckBox x:Name="SearchChapterBox" Grid.Column="1" Content="本章" Checked="SearchScopeChanged" Unchecked="SearchScopeChanged" FontSize="11" Margin="8,0,0,0" VerticalAlignment="Center"/><TextBox x:Name="SearchBox" TextChanged="SearchChanged" ToolTip="输入角色或台词搜索；清空可看全部" Padding="30,7,9,7"/><Path Data="M12,7 A5,5 0 1 1 2,7 A5,5 0 1 1 12,7 M11,11 L15,15" Stroke="{StaticResource SubtleText}" StrokeThickness="1.3" HorizontalAlignment="Left" VerticalAlignment="Center" Width="16" Height="16" Margin="9,0,0,0" IsHitTestVisible="False"/><TextBlock Text="搜索角色或台词…" Foreground="{StaticResource SubtleText}" Margin="31,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False"><TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding Text,ElementName=SearchBox}" Value=""><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></TextBlock.Style></TextBlock></Grid></StackPanel>
-      <Border x:Name="BranchBox" Grid.Row="2" Visibility="Collapsed" Background="{StaticResource RouteFill}" BorderBrush="{StaticResource BranchAccent}" BorderThickness="2,0,0,0" Padding="10" Margin="0,0,0,6"><StackPanel><TextBlock Text="◆ 分支选择 · 与游戏选择相同路线" Foreground="{StaticResource BranchAccent}" FontSize="11"/><ListBox x:Name="BranchList" ItemContainerStyle="{StaticResource BranchOptionStyle}" MaxHeight="100" Margin="0,5" MouseDoubleClick="BranchDoubleClick"/><Button Content="确认分支  ↵" Click="ConfirmBranchClick" BorderBrush="{StaticResource BranchAccent}" Padding="8,5"/></StackPanel></Border>
-      <ListBox x:Name="LinesList" Grid.Row="3" MouseDoubleClick="LineDoubleClick" SelectionChanged="LineSelected"><ListBox.ItemTemplate><DataTemplate><Border Background="{Binding Background}" BorderBrush="{Binding Border}" BorderThickness="2,0,0,0" CornerRadius="2" Padding="10,8"><StackPanel><TextBlock Text="{Binding Caption}" Foreground="{Binding Accent}" FontSize="11"/><TextBlock Text="{Binding Text}" FontSize="{DynamicResource DialogueSize}" LineHeight="{DynamicResource DialogueHeight}" Margin="0,3,0,0"/><TextBlock Text="{Binding Context}" FontSize="11" Foreground="{StaticResource MutedText}" Margin="0,4,0,0"/><TextBlock Text="{Binding EndingText}" FontSize="11" Foreground="{StaticResource NormalAccent}" Margin="0,4,0,0"/></StackPanel></Border></DataTemplate></ListBox.ItemTemplate></ListBox>
+      <StackPanel x:Name="ToolbarHost" Grid.Row="1" Margin="0,0,0,7">
+       <!-- 分组工具条：路线 | 标记 | 资料（细分隔线 + 暗红短帽）；按钮为带线性图标与按键角标的芯片 -->
+       <WrapPanel x:Name="NavigationToolbar" Margin="0,0,0,5">
+        <Button x:Name="InteractionsButton" Content="换人/话题 F1" Click="InteractionsClick" Style="{StaticResource ToolChip}" ui:Ui.Icon="{x:Static ui:Icons.People}"/><Button x:Name="ReselectButton" Content="重选 F3" Click="ReselectClick" Style="{StaticResource ToolChip}" ui:Ui.Icon="{x:Static ui:Icons.List}"/><Button x:Name="HistoryButton" Content="历史 F2" Click="HistoryClick" Style="{StaticResource ToolChip}" ui:Ui.Icon="{x:Static ui:Icons.History}"/><Button x:Name="UndoCorrectionButton" Content="撤销纠偏" Click="UndoCorrectionClick" Style="{StaticResource ToolChip}" ui:Ui.Icon="{x:Static ui:Icons.Undo}"/>
+        <Grid Tag="MARK" ToolTip="标记" Width="1" Height="18" VerticalAlignment="Center" Margin="3,0,8,5"><Rectangle Fill="{StaticResource StrokeStrong}"/><Rectangle Width="5" Height="3" Fill="{StaticResource Accent}" VerticalAlignment="Top" Margin="-2,-3,-2,0"/></Grid>
+        <Button Content="记住这里" Click="BookmarkClick" Style="{StaticResource ToolChip}" ui:Ui.Icon="{x:Static ui:Icons.Bookmark}"/><Button Content="回到当前句" Click="CurrentClick" Style="{StaticResource ToolChip}" ui:Ui.Icon="{x:Static ui:Icons.Locate}"/>
+        <Grid Tag="INFO" ToolTip="资料" Width="1" Height="18" VerticalAlignment="Center" Margin="3,0,8,5"><Rectangle Fill="{StaticResource StrokeStrong}"/><Rectangle Width="5" Height="3" Fill="{StaticResource Accent}" VerticalAlignment="Top" Margin="-2,-3,-2,0"/></Grid>
+        <Button Content="剧情资料" Click="StoryReferenceClick" Style="{StaticResource ToolChip}" ui:Ui.Icon="{x:Static ui:Icons.Book}"/>
+       </WrapPanel>
+       <TextBlock x:Name="ChapterResumeLabel" Visibility="Collapsed"/>
+       <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+        <CheckBox x:Name="SearchChapterBox" Grid.Column="1" Content="本章" Checked="SearchScopeChanged" Unchecked="SearchScopeChanged" Style="{StaticResource ToggleChip}" Margin="8,0,0,0" VerticalAlignment="Stretch"/>
+        <TextBox x:Name="SearchBox" TextChanged="SearchChanged" ToolTip="输入角色或台词搜索；Esc 或 × 清空" Padding="40,7,30,7"/>
+        <Button x:Name="SearchClearButton" Click="SearchClearClick" ToolTip="清空搜索（Esc）" AutomationProperties.Name="清空搜索" HorizontalAlignment="Right" Width="28" Margin="0,1,1,1" Focusable="False" Cursor="Hand">
+         <Button.Template><ControlTemplate TargetType="Button"><Border Background="Transparent"><TextBlock Text="×" FontSize="16" Foreground="{StaticResource SubtleText}" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border></ControlTemplate></Button.Template>
+         <Button.Style><Style TargetType="Button"><Setter Property="Visibility" Value="Visible"/><Style.Triggers><DataTrigger Binding="{Binding Text,ElementName=SearchBox}" Value=""><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Button.Style>
+        </Button>
+        <!-- 搜索图标格：名牌深色小格，白色线性图标 -->
+        <Border Width="30" HorizontalAlignment="Left" Margin="1" Background="{StaticResource Plate}" IsHitTestVisible="False"><Path Data="{x:Static ui:Icons.Search}" Stroke="{StaticResource PlateFg}" StrokeThickness="1.4" Width="13" Height="13" Stretch="Uniform" StrokeStartLineCap="Round" StrokeEndLineCap="Round" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+        <TextBlock Text="搜索角色或台词…" Foreground="{StaticResource SubtleText}" Margin="41,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False"><TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding Text,ElementName=SearchBox}" Value=""><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></TextBlock.Style></TextBlock>
+       </Grid>
+      </StackPanel>
+      <ui:CutFrame x:Name="BranchBox" Grid.Row="2" Visibility="Collapsed" Background="{StaticResource RouteFill}" BorderBrush="{StaticResource Brass}" OutlineBrush="{StaticResource BranchStroke}" EdgeWidth="3" Cut="10" Corners="BottomRight" Padding="12,10,10,10" Margin="0,0,0,6"><StackPanel><TextBlock Text="◆ 分支选择 · 与游戏选择相同路线" Foreground="{StaticResource BranchAccent}" FontSize="11" FontWeight="SemiBold"/><ListBox x:Name="BranchList" AlternationCount="99" ItemContainerStyle="{StaticResource BranchOptionStyle}" MaxHeight="100" Margin="0,5" MouseDoubleClick="BranchDoubleClick"/><Button Content="确认分支  ↵" Click="ConfirmBranchClick" Background="{StaticResource BranchFill}" BorderBrush="{StaticResource Brass}" Foreground="{StaticResource BranchAccent}" FontWeight="SemiBold" Padding="8,5"/></StackPanel></ui:CutFrame>
+      <!-- 分区标题：红三角 + 中文 + 英文小标签 + 细线 + 雾蓝读数（紧凑高度隐藏） -->
+      <Grid x:Name="LinesHeader" Grid.Row="3" Margin="0,0,0,5"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+       <Path Data="M0,0 L6,4 L0,8 Z" Fill="{StaticResource Accent}" VerticalAlignment="Center" Margin="0,0,7,0"/>
+       <TextBlock Grid.Column="1" Text="台词" Style="{StaticResource HudHeadingText}"/>
+       <TextBlock Grid.Column="2" Text="LINES" Style="{StaticResource SublabelText}" FontSize="9.5" Margin="8,1,0,0" VerticalAlignment="Center"/>
+       <Border Grid.Column="3" Height="1" Background="{StaticResource Stroke}" BorderBrush="{StaticResource Accent}" BorderThickness="14,0,0,0" Margin="10,1,10,0" VerticalAlignment="Center"/>
+       <TextBlock x:Name="LinesCount" Grid.Column="4" Style="{StaticResource ReadoutText}" Foreground="{StaticResource Slate}" VerticalAlignment="Center"/>
+      </Grid>
+      <!-- 台词列表：序号刻度列 + 角色色边 + 分支黄铜行 -->
+      <ListBox x:Name="LinesList" Grid.Row="4" AlternationCount="1000000" ItemContainerStyle="{StaticResource LineItem}" MouseDoubleClick="LineDoubleClick" SelectionChanged="LineSelected"><ListBox.ItemTemplate><DataTemplate><Border Background="{Binding Background}" BorderBrush="{Binding Border}" BorderThickness="2,0,0,0" Padding="9,7,10,7"><DockPanel><ui:SpeakerPortrait DockPanel.Dock="Left" Speaker="{Binding Node.Speaker}" Auto="True" ShowSerial="False" Width="24" Height="28" Margin="0,1,9,0" VerticalAlignment="Top" Visibility="{DynamicResource PortraitVisibility}"/><StackPanel><TextBlock Text="{Binding Caption}" Foreground="{Binding Accent}" FontSize="11"/><TextBlock Text="{Binding Text}" FontSize="{DynamicResource DialogueSize}" LineHeight="{DynamicResource DialogueHeight}" Margin="0,3,0,0"/><TextBlock Text="{Binding Context}" FontSize="11" Foreground="{StaticResource MutedText}" Margin="0,4,0,0"/><TextBlock Text="{Binding EndingText}" FontSize="11" Foreground="{StaticResource NormalAccent}" Margin="0,4,0,0"/></StackPanel></DockPanel></Border></DataTemplate></ListBox.ItemTemplate></ListBox>
      </Grid></TabItem>
      <TabItem Header="辅助定位" x:Name="LocateTab"><Grid Margin="0,12,0,0"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
        <StackPanel><TextBlock x:Name="OcrInstructions" Text="先选小章节，再定位游戏当前台词。确认候选后才播放。" Foreground="{StaticResource MutedText}" FontSize="12"/><Button x:Name="LocateButton" Content="启用并定位" Click="LocateClick" Style="{StaticResource PrimaryButton}" Margin="0,10"/></StackPanel>
@@ -46,7 +138,7 @@
       </Grid></TabItem>
      <TabItem Header="设置" x:Name="SettingsTab"><ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel x:Name="SettingsContent" Margin="0,12,6,0">
       <TextBlock Text="跟随方式在“游戏配音”页选择，这里设置游戏位置、按键与声音。" Foreground="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,10"/>
-      <Expander Header="游戏与配音包" IsExpanded="True" Margin="0,0,0,12"><StackPanel Margin="4,6,4,8">
+      <Expander Header="游戏与配音包" IsExpanded="True" Margin="0,0,0,8"><StackPanel Margin="4,6,4,8">
       <TextBlock Text="配音包" Style="{StaticResource SectionLabel}"/><TextBlock x:Name="PackLabel" Text="尚未选择" FontSize="12" Margin="0,0,0,7"/><Button Content="打开配音包或章节总目录…" Click="OpenPackClick"/>
       <Button x:Name="StoryReferenceButton" Content="内置剧情文本 · 查看当前小节与路线" Click="StoryReferenceClick" Margin="0,7,0,0"/>
       <TextBlock Text="战双游戏位置" Style="{StaticResource SectionLabel}" Margin="0,18,0,6"/>
@@ -55,37 +147,57 @@
       <TextBlock x:Name="GameLocationLabel" FontSize="11" Foreground="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,5"/>
       <TextBlock Text="游戏窗口" Style="{StaticResource SectionLabel}" Margin="0,12,0,6"/><ComboBox x:Name="WindowBox"/><StackPanel Orientation="Horizontal" Margin="0,6,0,0"><Button Content="绑定选中窗口" Click="BindWindowClick"/><Button Content="刷新窗口" Click="RefreshWindowsClick" Style="{StaticResource QuietButton}" Margin="6,0,0,0"/></StackPanel><TextBlock x:Name="GameLabel" Text="未绑定 · 不会跟随其他应用的按键" FontSize="11" Foreground="{StaticResource MutedText}" Margin="0,5" TextWrapping="Wrap"/><TextBlock x:Name="PermissionLabel" Text="正在检查播放器权限" FontSize="11" Foreground="{StaticResource MutedText}" Margin="0,3"/>
       </StackPanel></Expander>
-      <Expander Header="按键与点击位置" Margin="0,0,0,12"><StackPanel x:Name="InputSettingsContent" Margin="4,6,4,8">
+      <Expander Header="按键与点击位置" Margin="0,0,0,8"><StackPanel x:Name="InputSettingsContent" Margin="4,6,4,8">
       <TextBlock Text="这些是操作方式，不需要同时开启多种配音跟随。游戏文字跟随无需设置下一句按键。" FontSize="11" Foreground="{StaticResource MutedText}" TextWrapping="Wrap"/>
       <TextBlock Text="自定义按键" Style="{StaticResource SectionLabel}" Margin="0,12,0,7"/><StackPanel x:Name="KeysPanel"/>
       <TextBlock Text="使用备用按键跟随时，跟随键须与游戏的下一句键一致。" Foreground="{StaticResource MutedText}" FontSize="11" Margin="0,8"/>
       </StackPanel></Expander>
-      <Expander Header="外观与声音" Margin="0,0,0,12"><StackPanel x:Name="AppearanceSettingsContent" Margin="4,6,4,8">
+      <Expander Header="外观与声音" Margin="0,0,0,8"><StackPanel x:Name="AppearanceSettingsContent" Margin="4,6,4,8">
       <CheckBox x:Name="ArtworkEnabledBox" Content="显示灰鸦主题插画" Checked="ArtworkChanged" Unchecked="ArtworkChanged"/>
       <TextBlock Text="静态插画随程序保存，离线可用。" FontSize="11" Foreground="{StaticResource MutedText}" Margin="0,7"/>
       <Button Content="官方素材来源 ↗" Click="ArtworkSourceClick" Style="{StaticResource QuietButton}" HorizontalAlignment="Left"/>
       </StackPanel></Expander>
-      <Expander Header="辅助定位与诊断" Margin="0,0,0,12"><StackPanel x:Name="DiagnosticSettingsContent" Margin="4,6,4,8">
+      <Expander Header="角色与封面" Margin="0,0,0,8"><StackPanel x:Name="CharacterArtSettingsContent" Margin="4,6,4,8"/></Expander>
+      <Expander Header="辅助定位与诊断" Margin="0,0,0,8"><StackPanel x:Name="DiagnosticSettingsContent" Margin="4,6,4,8">
       <CheckBox x:Name="OcrEnabledBox" Content="启用截图辅助定位（OCR）" Margin="0,4,0,7" Checked="OcrEnabledChanged" Unchecked="OcrEnabledChanged"/>
       <TextBlock Text="按需运行，关闭即释放。截图只在本机处理。" FontSize="11" Foreground="{StaticResource MutedText}"/>
       <Button Content="配置与日志文件夹 ↗" Click="OpenStateClick" Style="{StaticResource QuietButton}" Margin="0,5,0,6" HorizontalAlignment="Left"/>
       </StackPanel></Expander>
      </StackPanel></ScrollViewer></TabItem>
     </TabControl>
-    <Border x:Name="PlaybackBar" Grid.Row="3" BorderBrush="{StaticResource Stroke}" BorderThickness="0,1,0,0" Padding="16,10,16,9" Margin="0,7,0,0" Background="{StaticResource Bg}">
-     <StackPanel>
-      <Button x:Name="ConfirmPlayButton" Content="确认播放选中台词                         ↵" Click="ConfirmLineClick" Padding="12,9" Margin="0,0,0,8"><Button.Style><Style TargetType="Button" BasedOn="{StaticResource PrimaryButton}"><Style.Triggers><DataTrigger Binding="{Binding IsSelected,ElementName=StoryTab}" Value="False"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Button.Style></Button>
-      <UniformGrid x:Name="ManualPlaybackButtons" Columns="5"><Button Content="配音上一句" Click="PreviousClick" Padding="4,7" Margin="0,0,5,0"/><Button Content="重播" Click="ReplayClick" Padding="4,7" Margin="0,0,5,0"/><Button x:Name="NextLineButton" Content="配音下一句" Click="NextClick" Padding="4,7" Margin="0,0,5,0"/><Button Content="暂停/跟随" Click="PauseClick" Padding="4,7" Margin="0,0,5,0"/><Button Content="游戏原声" Click="OriginalClick" Padding="4,7"/></UniformGrid>
-      <DockPanel Margin="0,8,0,3"><TextBlock Text="音量" Foreground="{StaticResource MutedText}" FontSize="11" VerticalAlignment="Center"/><TextBlock x:Name="VolumeLabel" DockPanel.Dock="Right" Text="80%" Foreground="{StaticResource MutedText}" FontSize="11" Width="37" TextAlignment="Right" VerticalAlignment="Center"/><Slider x:Name="VolumeSlider" Minimum="0" Maximum="100" Value="80" ValueChanged="VolumeChanged" Margin="10,0"/></DockPanel>
-      <TextBlock x:Name="SaveWarning" Visibility="Collapsed" Foreground="{StaticResource BranchAccent}" FontSize="11"/><TextBlock x:Name="Notice" Text="F4 目录 · F6 收起 · F8 原声 · F9 定位" Foreground="{StaticResource MutedText}" FontSize="10" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" ToolTip="{Binding Text,RelativeSource={RelativeSource Self}}"/>
-     </StackPanel>
-    </Border>
+    <!-- 播放区：浅色切角托盘；节点轨道（上一句 / 重播 · 中央六边确认铭牌 · 下一句），下排为次级开关 -->
+    <Grid Grid.Row="3" Margin="0,7,0,0">
+     <ui:CutFrame x:Name="PlaybackBar" BorderBrush="{StaticResource Stroke}" Cut="12" Corners="TopRight" Padding="16,10,16,9" Background="{StaticResource TrayGradient}">
+      <StackPanel>
+       <Grid x:Name="PlaybackTrack" Height="66" Visibility="{Binding Visibility,ElementName=ConfirmPlayButton}">
+        <Rectangle Height="1" VerticalAlignment="Top" Margin="6,22,6,0" Fill="{StaticResource StrokeStrong}" IsHitTestVisible="False"/>
+        <Path Data="M0,0 L5,3 L0,6 Z" Fill="{StaticResource StrokeStrong}" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0,19.5,0,0" IsHitTestVisible="False"/>
+        <Path Data="M5,0 L0,3 L5,6 Z" Fill="{StaticResource StrokeStrong}" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,19.5,0,0" IsHitTestVisible="False"/>
+        <Border x:Name="ConfirmHost" HorizontalAlignment="Center" VerticalAlignment="Top" Padding="0,4,0,0">
+         <Button x:Name="ConfirmPlayButton" Content="确认播放选中台词                         ↵" Click="ConfirmLineClick" Padding="12,0" Height="36" Margin="0,0,0,8"><Button.Style><Style TargetType="Button" BasedOn="{StaticResource ConfirmPlate}"><Style.Triggers><DataTrigger Binding="{Binding IsSelected,ElementName=StoryTab}" Value="False"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Button.Style></Button>
+        </Border>
+       </Grid>
+       <ui:PlaybackDeck x:Name="ManualPlaybackButtons" Columns="5" Margin="0,-66,0,0">
+        <Button Content="配音上一句" Click="PreviousClick" Style="{StaticResource NodeButton}" ui:Ui.Icon="{x:Static ui:Icons.Previous}" ui:Ui.Sublabel="PREV" ToolTip="配音上一句"/>
+        <Button Content="重播" Click="ReplayClick" Style="{StaticResource NodeButton}" ui:Ui.Icon="{x:Static ui:Icons.Replay}" ui:Ui.Sublabel="REPLAY" ToolTip="重播当前句"/>
+        <Button x:Name="NextLineButton" Content="配音下一句" Click="NextClick" Style="{StaticResource NodeButton}" ui:Ui.Icon="{x:Static ui:Icons.Next}" ui:Ui.Sublabel="NEXT" ToolTip="配音下一句"/>
+        <Button x:Name="PauseButton" Content="暂停/跟随" Click="PauseClick" Style="{StaticResource SoftToggle}" ui:Ui.StateText="OFF"/>
+        <Button x:Name="OriginalButton" Content="游戏原声" Click="OriginalClick" Style="{StaticResource SoftToggle}" ui:Ui.StateText="OFF"/>
+       </ui:PlaybackDeck>
+       <DockPanel x:Name="VolumeRow" Margin="0,8,0,3"><TextBlock Text="音量" Foreground="{StaticResource MutedText}" FontSize="11" VerticalAlignment="Center"/><TextBlock Text="VOL" Style="{StaticResource SublabelText}" FontSize="9" Margin="5,1,0,0" VerticalAlignment="Center"/><TextBlock x:Name="VolumeLabel" DockPanel.Dock="Right" Text="80%" Style="{StaticResource NumberText}" Foreground="{StaticResource Plate}" FontSize="12" Width="40" TextAlignment="Right" VerticalAlignment="Center"/><Slider x:Name="VolumeSlider" Minimum="0" Maximum="100" Value="80" ValueChanged="VolumeChanged" Margin="10,0"/></DockPanel>
+       <TextBlock x:Name="SaveWarning" Visibility="Collapsed" Foreground="{StaticResource BranchAccent}" FontSize="11"/><TextBlock x:Name="Notice" Text="F4 目录 · F6 收起 · F8 原声 · F9 定位" Style="{StaticResource KeyHintText}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" ToolTip="{Binding Text,RelativeSource={RelativeSource Self}}"/>
+      </StackPanel>
+     </ui:CutFrame>
+     <Rectangle Height="2" Width="64" HorizontalAlignment="Left" VerticalAlignment="Top" Fill="{StaticResource Accent}" IsHitTestVisible="False"/>
+    </Grid>
    </Grid>
-  </Border>
+  </ui:CutFrame>
   <Grid Visibility="{Binding Visibility,ElementName=PanelView}">
+   <!-- 外框：细线 + 暗红切角标记（无发光） -->
+   <ui:CutFrame BorderBrush="{StaticResource StrokeStrong}" NotchBrush="{StaticResource Accent}" NotchLength="46" Cut="14" Corners="Diagonal" IsHitTestVisible="False"/>
    <Thumb x:Name="PanelResizeRight" Width="6" HorizontalAlignment="Right" Cursor="SizeWE" DragDelta="PanelResizeDrag" DragCompleted="PanelResizeDone"><Thumb.Template><ControlTemplate TargetType="Thumb"><Border Background="Transparent"/></ControlTemplate></Thumb.Template></Thumb>
    <Thumb x:Name="PanelResizeBottom" Height="6" VerticalAlignment="Bottom" Cursor="SizeNS" DragDelta="PanelResizeDrag" DragCompleted="PanelResizeDone"><Thumb.Template><ControlTemplate TargetType="Thumb"><Border Background="Transparent"/></ControlTemplate></Thumb.Template></Thumb>
-   <Thumb x:Name="PanelResizeCorner" Width="20" Height="20" HorizontalAlignment="Right" VerticalAlignment="Bottom" Cursor="SizeNWSE" ToolTip="拖动调整窗口宽高" DragDelta="PanelResizeDrag" DragCompleted="PanelResizeDone"><Thumb.Template><ControlTemplate TargetType="Thumb"><TextBlock Text="◢" Foreground="{DynamicResource MutedText}" FontSize="16" TextAlignment="Right" Background="Transparent"/></ControlTemplate></Thumb.Template></Thumb>
+   <Thumb x:Name="PanelResizeCorner" Width="20" Height="20" HorizontalAlignment="Right" VerticalAlignment="Bottom" Cursor="SizeNWSE" ToolTip="拖动调整窗口宽高" DragDelta="PanelResizeDrag" DragCompleted="PanelResizeDone"><Thumb.Template><ControlTemplate TargetType="Thumb"><Grid Background="Transparent"><Path x:Name="Hatch" Data="M19,4 L4,19 M19,9 L9,19 M19,14 L14,19" Stroke="{StaticResource SubtleText}" StrokeThickness="1.2"/></Grid><ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Hatch" Property="Stroke" Value="{StaticResource Accent}"/></Trigger><Trigger Property="IsDragging" Value="True"><Setter TargetName="Hatch" Property="Stroke" Value="{StaticResource Accent}"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Thumb.Template></Thumb>
   </Grid>
  </Grid>
 </Window>

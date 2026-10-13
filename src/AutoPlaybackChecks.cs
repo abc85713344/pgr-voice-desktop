@@ -5,6 +5,7 @@ using System.IO;
 using System.Threading.Tasks;
 using System.Windows.Input;
 
+using PgrVoice.Listening;
 namespace PgrVoice;
 
 public partial class MainWindow
@@ -294,16 +295,19 @@ public partial class MainWindow
             Check(!automaticRunning && engine.CurrentId == "a" && clicks == before,
                 "剧情暂停会终止自动会话，暂停后的自然完成不产生点击");
 
+            // 0.4.7（J）：无配音台词不停——显示字幕并按字数停留（测试中立即到点）后继续点击下一句。
             Prepare(); engine!.Pack.ById["a"].Audio = null; before = clicks;
             StartAutomaticAtConfirmedLine();
-            Check(!automaticRunning && clicks == before && engine.CurrentId == "a",
-                "当前句未配音时拒绝启动自动播放");
+            Check(automaticRunning && clicks == before && engine.CurrentId == "a" && automaticCycle.Phase == DesktopAutoPlaybackPhase.SilentPause && automaticCycle.PhaseText.StartsWith("无配音"),
+                "0.4.7：当前句无配音时照常开启，显示字幕按字数停留：" + automaticCycle.PhaseText);
+            StopAutomatic("无配音开启检查结束", false);
             long missingNext = Start(); before = clicks; engine!.Pack.ById["b"].Audio = null;
-            OnAutomaticCompleted(missingNext); await Task.Delay(30);
-            Check(!automaticRunning && engine.CurrentId == "a" && clicks == before,
-                "下一句未配音时留在当前句，不跳过缺音频或点击游戏");
-            Check(automaticRecoveryText.Text.Contains("尚未点击") && automaticRecoveryText.Text.Contains("更新配音包"),
-                "缺音频暂停给出未点击事实及手动继续或更新配音包的下一步");
+            OnAutomaticCompleted(missingNext);
+            await Until(() => engine!.CurrentId == "b" && clicks == before + 1, "0.4.7：下一句无配音也点击一次前进，不停下");
+            Check(automaticRunning && automaticCycle.Phase == DesktopAutoPlaybackPhase.SilentPause && automaticCycle.PhaseText.StartsWith("无配音"),
+                "0.4.7：到无配音句后按字数停留，再继续：" + automaticCycle.PhaseText);
+            Check(PlaybackLog.Recent.Any(r => r.Contains("," + PlaybackLog.Types.NoVoicePass + ",") && r.Contains(",b,")), "0.4.7：无配音越过写入播放记录");
+            StopAutomatic("无配音前进检查结束", false);
 
             Prepare(); engine!.Commit("choice"); engine.SelectBranch(0); before = clicks;
             StartAutomaticAtConfirmedLine();
@@ -379,13 +383,20 @@ public partial class MainWindow
             Check(automaticCycle.Phase == DesktopAutoPlaybackPhase.Playing && clicks == before, "已有录音的标点必须等待真实播完，不能按停顿跳过");
             StartSilent("……", "missing.wav");
             Check(!automaticRunning, "标点声明的音频文件丢失时仍拒绝自动播放");
-            foreach (string invalid in new[] { "", " ", "等等……", "（沉默）", "123", "＋" })
+            // 0.4.7（J，与安卓共用 PendingVoice）：非纯标点的缺音句（含空白、文字、数字、符号）不再停下，显示字幕按字数停留（至少 2 秒）后继续。
+            foreach (string text in new[] { "", " ", "等等……", "（沉默）", "123", "＋" })
             {
-                StartSilent(invalid); Check(!automaticRunning, "有文字、空白或非标点符号缺音时仍暂停：" + invalid);
+                StartSilent(text);
+                Check(automaticRunning && automaticCycle.Phase == DesktopAutoPlaybackPhase.SilentPause && automaticCycle.PhaseText.StartsWith("无配音"),
+                    "0.4.7：有文字的缺音句按字数停留而不停下：" + text + " → " + automaticCycle.PhaseText);
+                StopAutomatic("缺音停留检查", false);
             }
             StartSilent(); before = clicks; engine!.Pack.ById["b"].Audio = null;
             silentClock += 1200; TickAutomatic();
-            Check(!automaticRunning && clicks == before, "标点后普通文字缺音也会停止且不点击");
+            await Until(() => engine!.CurrentId == "b", "0.4.7：标点后普通文字缺音也点击一次前进");
+            Check(automaticRunning && clicks == before + 1 && automaticCycle.Phase == DesktopAutoPlaybackPhase.SilentPause,
+                "0.4.7：标点后普通文字缺音只点一次，到达后按字数停留：" + automaticCycle.PhaseText);
+            StopAutomatic("缺音停留检查结束", false);
             automaticClockTest = null;
             Check(!ocr.Running, "所有自动播放隔离场景没有启动 OCR 进程");
             Expand(StoryTab); await Task.Delay(60); Screenshot("automatic-playback-ui.png");

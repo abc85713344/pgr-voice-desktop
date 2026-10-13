@@ -6,6 +6,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Media;
 
 namespace PgrVoice;
 
@@ -22,7 +24,9 @@ internal sealed class OnboardingWindow : ExperienceDialog
     readonly List<PackChoice> choices;
     readonly StackPanel body = new();
     readonly TextBlock heading = new(), note = new() { TextWrapping = TextWrapping.Wrap };
+    readonly System.Windows.Shapes.Rectangle[] stepBars = Enumerable.Range(0, 3).Select(_ => new System.Windows.Shapes.Rectangle { Height = 3, Margin = new Thickness(0, 0, 6, 0) }).ToArray();
     readonly Button back = new() { Content = "上一步" };
+    readonly TextBlock stepReadout = new();
     internal readonly ComboBox Sections = new(), Lines = new(), Devices = new();
     internal readonly Slider Volume = new() { Minimum = 0, Maximum = 100, TickFrequency = 1, IsSnapToTickEnabled = true };
     internal readonly Button Trial = new() { Content = "试听这一句" }, Heard = new() { Content = "我听到了", IsEnabled = false };
@@ -31,6 +35,13 @@ internal sealed class OnboardingWindow : ExperienceDialog
     bool closed, heard, trialReady, populating;
     string output;
     double volume;
+    /// <summary>所选章节封面（本机封面目录；为空时侧栏只显示深石板与线稿）。</summary>
+    internal Action<string, Action<ImageSource?>>? CoverLoader { get; set; }
+    readonly Image sideCover = new() { Stretch = Stretch.UniformToFill, VerticalAlignment = VerticalAlignment.Top, Height = 230, Opacity = .62,
+        OpacityMask = new LinearGradientBrush(Colors.Black, Colors.Transparent, 90) };
+    readonly OutlinedText sideCount = new() { FontSize = 54, Stroke = Hud.Solid("#CCFFFFFF"), StrokeThickness = 1.1 };
+    readonly StackPanel sideSteps = new() { Margin = new Thickness(0, 12, 0, 0) };
+    string coverFor = "";
     internal bool OpenSelectedChapter { get; private set; }
     internal bool OpenSoundSettings { get; private set; }
     internal string SelectedPackFile => state.PackFile;
@@ -55,18 +66,39 @@ internal sealed class OnboardingWindow : ExperienceDialog
         choices = available.ToList(); state = store.Load();
         if (state.Status == "completed") { state.Step = 0; state.Purpose = ""; }
         state.Status = "in-progress"; state.Step = Math.Clamp(state.Step, 0, 2);
-        var root = new Grid { Margin = new Thickness(24) };
+        Width = 780; Height = 660; MinWidth = 560; MinHeight = 480;
+        // 08-B：左侧深石板栏（竖裁封面 + 站体线稿 + 镂空步数 + 竖向步骤表 +「随时可以跳过…」）/ 右侧窄表单卡 + 档案纸面（F1b 140px）。
+        var shell = new Grid();
+        shell.ColumnDefinitions.Add(new() { Width = new GridLength(232) }); shell.ColumnDefinitions.Add(new());
+        shell.Children.Add(BuildSide());
+        var root = new Grid { Margin = new Thickness(22, 18, 22, 16), MaxWidth = 470, HorizontalAlignment = HorizontalAlignment.Left };
         root.RowDefinitions.Add(new() { Height = GridLength.Auto }); root.RowDefinitions.Add(new()); root.RowDefinitions.Add(new() { Height = GridLength.Auto });
-        heading.FontSize = 23; heading.Margin = new Thickness(0, 0, 0, 18); root.Children.Add(heading);
-        var scroll = new ScrollViewer { Content = body, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+        heading.FontSize = 21; heading.FontWeight = FontWeights.SemiBold; heading.Margin = new Thickness(0, 0, 0, 14); heading.TextWrapping = TextWrapping.Wrap;
+        // 顶部进度刻条：三段，已完成与当前步骤为灰鸦红。
+        var top = new StackPanel();
+        var readout = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 8) };
+        readout.Children.Add(new Emblem { Width = 14, Height = 14, Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center });
+        readout.Children.Add(new TextBlock { Text = "QUICK START", Style = Theme.Style("SublabelText"), Foreground = Theme.Brush("NormalAccent") });
+        stepReadout.Style = Theme.Style("ReadoutText"); stepReadout.Margin = new Thickness(10, 0, 0, 0); readout.Children.Add(stepReadout);
+        top.Children.Add(readout);
+        var steps = new System.Windows.Controls.Primitives.UniformGrid { Columns = 3, Margin = new Thickness(0, 0, 0, 12) };
+        foreach (var bar in stepBars) steps.Children.Add(bar);
+        top.Children.Add(steps); top.Children.Add(heading); root.Children.Add(top);
+        var scroll = new ScrollViewer { Content = body, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
         Grid.SetRow(scroll, 1); root.Children.Add(scroll);
-        var footer = new StackPanel { Margin = new Thickness(0, 14, 0, 0) };
-        note.Margin = new Thickness(0, 0, 0, 12); footer.Children.Add(note);
+        var footer = new StackPanel { Margin = new Thickness(0, 12, 0, 0) };
+        note.Margin = new Thickness(0, 0, 0, 10); note.FontSize = 12.5; footer.Children.Add(note);
         var actions = new WrapPanel(); footer.Children.Add(actions); actions.Children.Add(back);
         back.Margin = new Thickness(0, 0, 10, 0); back.Padding = new Thickness(16, 8, 16, 8);
         back.Click += (_, _) => { StopTrial(); heard = false; state.Step = Math.Max(0, state.Step - 1); Persist(); Render(); };
         AddButton(actions, "暂时跳过", Skip);
-        Grid.SetRow(footer, 2); root.Children.Add(footer); Content = root;
+        Grid.SetRow(footer, 2); root.Children.Add(footer);
+        // 表单卡不透明、无装饰；档案纸面只在卡片四周。
+        var card = new Border { Background = Brushes.White, BorderBrush = Theme.Brush("Stroke"), BorderThickness = new Thickness(1), Margin = new Thickness(18, 18, 40, 18), HorizontalAlignment = HorizontalAlignment.Left, Child = root };
+        var paper = new ArchivePaper { Child = card, EmblemSize = 140, EmblemRight = 6, EmblemBottom = 40, TideHeight = 40, RailLabel = "QUICK START", ShowOrbits = false };
+        Grid.SetColumn(paper, 1); shell.Children.Add(paper);
+        Content = shell;
+        foreach (var combo in new[] { Sections, Lines, Devices }) SingleLine(combo);
         preview.PlaybackCompleted += id => Dispatch(() => CompletePreview(id));
         preview.PlaybackRequestFailed += (id, reason) => Dispatch(() => FailPreview(id, reason));
         Trial.Click += async (_, _) => await StartTrial();
@@ -86,15 +118,78 @@ internal sealed class OnboardingWindow : ExperienceDialog
         if (pack == null && state.Step > 1) state.Step = 1;
         Persist(); Render();
     }
+    FrameworkElement BuildSide()
+    {
+        var side = new Grid { Background = Theme.Brush("PlateGradient"), ClipToBounds = true };
+        side.Children.Add(sideCover);
+        side.Children.Add(new ArchiveEmblem { Width = 150, Opacity = .32, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 70, -34, 0) });
+        var dock = new DockPanel { Margin = new Thickness(18, 22, 16, 16) };
+        var skip = new TextBlock { Text = "随时可以跳过，之后在设置里重新打开。", Foreground = Hud.Solid("#C3CBD4"), FontSize = 11.5, TextWrapping = TextWrapping.Wrap };
+        DockPanel.SetDock(skip, Dock.Bottom); dock.Children.Add(skip);
+        var stack = new StackPanel { Margin = new Thickness(0, 120, 0, 0) };
+        stack.Children.Add(new TextBlock { Text = "QUICK START", FontFamily = Theme.Font("LabelFont"), FontSize = 9.5, Foreground = Hud.Solid("#AEB9C4") });
+        stack.Children.Add(sideCount);
+        stack.Children.Add(sideSteps);
+        dock.Children.Add(stack);
+        side.Children.Add(dock);
+        side.Children.Add(new Border { Width = 3, Background = Theme.Brush("Accent"), HorizontalAlignment = HorizontalAlignment.Left, Height = 56, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 140, 0, 0) });
+        return side;
+    }
+    void RenderSide()
+    {
+        int step = Math.Min(state.Step, 3);
+        sideCount.Text = $"{Math.Min(step + 1, 3):00}/03";
+        sideSteps.Children.Clear();
+        string[] titles = { "你想怎么用？", "准备一个章节", "试着听一句" };
+        string[] results =
+        {
+            state.Purpose == "game" ? "边玩边听" : state.Purpose == "listening" ? "单独听剧情" : "",
+            pack != null ? ChapterCatalog.Title(pack.Title) : "",
+            step >= 3 ? "已听到配音" : "",
+        };
+        for (int i = 0; i < 3; i++)
+        {
+            bool done = i < step, current = i == step;
+            var row = new DockPanel { Margin = new Thickness(0, 0, 0, 10) };
+            var num = new TextBlock { Text = (i + 1).ToString("00"), FontFamily = Theme.Font("NumberFont"), FontSize = 15, FontWeight = FontWeights.SemiBold, Width = 28,
+                Foreground = current ? Theme.Brush("Accent") : done ? Hud.Solid("#E6EBF0") : Hud.Solid("#8F9BA7") };
+            DockPanel.SetDock(num, Dock.Left); row.Children.Add(num);
+            var text = new StackPanel();
+            text.Children.Add(new TextBlock { Text = titles[i], FontSize = 12.5, FontWeight = current ? FontWeights.SemiBold : FontWeights.Normal, Foreground = current || done ? Brushes.White : Hud.Solid("#AEB9C4") });
+            if (done && results[i].Length > 0)
+                text.Children.Add(new TextBlock { Text = "✓ " + results[i], FontSize = 11, Foreground = Hud.Solid("#9FD3CF"), TextTrimming = TextTrimming.CharacterEllipsis, ToolTip = results[i] });
+            row.Children.Add(text);
+            sideSteps.Children.Add(new Border { BorderBrush = current ? Theme.Brush("Accent") : Brushes.Transparent, BorderThickness = new Thickness(2, 0, 0, 0), Padding = new Thickness(8, 2, 0, 2), Child = row });
+        }
+        string file = pack != null ? state.PackFile : "";
+        if (file != coverFor)
+        {
+            coverFor = file; sideCover.Source = null;
+            if (file.Length > 0 && CoverLoader != null) CoverLoader(file, image => { if (coverFor == file) sideCover.Source = image; });
+        }
+    }
+    // 下拉框选中项与下拉项都单行显示、末尾省略号，悬停显示全文（原有 90 字截断保留）。
+    static void SingleLine(ComboBox combo)
+    {
+        var text = new FrameworkElementFactory(typeof(TextBlock));
+        text.SetBinding(TextBlock.TextProperty, new Binding());
+        text.SetBinding(FrameworkElement.ToolTipProperty, new Binding());
+        text.SetValue(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis);
+        text.SetValue(TextBlock.TextWrappingProperty, TextWrapping.NoWrap);
+        combo.ItemTemplate = new DataTemplate { VisualTree = text };
+        combo.HorizontalContentAlignment = HorizontalAlignment.Stretch;
+        combo.SelectionChanged += (_, _) => combo.ToolTip = combo.SelectedItem?.ToString();
+    }
     void Dispatch(Action action) { if (!closed) Dispatcher.BeginInvoke(() => { if (!closed) action(); }); }
     void Persist()
     {
         try { store.Save(state); }
         catch (Exception ex) { Log.Write("onboarding", ex.Message); note.Text = "引导记录暂时无法保存，本次仍可继续。"; }
     }
-    Button AddButton(Panel parent, string label, Action action)
+    Button AddButton(Panel parent, string label, Action action, bool wide = false)
     {
-        var button = new Button { Content = label, Padding = new Thickness(16, 10, 16, 10), Margin = new Thickness(0, 0, 10, 12), HorizontalAlignment = HorizontalAlignment.Left };
+        var button = new Button { Content = label, Padding = new Thickness(16, 10, 16, 10), Margin = new Thickness(0, 0, 10, wide ? 4 : 12),
+            HorizontalAlignment = wide ? HorizontalAlignment.Stretch : HorizontalAlignment.Left, HorizontalContentAlignment = wide ? HorizontalAlignment.Left : HorizontalAlignment.Center };
         button.Click += (_, _) => action(); parent.Children.Add(button); return button;
     }
     void Text(string text, int size = 14)
@@ -103,24 +198,31 @@ internal sealed class OnboardingWindow : ExperienceDialog
     { StopTrial(); state.Purpose = purpose; state.Step = 1; heard = false; Persist(); Render(); }
     void Render()
     {
-        body.Children.Clear(); note.Text = "随时可以跳过，之后在设置里重新打开。";
+        body.Children.Clear(); note.Text = ""; // 「随时可以跳过…」常驻左栏底部；这里只显示状态与提示。
         back.IsEnabled = state.Step > 0;
+        for (int i = 0; i < stepBars.Length; i++) stepBars[i].Fill = Theme.Brush(i <= state.Step ? "Accent" : "Stroke");
+        stepReadout.Text = $"//  STEP {Math.Min(state.Step + 1, 3):00} / 03";
+        RenderSide();
         heading.Text = state.Step switch { 0 => "1 / 3　你想怎么用？", 1 => "2 / 3　准备一个章节", 2 => "3 / 3　试着听一句", _ => "已经听到配音了" };
         if (state.Step == 0)
         {
             Text("先选一种用法。你随时可以在播放器里切换。", 16);
-            AddButton(body, "单独听剧情", () => ChoosePurpose("listening")); Text("像听书一样播放，不需要打开游戏。", 13);
-            AddButton(body, "边玩边听", () => ChoosePurpose("game")); Text("先确认声音，再连接游戏并选择跟随方式。", 13);
+            AddButton(body, "单独听剧情", () => ChoosePurpose("listening"), true); Text("像听书一样播放，不需要打开游戏。", 13);
+            AddButton(body, "边玩边听", () => ChoosePurpose("game"), true); Text("先确认声音，再连接游戏并选择跟随方式。", 13);
         }
         else if (state.Step == 1)
         {
             Text("软件和章节配音分别提供。已有章节无需重新下载。", 16);
-            if (choices.Count > 0) AddButton(body, "选择已有章节…", () =>
-            { var chosen = pickChapter(this, choices, choices.FirstOrDefault(c => c.File == state.PackFile)); if (chosen != null) SelectPack(chosen.File); });
-            AddButton(body, "选择配音包目录…", PickDirectory);
+            if (choices.Count > 0)
+            {
+                AddButton(body, "选择已有章节…", () =>
+                { var chosen = pickChapter(this, choices, choices.FirstOrDefault(c => c.File == state.PackFile)); if (chosen != null) SelectPack(chosen.File); }, true);
+                Text("从已安装的章节里挑一章。", 13);
+            }
+            AddButton(body, "选择配音包目录…", PickDirectory, true);
             Text("下载的章节 ZIP 先解压，再选择解压后的单章目录或包含各章的总目录。还没有配音包时，请从软件发布者提供的配音分享入口获取。", 13);
-            Text(pack == null ? "当前还没有选中章节。" : "已选：" + ChapterCatalog.Title(pack.Title));
-            var next = AddButton(body, "选好了，去试听", () => { if (pack != null) { state.Step = 2; Persist(); Render(); } });
+            var next = AddButton(body, "选好了，去试听", () => { if (pack != null) { state.Step = 2; Persist(); Render(); } }, true);
+            Text(pack == null ? "当前还没有选中章节。" : "已选：" + ChapterCatalog.Title(pack.Title), 13);
             next.IsEnabled = pack != null;
         }
         else if (state.Step == 2 && pack != null)

@@ -1,0 +1,202 @@
+using System.Runtime.CompilerServices;
+using PgrVoice.Listening;
+
+namespace PgrVoice.Following;
+
+/// <summary>游戏配音（自动播放）倒计时的种类：普通分支菜单 / 未核出口（等待确认续接）。</summary>
+public enum PlayAlongCountdownKind { Branch, OrderContinue }
+
+/// <summary>
+/// 0.4.7 游戏配音（自动播放）倒计时：与听书停下处同一规则（桌面 Listening047 / 安卓 ListeningSession，设计 08 / 10 / 11）。
+/// · 普通分支菜单：15 秒倒计时，用户点选项优先；到点按「默认分支」第一 / 第二个选项（没有第二个按第一个）自动选择，并显示「已自动选择：xxx」。
+///   单选项菜单、探索 / 问答菜单不倒计时（与原来一样立即处理），由 <see cref="ForMenu"/> 返回 null 表示。
+/// · 结局分歧菜单（选项含「开启结局」）：同样 15 秒倒计时，到点按默认分支选入一个结局（只读该结局到结束，不串接其他结局）；<see cref="Ending"/> 供界面显示 ENDING 标签与锁定说明。
+/// · 未核出口（等待确认续接）：15 秒后从本节下一句（配音包顺序）按顺序继续，显示「此处分支续接未核实，已按顺序继续」。
+/// · 「分支自动选择」关闭：两种都停下等待用户（点选项 /「按顺序继续」）。
+/// · 暂停 / 继续：暂停时剩余时间冻结，不会到点；继续后从冻结处接着倒数。
+/// 纯逻辑、不依赖平台计时器：调用方传入单调时钟毫秒（安卓 SystemClock.ElapsedRealtime），按秒刷新界面并在 <see cref="Expired"/> 时执行。
+/// </summary>
+public sealed class PlayAlongCountdown
+{
+    public const int Seconds = ListeningText.CountdownSeconds;
+    public const long DurationMilliseconds = Seconds * 1000L;
+    public const string PausedText = "已暂停：倒计时停住，不自动续接；点「继续」恢复。";
+    public const string EndingAutoSelectOffText = "此处是结局分歧；分支自动选择已关闭：停在这里，点选项后继续（只收听所选结局）。";
+    public const string AutoSelectOffText = "分支自动选择已关闭：停在这里，点选项后继续。";
+    public const string OrderAutoSelectOffText = "此处分支续接未核实；分支自动选择已关闭，点「按顺序继续」后从本节下一句接着配音。";
+
+    long deadline, frozenRemaining;
+
+    PlayAlongCountdown(PlayAlongCountdownKind kind, string nodeId, bool ending, bool waiting, long now)
+    {
+        Kind = kind; NodeId = nodeId; Ending = ending; Waiting = waiting;
+        deadline = now + DurationMilliseconds;
+    }
+
+    public PlayAlongCountdownKind Kind { get; }
+    /// <summary>分支：菜单节点 id；按顺序续接：当前（已播完）台词 id。</summary>
+    public string NodeId { get; }
+    /// <summary>结局分歧菜单（选项含「开启结局」）：与普通分支一样倒计时；界面显示 ENDING 标签与「只收听所选结局」锁定说明。</summary>
+    public bool Ending { get; }
+    /// <summary>不倒计时、停下等待用户（只在「分支自动选择」关闭时）。</summary>
+    public bool Waiting { get; }
+    public bool Paused { get; private set; }
+    /// <summary>已到点执行或被用户选择后结束；之后不再到点。</summary>
+    public bool Finished { get; private set; }
+
+    /// <summary>倒计时到点时的默认项（第一 / 第二个，第二个不存在时第一个）。</summary>
+    public string? DefaultOptionId { get; private init; }
+    public string? DefaultOptionLabel { get; private init; }
+    /// <summary>有效默认序号（1 或 2）。</summary>
+    public int DefaultNumber { get; private init; }
+    /// <summary>本菜单可见选项（界面卡片按此顺序列出）。</summary>
+    public IReadOnlyList<ChoiceOption> Options { get; private init; } = [];
+    /// <summary>按顺序续接的目标台词。</summary>
+    public string? OrderLineId { get; private init; }
+    public string? OrderLineText { get; private init; }
+    /// <summary>菜单之前的那一句（设计 08 / 10 卡片显示的前句）；在菜单处导航器的当前节点是菜单本身，所以单独记下。没有时为 null。</summary>
+    public string? PrecedingLineId { get; private init; }
+    public string? PrecedingSpeaker { get; private init; }
+    public string? PrecedingText { get; private init; }
+    /// <summary>按顺序续接：刚读完的所选选项文字（设计 11「已读完所选「…」」）；当前句不属于任何选项（共同线）时为 null。</summary>
+    public string? PreviousOptionLabel { get; private init; }
+
+    public bool Counting => !Waiting && !Paused && !Finished;
+    public long RemainingMilliseconds(long now) => Waiting || Finished ? 0 : Math.Max(0, Paused ? frozenRemaining : deadline - now);
+    /// <summary>界面显示的剩余秒数（向上取整：15 → 1，到点为 0）。</summary>
+    public int RemainingSeconds(long now) => (int)((RemainingMilliseconds(now) + 999) / 1000);
+    public double Fraction(long now) => RemainingMilliseconds(now) / (double)DurationMilliseconds;
+    public bool Expired(long now) => Counting && now >= deadline;
+
+    /// <summary>暂停 / 继续；返回切换后的暂停状态。停下等待或已结束时不变。</summary>
+    public bool TogglePause(long now)
+    {
+        if (Waiting || Finished) return Paused;
+        if (Paused) { deadline = now + frozenRemaining; Paused = false; }
+        else { frozenRemaining = Math.Max(0, deadline - now); Paused = true; }
+        return Paused;
+    }
+    /// <summary>设置变更后恢复「已暂停」与剩余毫秒（不重新从 15 秒起算）。停下等待或已结束时忽略。</summary>
+    public void RestorePause(long now, long remainingMs)
+    {
+        if (Waiting || Finished) return;
+        frozenRemaining = Math.Clamp(remainingMs, 0, DurationMilliseconds);
+        Paused = true;
+        deadline = now + frozenRemaining;
+    }
+    /// <summary>设置变更后保持倒计时进行中，并从给定剩余毫秒接着倒数（不重置为 15 秒）。</summary>
+    public void ContinueWithRemaining(long now, long remainingMs)
+    {
+        if (Waiting || Finished) return;
+        Paused = false;
+        frozenRemaining = 0;
+        deadline = now + Math.Clamp(remainingMs, 0, DurationMilliseconds);
+    }
+    public void Finish() => Finished = true;
+
+    /// <summary>到点（或自动选择后）显示的事件文字：「已自动选择：xxx」/「此处分支续接未核实，已按顺序继续」。</summary>
+    public string AutoSelectedText => Kind == PlayAlongCountdownKind.Branch ? ListeningText.AutoSelected + DefaultOptionLabel : ListeningText.OrderContinued;
+
+    /// <summary>状态文字（界面卡片的说明行；安卓 Status）。</summary>
+    public string StatusText(long now)
+    {
+        if (Kind == PlayAlongCountdownKind.Branch)
+        {
+            if (Waiting) return Ending ? EndingAutoSelectOffText : AutoSelectOffText;
+            if (Paused) return PausedText;
+            return Ending
+                ? "结局分歧 · " + RemainingSeconds(now) + " 秒后按默认分支选入结局「" + DefaultOptionLabel + "」（" + ListeningText.OptionOrdinal(DefaultNumber) + "）；只收听所选结局，点选项立即选择。"
+                : "分支自动选择 · " + RemainingSeconds(now) + " 秒后按默认分支自动选择「" + DefaultOptionLabel + "」（" + ListeningText.OptionOrdinal(DefaultNumber) + "）；点选项立即选择。";
+        }
+        if (Waiting) return OrderAutoSelectOffText;
+        if (Paused) return PausedText;
+        return "此处分支续接未核实，" + RemainingSeconds(now) + " 秒后从本节下一句按顺序继续。";
+    }
+
+    /// <summary>
+    /// 普通分支菜单的倒计时；单选项、探索 / 问答菜单返回 null（不倒计时，保持原来的立即处理）。
+    /// visible 为当前可见选项（导航器 AvailableOptions）；为空时用菜单全部选项。
+    /// </summary>
+    public static PlayAlongCountdown? ForMenu(Pack pack, Node menu, IReadOnlyList<ChoiceOption>? visible, int defaultNumber, bool autoSelect, long now, Node? preceding = null)
+    {
+        if (menu is not { Kind: "choice", Archived: false }) return null;
+        var shape = MenuShape.Of(pack, menu);
+        if (shape.Single || shape.Exploration) return null;
+        var options = visible is { Count: > 0 } ? visible : menu.Options;
+        if (options.Count == 0) return null;
+        int index = defaultNumber == 2 && options.Count >= 2 ? 1 : 0;
+        return new(PlayAlongCountdownKind.Branch, menu.Id, shape.Ending, !autoSelect, now)
+        {
+            DefaultOptionId = options[index].Id, DefaultOptionLabel = options[index].Label, DefaultNumber = index + 1, Options = options.ToList(),
+            PrecedingLineId = preceding?.Id, PrecedingSpeaker = preceding?.Speaker, PrecedingText = preceding?.Text
+        };
+    }
+
+    /// <summary>导航器历史中当前位置之前（含当前位置）最近的一句台词：在菜单处即菜单之前的那一句。</summary>
+    public static Node? PrecedingLine(PlaybackEngine engine)
+    {
+        for (int i = Math.Min(engine.HistoryPosition, engine.History.Count - 1); i >= 0; i--)
+            if (engine.Pack.ById.TryGetValue(engine.History[i].NodeId, out var node) && node.Kind == "line" && node.Id != engine.CurrentId) return node;
+        return null;
+    }
+
+    /// <summary>当前句所属的选项（同小节内 PathId 相同的菜单选项）；共同线（PathId 为空）或找不到时为 null。
+    /// 按配音包建 section+pathId 索引（ConditionalWeakTable，配音包重载后自动失效），避免每次扫全表。</summary>
+    static readonly ConditionalWeakTable<Pack, Dictionary<string, (Node Menu, ChoiceOption Option)>> ownerBySectionPath = new();
+    public static ChoiceOption? OwningOption(Pack pack, Node line, out Node? menu)
+    {
+        menu = null;
+        if (string.IsNullOrEmpty(line.PathId)) return null;
+        var map = ownerBySectionPath.GetValue(pack, BuildOwnerIndex);
+        lock (map)
+        {
+            if (!map.TryGetValue(line.SectionId + "" + line.PathId, out var hit)) return null;
+            menu = hit.Menu; return hit.Option;
+        }
+    }
+    static Dictionary<string, (Node Menu, ChoiceOption Option)> BuildOwnerIndex(Pack pack)
+    {
+        var map = new Dictionary<string, (Node Menu, ChoiceOption Option)>(StringComparer.Ordinal);
+        foreach (var n in pack.Nodes)
+        {
+            if (n.Archived || n.Kind != "choice") continue;
+            foreach (var option in n.Options)
+            {
+                if (string.IsNullOrEmpty(option.PathId)) continue;
+                // 与旧实现一致：按 Nodes 顺序取第一个匹配。
+                map.TryAdd(n.SectionId + "" + option.PathId, (n, option));
+            }
+        }
+        return map;
+    }
+
+    /// <summary>
+    /// 未核出口：本节配音包顺序中，当前台词之后第一句未归档、未在本次读过、且属于共同线或当前同一路线的台词；没有则 null（交给原来的停下 / 死角处理）。
+    /// 游戏里只走了一条路线，所以跳过其他选项的正文（听书规则 I 不做这层过滤；游戏画面不会显示未选选项的台词）。
+    /// 调用方另须确认从该句可以继续自动播放（安卓 CanStartConfirmedAutoRoute），否则保持原来的暂停。
+    /// </summary>
+    public static PlayAlongCountdown? ForUnverifiedExit(Pack pack, Node current, IReadOnlySet<string> visited, bool autoSelect, long now) =>
+        NextLineInOrder(pack, current, visited) is { } next
+            ? new(PlayAlongCountdownKind.OrderContinue, current.Id, false, !autoSelect, now)
+            {
+                OrderLineId = next.Id, OrderLineText = next.Text, PreviousOptionLabel = OwningOption(pack, current, out _)?.Label,
+                PrecedingLineId = current.Id, PrecedingSpeaker = current.Speaker, PrecedingText = current.Text
+            }
+            : null;
+
+    public static Node? NextLineInOrder(Pack pack, Node current, IReadOnlySet<string> visited)
+    {
+        var lines = pack.Nodes.Where(n => !n.Archived && n.Kind == "line" && n.SectionId == current.SectionId).ToList();
+        int at = lines.FindIndex(n => n.Id == current.Id);
+        if (at < 0) return null;
+        return lines.Skip(at + 1).FirstOrDefault(n => n.Id != current.Id && !visited.Contains(n.Id) &&
+            (string.IsNullOrEmpty(n.PathId) || n.PathId == current.PathId));
+    }
+
+    /// <summary>
+    /// 游戏配音自动播放停下的原因码（<see cref="CommonAutoPlayDecision.Code"/>）是否属于「未核出口 / 等待确认续接」：
+    /// 下一步是缺口 / 汇合 / 返回、后续段落未核实、或默认路线读完后连接未知。分支（choice / branch / next-branch）、终点（end）、
+    /// 无效连接（missing-next / invalid-next，L 无文本死角）与循环不在此列。
+    /// </summary>
+    public static bool IsUnverifiedExitCode(string? code) => code is "unknown" or "gap" or "merge" or "return" or "next-unproven";
+}

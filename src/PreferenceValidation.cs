@@ -23,11 +23,18 @@ public static class PreferenceValidation
         if (value.SpeakerVolumes == null) { value.SpeakerVolumes = new(); changed = true; }
         if (value.Keys == null) { value.Keys = new(); changed = true; }
         if (value.GamepadBindings == null) { value.GamepadBindings = GamepadLayout.Defaults(); changed = true; }
+        if (value.QuickWindowPositions == null) { value.QuickWindowPositions = new(); changed = true; }
+        foreach (var key in value.QuickWindowPositions.Where(x => x.Value is not { Length: 2 }).Select(x => x.Key).ToArray())
+        { value.QuickWindowPositions.Remove(key); changed = true; }
+        Set(value.DefaultBranchOption, value.DefaultBranchOption == 2 ? 2 : 1, x => value.DefaultBranchOption = x);
         Set(value.PackFile, value.PackFile ?? "", x => value.PackFile = x);
         Set(value.PackId, value.PackId ?? "", x => value.PackId = x);
         Set(value.OutputDeviceId, value.OutputDeviceId ?? "", x => value.OutputDeviceId = x);
         Set(value.GameProcess, value.GameProcess ?? "", x => value.GameProcess = x);
         Set(value.GameExecutablePath, value.GameExecutablePath ?? "", x => value.GameExecutablePath = x);
+        Set(value.CharacterArtFolder, value.CharacterArtFolder ?? "", x => value.CharacterArtFolder = x);
+        Set(value.ChapterCoverFolder, value.ChapterCoverFolder ?? "", x => value.ChapterCoverFolder = x);
+        Set(value.StandeeOpacity, double.IsFinite(value.StandeeOpacity) ? Math.Clamp(value.StandeeOpacity, 0, 0.8) : 0.55, x => value.StandeeOpacity = x);
         Set(value.GamepadDeviceName, value.GamepadDeviceName ?? "", x => value.GamepadDeviceName = x);
         Set(value.CompactMode, value.CompactMode is "ball" or "strip" ? value.CompactMode : "ball", x => value.CompactMode = x);
         Set(value.GamepadGlyphStyle, value.GamepadGlyphStyle is "auto" or "xbox" or "playstation" ? value.GamepadGlyphStyle : "auto", x => value.GamepadGlyphStyle = x);
@@ -57,6 +64,8 @@ public static class PreferenceValidation
         // 负坐标可以是左侧或上方副屏；只把非有限值还原成原本的“尚未定位”哨兵。
         Set(value.ClickZoneLeft, double.IsFinite(value.ClickZoneLeft) ? value.ClickZoneLeft : -1, x => value.ClickZoneLeft = x);
         Set(value.ClickZoneTop, double.IsFinite(value.ClickZoneTop) ? value.ClickZoneTop : -1, x => value.ClickZoneTop = x);
+        Set(value.BranchMenuLeft, value.BranchMenuLeft is { } bl && double.IsFinite(bl) ? bl : null, x => value.BranchMenuLeft = x);
+        Set(value.BranchMenuTop, value.BranchMenuTop is { } bt && double.IsFinite(bt) ? bt : null, x => value.BranchMenuTop = x);
         if (value.DialogueRegion == null || !value.DialogueRegion.IsValid)
         { value.DialogueRegion = new(); changed = true; }
         return changed;

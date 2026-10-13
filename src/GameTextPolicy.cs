@@ -98,7 +98,71 @@ public static class GameTextPolicy
         return Matcher.Normalize(plain.Replace('▆', '■').Replace('▇', '■').Replace('█', '■'));
     }
     public static string SpeakerName(string text) => Regex.Replace(text, "<[^>]+>", "").Trim();
-    public static Node? Match(Pack pack, string section, string text, out string reason, string speaker = "")
+    /// <summary>
+    /// 0.4.8：同小节里同文同角色的重复短句（“……”“嗯”）按当前位置消歧——先取当前句的直接下一句，
+    /// 再沿同小节、同路线的连续台词往前找最近一个候选（最多 <see cref="LookAheadLimit"/> 步，不跨选项/汇合/换路线）。
+    /// 只在已经按文字+角色筛出的候选里选，不放宽文字匹配；都不命中仍按原规则等待。
+    /// </summary>
+    public const int LookAheadLimit = 6;
+    public static Node? PreferByPosition(Pack pack, Node? current, IReadOnlyCollection<Node> candidates)
+    {
+        if (current == null || candidates.Count < 2) return null;
+        var ids = new HashSet<string>(candidates.Select(c => c.Id), StringComparer.Ordinal);
+        string? nextId = current.NextId;
+        for (int step = 0; step < LookAheadLimit && nextId != null && pack.ById.TryGetValue(nextId, out var node); step++)
+        {
+            if (node.Kind != "line" || node.Archived || node.SectionId != current.SectionId || node.PathId != current.PathId) return null;
+            if (ids.Contains(node.Id)) return node;
+            nextId = node.NextId;
+        }
+        return null;
+    }
+    sealed class AliasCatalog
+    {
+        public int SchemaVersion { get; set; }
+        public List<TextAlias> Entries { get; set; } = new();
+    }
+    sealed class TextAlias
+    {
+        public string PackId { get; set; } = "";
+        public string NodeId { get; set; } = "";
+        public string SectionId { get; set; } = "";
+        public string Speaker { get; set; } = "";
+        public string PackText { get; set; } = "";
+        public string GameText { get; set; } = "";
+        public string Reason { get; set; } = "";
+    }
+    static readonly Lazy<Dictionary<(string Pack, string Node), TextAlias>> Aliases = new(LoadAliases);
+    // 已核实的“配音包正文与游戏正文只差个别字”的匹配别名：仅用于文字跟随定位，不改显示文本、不改音频绑定。
+    static Dictionary<(string Pack, string Node), TextAlias> LoadAliases()
+    {
+        var result = new Dictionary<(string Pack, string Node), TextAlias>();
+        try
+        {
+            using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("GameTextAliases.json");
+            if (stream == null) return result;
+            var catalog = JsonSerializer.Deserialize<AliasCatalog>(stream, Json.Options);
+            if (catalog?.SchemaVersion != 1 || catalog.Entries == null) return result;
+            foreach (var group in catalog.Entries.Where(e => e != null).GroupBy(e => (e.PackId, e.NodeId)))
+            {
+                if (group.Count() != 1) continue;
+                var entry = group.Single();
+                if (string.IsNullOrEmpty(entry.PackId) || string.IsNullOrEmpty(entry.NodeId) || string.IsNullOrEmpty(entry.SectionId) ||
+                    string.IsNullOrEmpty(entry.PackText) || string.IsNullOrEmpty(entry.GameText) || entry.Speaker == null ||
+                    Normalize(entry.PackText) == Normalize(entry.GameText) || Normalize(entry.GameText).Length < 4) continue;
+                result.Add(group.Key, entry);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or JsonException or ArgumentException or NotSupportedException)
+        { result.Clear(); }
+        return result;
+    }
+    static bool MatchesAlias(Pack pack, Node node, string normalized, string speaker) =>
+        Aliases.Value.TryGetValue((pack.Id, node.Id), out var entry) && node.SectionId == entry.SectionId &&
+        node.Speaker == entry.Speaker && node.Text == entry.PackText && Normalize(entry.GameText) == normalized &&
+        (SpeakerName(speaker).Length == 0 || SpeakerName(node.Speaker) == SpeakerName(speaker));
+    internal static int AliasCount => Aliases.Value.Count;
+    public static Node? Match(Pack pack, string section, string text, out string reason, string speaker = "", Node? current = null)
     {
         string normalized = Normalize(text);
         string visible = SpeakerName(text);
@@ -111,11 +175,16 @@ public static class GameTextPolicy
         if (matches.Count == 0 && !punctuation)
             matches = pack.Nodes.Where(n => !n.Archived && n.Kind == "line" && n.SectionId == section &&
                 MatchesPlayerName(pack, n, text, speaker)).ToList();
+        // 已登记的个别错字别名：只对登记的那个节点、那句原文生效。
+        if (matches.Count == 0 && !punctuation)
+            matches = pack.Nodes.Where(n => !n.Archived && n.Kind == "line" && n.SectionId == section &&
+                MatchesAlias(pack, n, normalized, speaker)).ToList();
         // 先保留标点区分“维多利亚？！”与“维多利亚！”，仅格式差异再退回规范化匹配。
         var exact = matches.Where(n => SpeakerName(n.Text) == SpeakerName(text)).ToList();
         if (exact.Count > 0) matches = exact;
         if (matches.Count > 1 && SpeakerName(speaker).Length > 0)
             matches = matches.Where(n => SpeakerName(n.Speaker).Equals(SpeakerName(speaker), StringComparison.Ordinal)).ToList();
+        if (matches.Count > 1 && PreferByPosition(pack, current, matches) is { } preferred) matches = new List<Node> { preferred };
         if (matches.Count != 1)
         {
             reason = matches.Count == 0 ? "当前正文与角色暂未匹配，继续等待下一句；请核对章节和小节。" : "当前正文与角色仍对应多个位置，暂不播放这句，继续等待下一句。";

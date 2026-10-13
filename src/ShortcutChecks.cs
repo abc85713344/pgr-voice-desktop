@@ -215,7 +215,7 @@ public partial class MainWindow
             Check(!listeningPolicy.IsDropDownOpen && expanded && listeningRunning && listeningTicket == policyTicket && listeningSession?.Current?.NodeId == policyPosition,
                 "听书策略下拉 Esc 仅关闭下拉，保播放票据和当前句");
             // Popup关闭和焦点还原由Dispatcher完成，下一次实体按键也会发生在其后。
-            await Drain(); listeningPolicy.Focus(); await Drain(); Diagnostic("listening-before-native-policy-key", listeningPolicy);
+            await Drain(); await Task.Delay(250); listeningPolicy.Focus(); await Drain(); Diagnostic("listening-before-native-policy-key", listeningPolicy);
             Require(listeningPolicy.IsLoaded && listeningPolicy.IsVisible && listeningPolicy.IsKeyboardFocusWithin && !listeningPolicy.IsDropDownOpen,
                 "听书原生策略调整前下拉已关闭并稳定取得焦点");
             int priorPolicy = listeningPolicy.SelectedIndex;

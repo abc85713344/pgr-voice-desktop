@@ -50,6 +50,7 @@ public static class PlayerDiagnostics
                 {
                     "draft-missing" => ("draft-missing", "草稿缺句，等待补配", node.AudioReason ?? "保留正文，补齐后自动更新。"),
                     "not-spoken" => ("not-spoken", "无可朗读正文", node.AudioReason ?? "来源将此句标记为无可朗读正文。"),
+                    "subtitle-only" => ("subtitle-only", "仅字幕 · 无需配音", node.AudioReason ?? "本句只显示字幕，不需要配音。"),
                     "generation-failed" => ("generation-failed", "补配未通过核验", node.AudioReason ?? "尚未接入可播放录音。"),
                     "not-found" => ("not-found", "未找到对应配音", node.AudioReason ?? "尚未绑定可靠录音。"),
                     _ => ("unbound", "配音待核对", node.AudioReason ?? "尚未绑定可靠录音。")
@@ -70,6 +71,7 @@ public static class PlayerDiagnostics
         void Add(Node node, (string Category, string Label, string Detail) result)
         {
             if (result.Category == "readable") report.ReadableLines++;
+            else if (result.Category == "subtitle-only") { } // 0.4.7 仅字幕 · 无需配音：只计数，不进问题 / 缺失列表
             else report.Issues.Add(new(result.Category, result.Label, node.Id, node.SectionId, node.Speaker, node.Text, node.Audio, result.Detail));
             report.Counts[result.Category] = report.Counts.GetValueOrDefault(result.Category) + 1;
             progress?.Report(new(report.ReadableLines + report.Issues.Count, nodes.Length, node.Id));

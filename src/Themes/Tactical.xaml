@@ -1,87 +1,995 @@
-<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-  <SolidColorBrush x:Key="Bg" Color="#151719"/>
-  <SolidColorBrush x:Key="Surface" Color="#1E2125"/>
-  <SolidColorBrush x:Key="Inset" Color="#101214"/>
-  <SolidColorBrush x:Key="Fg" Color="#EEECE6"/>
-  <SolidColorBrush x:Key="MutedText" Color="#A3A6AB"/>
-  <SolidColorBrush x:Key="SubtleText" Color="#747B82"/>
-  <SolidColorBrush x:Key="Stroke" Color="#363B40"/>
-  <SolidColorBrush x:Key="Accent" Color="#BA4549"/>
-  <SolidColorBrush x:Key="NormalAccent" Color="#D9DCD8"/>
-  <SolidColorBrush x:Key="CurrentCardNormal" Color="#1E2125"/>
-  <SolidColorBrush x:Key="BallNormal" Color="#F216191D"/>
-  <SolidColorBrush x:Key="PlayingAccent" Color="#9DD1CA"/>
-  <SolidColorBrush x:Key="PlayingFill" Color="#253F40"/>
-  <SolidColorBrush x:Key="BranchAccent" Color="#FFC970"/>
-  <SolidColorBrush x:Key="BranchFill" Color="#3B2D1C"/>
-  <SolidColorBrush x:Key="RouteFill" Color="#26221C"/>
-  <SolidColorBrush x:Key="SelectedFill" Color="#30353A"/>
-  <Style TargetType="TextBlock"><Setter Property="Foreground" Value="{StaticResource Fg}"/><Setter Property="TextWrapping" Value="Wrap"/></Style>
-  <Style x:Key="SectionLabel" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}"><Setter Property="FontSize" Value="10"/><Setter Property="Foreground" Value="{StaticResource MutedText}"/><Setter Property="Margin" Value="0,0,0,5"/></Style>
-  <Style TargetType="ToolTip"><Setter Property="Background" Value="{StaticResource Surface}"/><Setter Property="Foreground" Value="{StaticResource Fg}"/><Setter Property="BorderBrush" Value="{StaticResource Stroke}"/><Setter Property="Padding" Value="10,6"/></Style>
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:ui="clr-namespace:PgrVoice">
+  <!--
+    灰鸦 · 冷灰白 C1 设计系统（v7 定稿）
+    唯一的颜色、字体、几何与控件模板来源。代码侧通过 Theme.Brush / Theme.Style 读取同名键。
+    主色：冷灰白底 + 暗红；点缀：雾蓝（结构 / 次强调）、青灰（跟随 / 状态）、黄铜（分支 / 路线），只用于小元素。
+    预览 HTML（previews/desktop-final）使用完全相同的数值。
+  -->
+
+  <!-- ═════ 颜色基元 / COLOR PRIMITIVES ═════ -->
+  <Color x:Key="BgColor">#E8EBEE</Color>
+  <Color x:Key="FgColor">#1D232A</Color>
+  <Color x:Key="StrokeColor">#CBD1D7</Color>
+  <Color x:Key="AccentColor">#A3283A</Color>
+  <Color x:Key="HeaderColor">#DDE2E7</Color>
+
+  <!-- ═════ 语义色 / SEMANTIC TOKENS（保留原有键名，代码与测试依赖） ═════ -->
+  <Visibility x:Key="PortraitVisibility">Visible</Visibility>
+  <SolidColorBrush x:Key="Bg" Color="#E8EBEE"/>              <!-- 窗口底色：冷灰白 -->
+  <SolidColorBrush x:Key="PanelBg" Color="#EEF0F3"/>         <!-- 播放托盘等次级底板 -->
+  <SolidColorBrush x:Key="Surface" Color="#F4F5F7"/>         <!-- 卡片、悬停 -->
+  <SolidColorBrush x:Key="Raised" Color="#F8F9FA"/>          <!-- 按钮 -->
+  <SolidColorBrush x:Key="Inset" Color="#F6F7F9"/>           <!-- 输入框、列表槽 -->
+  <SolidColorBrush x:Key="Fg" Color="#1D232A"/>              <!-- 主文字 -->
+  <SolidColorBrush x:Key="MutedText" Color="#4B5560"/>       <!-- 次文字 -->
+  <SolidColorBrush x:Key="SubtleText" Color="#5A646E"/>      <!-- 提示文字 -->
+  <SolidColorBrush x:Key="Stroke" Color="#CBD1D7"/>          <!-- 细线 -->
+  <SolidColorBrush x:Key="StrokeStrong" Color="#A6AFB9"/>    <!-- 悬停描边 -->
+  <SolidColorBrush x:Key="Accent" Color="#A3283A"/>          <!-- 暗红：主强调 -->
+  <SolidColorBrush x:Key="AccentHover" Color="#B2323F"/>
+  <SolidColorBrush x:Key="AccentPressed" Color="#86202F"/>
+  <SolidColorBrush x:Key="AccentText" Color="#9C2536"/>      <!-- 红色小字 -->
+  <SolidColorBrush x:Key="AccentFill" Color="#F3E3E6"/>      <!-- 红色调底 -->
+  <SolidColorBrush x:Key="PrimaryFill" Color="#A3283A"/>     <!-- 主按钮底：白字 -->
+  <SolidColorBrush x:Key="NormalAccent" Color="#3F5A78"/>    <!-- 雾蓝文字：次强调 -->
+  <SolidColorBrush x:Key="CurrentCardNormal" Color="#D9FFFFFF"/>
+  <SolidColorBrush x:Key="BallNormal" Color="#F5F3F5F7"/>
+  <SolidColorBrush x:Key="PlayingAccent" Color="#A3283A"/>   <!-- 正在播放 = 暗红 -->
+  <SolidColorBrush x:Key="PlayingFill" Color="#F6E8EA"/>
+  <SolidColorBrush x:Key="BranchAccent" Color="#7F6223"/>    <!-- 分支 / 路线 = 黄铜（文字色） -->
+  <SolidColorBrush x:Key="BranchFill" Color="#F3ECDC"/>
+  <SolidColorBrush x:Key="BranchStroke" Color="#D3C196"/>
+  <SolidColorBrush x:Key="RouteFill" Color="#F7F2E7"/>
+  <SolidColorBrush x:Key="SelectedFill" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="HoverWash" Color="#0B1D232A"/>
+  <SolidColorBrush x:Key="PressWash" Color="#171D232A"/>
+  <SolidColorBrush x:Key="FocusRing" Color="#A3283A"/>
+  <SolidColorBrush x:Key="HoverEdge" Color="#4F6B8A"/>
+
+  <!-- ═════ 点缀色 / SECONDARY ACCENTS（只用于小元素：标签、状态、刻线、分支行） ═════ -->
+  <SolidColorBrush x:Key="Slate" Color="#4F6B8A"/>           <!-- 雾蓝 -->
+  <SolidColorBrush x:Key="SlateFill" Color="#E3E9F0"/>
+  <SolidColorBrush x:Key="Teal" Color="#3E7C7A"/>            <!-- 青灰：跟随中 -->
+  <SolidColorBrush x:Key="TealText" Color="#2F6664"/>        <!-- 青灰文字 -->
+  <SolidColorBrush x:Key="TealFill" Color="#E0ECEB"/>
+  <SolidColorBrush x:Key="Brass" Color="#B08A3E"/>           <!-- 黄铜：分支 / 路线 -->
+  <SolidColorBrush x:Key="BrassText" Color="#7F6223"/>
+  <SolidColorBrush x:Key="Plate" Color="#2A3139"/>           <!-- 名牌 / 标签条 -->
+  <SolidColorBrush x:Key="PlateFg" Color="#F2F4F6"/>
+  <SolidColorBrush x:Key="PlateSub" Color="#9AA6B2"/>        <!-- 名牌上的小字 -->
+  <SolidColorBrush x:Key="CardFill" Color="#D9FFFFFF"/>      <!-- 半透明白卡 -->
+  <LinearGradientBrush x:Key="HeaderGradient" StartPoint="0,0" EndPoint="1,1">
+    <GradientStop Color="#DDE2E7" Offset="0"/><GradientStop Color="#F2F3F5" Offset="1"/>
+  </LinearGradientBrush>
+  <LinearGradientBrush x:Key="TrayGradient" StartPoint="0,0" EndPoint="0,1">
+    <GradientStop Color="#F4F5F7" Offset="0"/><GradientStop Color="#E9ECEF" Offset="1"/>
+  </LinearGradientBrush>
+  <LinearGradientBrush x:Key="PlateGradient" StartPoint="0,0" EndPoint="1,0">
+    <GradientStop Color="#2A3139" Offset="0"/><GradientStop Color="#36404A" Offset="1"/>
+  </LinearGradientBrush>
+
+  <!-- 兼容旧键（v4 数据色已撤销，映射到雾蓝 / 名牌色；不再发光） -->
+  <SolidColorBrush x:Key="Cyan" Color="#4F6B8A"/>
+  <SolidColorBrush x:Key="CyanIce" Color="#2A3139"/>
+  <SolidColorBrush x:Key="CyanDim" Color="#8C4F6B8A"/>
+  <SolidColorBrush x:Key="CyanFill" Color="#E3E9F0"/>
+  <SolidColorBrush x:Key="Readout" Color="#5A646E"/>
+  <SolidColorBrush x:Key="Neon" Color="#A3283A"/>
+  <SolidColorBrush x:Key="ButtonGlow" Color="Transparent"/>
+  <SolidColorBrush x:Key="PrimaryGradient" Color="#A3283A"/>
+
+  <!-- ═════ 字体 / TYPOGRAPHY（均为 Windows 自带字体） ═════ -->
+  <FontFamily x:Key="UiFont">Microsoft YaHei UI, Segoe UI</FontFamily>
+  <FontFamily x:Key="LabelFont">Bahnschrift SemiCondensed, Bahnschrift, Segoe UI, Microsoft YaHei UI</FontFamily>
+  <FontFamily x:Key="NumberFont">Bahnschrift, Segoe UI, Microsoft YaHei UI</FontFamily>
+  <FontFamily x:Key="MonoFont">Cascadia Mono, Consolas, Microsoft YaHei UI</FontFamily>
+
+  <!-- ═════ 转换器 ═════ -->
+  <ui:SublabelConverter x:Key="Sublabel"/>
+  <ui:OrdinalConverter x:Key="Ordinal"/>
+  <ui:ChipPartConverter x:Key="ChipPart"/>
+  <ui:CompactTextConverter x:Key="CompactText"/>
+  <ui:OddConverter x:Key="Odd"/>
+  <ui:SpeakerToneConverter x:Key="SpeakerTone"/>
+
+  <!-- ═════ 纹理 / TEXTURES（极淡，只增加层次） ═════ -->
+  <DrawingBrush x:Key="GridTexture" TileMode="Tile" Viewport="0,0,24,24" ViewportUnits="Absolute" Viewbox="0,0,24,24" ViewboxUnits="Absolute" Stretch="None">
+    <DrawingBrush.Drawing><DrawingGroup>
+      <GeometryDrawing Brush="Transparent" Geometry="M0,0 H24 V24 H0 Z"/>
+      <GeometryDrawing Brush="#082A3139" Geometry="M0,0 H24 V1 H0 Z M0,1 H1 V24 H0 Z"/>
+    </DrawingGroup></DrawingBrush.Drawing>
+  </DrawingBrush>
+  <DrawingBrush x:Key="StripeTexture" TileMode="Tile" Viewport="0,0,8,8" ViewportUnits="Absolute" Viewbox="0,0,8,8" ViewboxUnits="Absolute" Stretch="None">
+    <DrawingBrush.Drawing><DrawingGroup>
+      <GeometryDrawing Brush="Transparent" Geometry="M0,0 H8 V8 H0 Z"/>
+      <GeometryDrawing Brush="#0C2A3139" Geometry="M0,8 L8,0 L8,1 L1,8 Z M0,0 L0,1 L1,0 Z"/>
+    </DrawingGroup></DrawingBrush.Drawing>
+  </DrawingBrush>
+  <DrawingBrush x:Key="HazardTexture" TileMode="Tile" Viewport="0,0,6,6" ViewportUnits="Absolute" Viewbox="0,0,6,6" ViewboxUnits="Absolute" Stretch="None">
+    <DrawingBrush.Drawing><DrawingGroup>
+      <GeometryDrawing Brush="Transparent" Geometry="M0,0 H6 V6 H0 Z"/>
+      <GeometryDrawing Brush="#A3283A" Geometry="M0,6 L6,0 L6,2 L2,6 Z M0,0 L0,2 L2,0 Z"/>
+    </DrawingGroup></DrawingBrush.Drawing>
+  </DrawingBrush>
+  <DrawingBrush x:Key="WindowBackdrop" TileMode="Tile" Viewport="0,0,24,24" ViewportUnits="Absolute" Viewbox="0,0,24,24" ViewboxUnits="Absolute" Stretch="None">
+    <DrawingBrush.Drawing><DrawingGroup>
+      <GeometryDrawing Brush="#E8EBEE" Geometry="M0,0 H24 V24 H0 Z"/>
+      <GeometryDrawing Brush="#072A3139" Geometry="M0,0 H24 V1 H0 Z M0,1 H1 V24 H0 Z"/>
+    </DrawingGroup></DrawingBrush.Drawing>
+  </DrawingBrush>
+  <!-- 小节标签前的暗红三角 -->
+  <DrawingBrush x:Key="TriangleMarker" Stretch="None" AlignmentX="Left" AlignmentY="Center" TileMode="None">
+    <DrawingBrush.Drawing><GeometryDrawing Brush="#A3283A" Geometry="M0,0 L5,3.5 L0,7 Z"/></DrawingBrush.Drawing>
+  </DrawingBrush>
+
+  <Duration x:Key="Quick">0:0:0.12</Duration>
+
+  <!-- ═════ 文字样式 ═════ -->
+  <Style TargetType="TextBlock"><Setter Property="TextWrapping" Value="Wrap"/></Style>
+  <Style x:Key="SectionLabel" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+    <Setter Property="FontSize" Value="11"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Foreground" Value="{StaticResource MutedText}"/><Setter Property="Margin" Value="0,0,0,5"/>
+    <Setter Property="Background" Value="{StaticResource TriangleMarker}"/><Setter Property="Padding" Value="10,0,0,0"/>
+  </Style>
+  <Style x:Key="ReadoutText" TargetType="TextBlock">
+    <Setter Property="FontFamily" Value="{StaticResource LabelFont}"/><Setter Property="FontSize" Value="9.5"/><Setter Property="Foreground" Value="{StaticResource SubtleText}"/>
+    <Setter Property="TextWrapping" Value="NoWrap"/><Setter Property="VerticalAlignment" Value="Center"/><Setter Property="Typography.NumeralAlignment" Value="Tabular"/>
+  </Style>
+  <Style x:Key="SublabelText" TargetType="TextBlock">
+    <Setter Property="FontFamily" Value="{StaticResource LabelFont}"/><Setter Property="FontSize" Value="10"/><Setter Property="Foreground" Value="{StaticResource SubtleText}"/>
+    <Setter Property="TextWrapping" Value="NoWrap"/><Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+  <Style x:Key="HudHeadingText" TargetType="TextBlock">
+    <Setter Property="FontSize" Value="12.5"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Foreground" Value="{StaticResource Fg}"/>
+    <Setter Property="TextWrapping" Value="Wrap"/><Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+  <Style x:Key="NumberText" TargetType="TextBlock">
+    <Setter Property="FontFamily" Value="{StaticResource NumberFont}"/><Setter Property="Typography.NumeralAlignment" Value="Tabular"/><Setter Property="TextWrapping" Value="NoWrap"/>
+  </Style>
+  <Style x:Key="KeyHintText" TargetType="TextBlock">
+    <Setter Property="FontFamily" Value="{StaticResource LabelFont}"/><Setter Property="FontSize" Value="10"/><Setter Property="Foreground" Value="{StaticResource SubtleText}"/>
+    <Setter Property="TextWrapping" Value="NoWrap"/><Setter Property="Typography.Capitals" Value="AllSmallCaps"/>
+  </Style>
+
+  <Style x:Key="HudFocusVisual"><Setter Property="Control.Template"><Setter.Value><ControlTemplate>
+    <Rectangle Margin="-2" Stroke="{StaticResource Accent}" StrokeThickness="1" StrokeDashArray="3 2" SnapsToDevicePixels="True"/>
+  </ControlTemplate></Setter.Value></Setter></Style>
+
+  <!-- ═════ 提示 / TOOLTIP：深色名牌 ═════ -->
+  <Style TargetType="ToolTip">
+    <Setter Property="Background" Value="{StaticResource Plate}"/><Setter Property="Foreground" Value="{StaticResource PlateFg}"/>
+    <Setter Property="BorderBrush" Value="{StaticResource Accent}"/><Setter Property="Padding" Value="10,6"/><Setter Property="MaxWidth" Value="380"/>
+    <Setter Property="FontFamily" Value="{StaticResource UiFont}"/><Setter Property="FontSize" Value="12"/><Setter Property="HasDropShadow" Value="False"/>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ToolTip">
+      <ui:CutFrame Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" Cut="6" Corners="BottomRight" Padding="{TemplateBinding Padding}" EdgeWidth="2" OutlineBrush="{TemplateBinding Background}">
+        <ContentPresenter TextElement.Foreground="{TemplateBinding Foreground}"/>
+      </ui:CutFrame>
+    </ControlTemplate></Setter.Value></Setter>
+  </Style>
+
+  <!-- ═════ 按钮 / BUTTON：浅色切角；悬停雾蓝左刻线；按下压暗；键盘焦点暗红描边与底线 ═════ -->
   <Style TargetType="Button">
-    <Setter Property="Background" Value="{StaticResource Surface}"/><Setter Property="Foreground" Value="{StaticResource Fg}"/>
+    <Setter Property="Background" Value="{StaticResource Raised}"/><Setter Property="Foreground" Value="{StaticResource Fg}"/>
     <Setter Property="BorderBrush" Value="{StaticResource Stroke}"/><Setter Property="BorderThickness" Value="1"/>
     <Setter Property="Padding" Value="12,8"/><Setter Property="Margin" Value="0"/><Setter Property="Cursor" Value="Hand"/>
     <Setter Property="HorizontalContentAlignment" Value="Center"/><Setter Property="VerticalContentAlignment" Value="Center"/>
+    <Setter Property="FocusVisualStyle" Value="{x:Null}"/><Setter Property="SnapsToDevicePixels" Value="True"/>
     <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
-      <Border x:Name="ButtonFrame" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="3" Padding="{TemplateBinding Padding}"><ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}" RecognizesAccessKey="True"/></Border>
+      <Grid x:Name="Root">
+        <ui:CutFrame x:Name="ButtonFrame" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" Cut="7" Corners="BottomRight" Padding="{TemplateBinding Padding}">
+          <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}" RecognizesAccessKey="True"/>
+        </ui:CutFrame>
+        <ui:CutFrame x:Name="Wash" Background="{DynamicResource HoverWash}" Cut="7" Corners="BottomRight" Opacity="0" IsHitTestVisible="False"/>
+        <ui:CutFrame x:Name="Press" Background="{DynamicResource PressWash}" Cut="7" Corners="BottomRight" Visibility="Collapsed" IsHitTestVisible="False"/>
+        <Rectangle x:Name="Edge" Width="2" HorizontalAlignment="Left" Margin="0,4" Fill="{DynamicResource HoverEdge}" Opacity="0" IsHitTestVisible="False"/>
+        <ui:CutFrame x:Name="Focus" BorderBrush="{DynamicResource FocusRing}" Cut="7" Corners="BottomRight" Visibility="Collapsed" IsHitTestVisible="False"/>
+        <Rectangle x:Name="Underline" Height="2" VerticalAlignment="Bottom" Margin="0,0,7,0" Fill="{DynamicResource FocusRing}" Visibility="Collapsed" IsHitTestVisible="False"/>
+      </Grid>
       <ControlTemplate.Triggers>
-        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ButtonFrame" Property="BorderBrush" Value="{StaticResource Fg}"/></Trigger>
-        <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="ButtonFrame" Property="BorderBrush" Value="{StaticResource Fg}"/></Trigger>
-        <Trigger Property="IsPressed" Value="True"><Setter TargetName="ButtonFrame" Property="Opacity" Value="0.72"/></Trigger>
-        <Trigger Property="IsEnabled" Value="False"><Setter TargetName="ButtonFrame" Property="Opacity" Value="0.35"/></Trigger>
+        <Trigger Property="IsMouseOver" Value="True">
+          <Setter TargetName="ButtonFrame" Property="BorderBrush" Value="{StaticResource StrokeStrong}"/>
+          <Trigger.EnterActions><BeginStoryboard><Storyboard Timeline.DesiredFrameRate="30"><DoubleAnimation Storyboard.TargetName="Wash" Storyboard.TargetProperty="Opacity" To="1" Duration="{StaticResource Quick}"/><DoubleAnimation Storyboard.TargetName="Edge" Storyboard.TargetProperty="Opacity" To="1" Duration="{StaticResource Quick}"/></Storyboard></BeginStoryboard></Trigger.EnterActions>
+          <Trigger.ExitActions><BeginStoryboard><Storyboard Timeline.DesiredFrameRate="30"><DoubleAnimation Storyboard.TargetName="Wash" Storyboard.TargetProperty="Opacity" To="0" Duration="{StaticResource Quick}"/><DoubleAnimation Storyboard.TargetName="Edge" Storyboard.TargetProperty="Opacity" To="0" Duration="{StaticResource Quick}"/></Storyboard></BeginStoryboard></Trigger.ExitActions>
+        </Trigger>
+        <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Focus" Property="Visibility" Value="Visible"/><Setter TargetName="Underline" Property="Visibility" Value="Visible"/></Trigger>
+        <Trigger Property="IsPressed" Value="True"><Setter TargetName="Press" Property="Visibility" Value="Visible"/><Setter TargetName="Edge" Property="Width" Value="3"/></Trigger>
+        <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Root" Property="Opacity" Value="0.42"/></Trigger>
       </ControlTemplate.Triggers>
     </ControlTemplate></Setter.Value></Setter>
   </Style>
-  <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}"><Setter Property="Background" Value="{StaticResource Accent}"/><Setter Property="BorderBrush" Value="{StaticResource Accent}"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
-  <Style x:Key="QuietButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderBrush" Value="Transparent"/><Setter Property="Foreground" Value="{StaticResource MutedText}"/><Setter Property="Padding" Value="8,5"/></Style>
-  <Style TargetType="TextBox">
-    <Setter Property="Background" Value="{StaticResource Inset}"/><Setter Property="Foreground" Value="{StaticResource Fg}"/><Setter Property="CaretBrush" Value="{StaticResource Fg}"/>
-    <Setter Property="BorderBrush" Value="{StaticResource Stroke}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="Padding" Value="10,8"/><Setter Property="SelectionBrush" Value="{StaticResource PlayingFill}"/>
-    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TextBox"><Border x:Name="Field" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="3"><ScrollViewer x:Name="PART_ContentHost"/></Border><ControlTemplate.Triggers><Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="Field" Property="BorderBrush" Value="{StaticResource NormalAccent}"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+  <!-- 主按钮：暗红实底，白字；焦点为白色内框 + 底线。 -->
+  <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+    <Style.Resources>
+      <SolidColorBrush x:Key="FocusRing" Color="#FFFFFF"/>
+      <SolidColorBrush x:Key="HoverEdge" Color="#FFFFFF"/>
+      <SolidColorBrush x:Key="HoverWash" Color="#1FFFFFFF"/>
+      <SolidColorBrush x:Key="PressWash" Color="#26000000"/>
+    </Style.Resources>
+    <Setter Property="Background" Value="{StaticResource PrimaryFill}"/><Setter Property="BorderBrush" Value="{StaticResource AccentPressed}"/>
+    <Setter Property="Foreground" Value="#FFFFFF"/><Setter Property="FontWeight" Value="SemiBold"/>
   </Style>
-  <Style TargetType="ListBox"><Setter Property="Background" Value="Transparent"/><Setter Property="Foreground" Value="{StaticResource Fg}"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="0"/><Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/><Setter Property="ScrollViewer.CanContentScroll" Value="True"/><Setter Property="VirtualizingPanel.IsVirtualizing" Value="True"/><Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling"/></Style>
+  <!-- 轻按钮：文字按钮；悬停加深并出现暗红下划线。 -->
+  <Style x:Key="QuietButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+    <Setter Property="Background" Value="Transparent"/><Setter Property="BorderBrush" Value="Transparent"/>
+    <Setter Property="Foreground" Value="{StaticResource MutedText}"/><Setter Property="Padding" Value="8,5"/>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+      <Grid x:Name="Root" Background="Transparent">
+        <ui:CutFrame x:Name="ButtonFrame" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" Cut="5" Corners="BottomRight" Padding="{TemplateBinding Padding}">
+          <ContentPresenter x:Name="Label" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}" RecognizesAccessKey="True"/>
+        </ui:CutFrame>
+        <ui:CutFrame x:Name="Wash" Background="{StaticResource HoverWash}" Cut="5" Corners="BottomRight" Opacity="0" IsHitTestVisible="False"/>
+        <Rectangle x:Name="Underline" Height="1.5" VerticalAlignment="Bottom" HorizontalAlignment="Stretch" Margin="6,0,6,1" Fill="{StaticResource Accent}" RenderTransformOrigin="0,0.5" IsHitTestVisible="False">
+          <Rectangle.RenderTransform><ScaleTransform ScaleX="0"/></Rectangle.RenderTransform>
+        </Rectangle>
+        <ui:CutFrame x:Name="Focus" BorderBrush="{StaticResource Accent}" Cut="5" Corners="BottomRight" Visibility="Collapsed" IsHitTestVisible="False"/>
+      </Grid>
+      <ControlTemplate.Triggers>
+        <Trigger Property="IsMouseOver" Value="True">
+          <Setter Property="Foreground" Value="{StaticResource Fg}"/>
+          <Trigger.EnterActions><BeginStoryboard><Storyboard Timeline.DesiredFrameRate="30"><DoubleAnimation Storyboard.TargetName="Underline" Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)" To="1" Duration="{StaticResource Quick}"/><DoubleAnimation Storyboard.TargetName="Wash" Storyboard.TargetProperty="Opacity" To="1" Duration="{StaticResource Quick}"/></Storyboard></BeginStoryboard></Trigger.EnterActions>
+          <Trigger.ExitActions><BeginStoryboard><Storyboard Timeline.DesiredFrameRate="30"><DoubleAnimation Storyboard.TargetName="Underline" Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)" To="0" Duration="{StaticResource Quick}"/><DoubleAnimation Storyboard.TargetName="Wash" Storyboard.TargetProperty="Opacity" To="0" Duration="{StaticResource Quick}"/></Storyboard></BeginStoryboard></Trigger.ExitActions>
+        </Trigger>
+        <Trigger Property="IsKeyboardFocused" Value="True"><Setter Property="Foreground" Value="{StaticResource Fg}"/><Setter TargetName="Focus" Property="Visibility" Value="Visible"/></Trigger>
+        <Trigger Property="IsPressed" Value="True"><Setter Property="Foreground" Value="{StaticResource AccentText}"/></Trigger>
+        <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Root" Property="Opacity" Value="0.42"/></Trigger>
+      </ControlTemplate.Triggers>
+    </ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <!-- 标题区窗口按钮（收起 / 退出）：封面上的半透明浅色小片 -->
+  <Style x:Key="ChromeButton" TargetType="Button" BasedOn="{StaticResource QuietButton}">
+    <Setter Property="Background" Value="#E6F4F5F7"/><Setter Property="BorderBrush" Value="{StaticResource Stroke}"/><Setter Property="Foreground" Value="{StaticResource Fg}"/>
+    <Setter Property="FontFamily" Value="{StaticResource LabelFont}"/><Setter Property="Padding" Value="9,4"/><Setter Property="MinHeight" Value="26"/>
+  </Style>
+
+  <!-- 工具条芯片：线性图标 + 文字 + 按键角标（按钮内容原文不变，由转换器拆分显示）。 -->
+  <Style x:Key="ToolChip" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+    <Setter Property="Background" Value="{StaticResource CardFill}"/><Setter Property="Foreground" Value="{StaticResource Fg}"/>
+    <Setter Property="Padding" Value="7,5"/><Setter Property="Margin" Value="0,0,4,5"/><Setter Property="FontSize" Value="12"/>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+      <Grid x:Name="Root">
+        <ui:CutFrame x:Name="ButtonFrame" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" Cut="6" Corners="BottomRight" Padding="{TemplateBinding Padding}">
+          <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+            <Path x:Name="Icon" Data="{Binding (ui:Ui.Icon), RelativeSource={RelativeSource TemplatedParent}}" Stroke="{StaticResource Slate}" StrokeThickness="1.3" Width="13" Height="13" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+            <TextBlock x:Name="Label" Text="{Binding Content, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource ChipPart}, ConverterParameter=label}" TextWrapping="NoWrap" VerticalAlignment="Center"/>
+            <Border x:Name="Key" Background="{StaticResource Plate}" Margin="6,0,0,0" Padding="4,0,4,1" VerticalAlignment="Center">
+              <TextBlock x:Name="KeyText" Text="{Binding Content, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource ChipPart}, ConverterParameter=key}" FontFamily="{StaticResource LabelFont}" FontSize="9.5" Foreground="{StaticResource PlateFg}" TextWrapping="NoWrap"/>
+            </Border>
+          </StackPanel>
+        </ui:CutFrame>
+        <ui:CutFrame x:Name="Press" Background="{StaticResource PressWash}" Cut="6" Corners="BottomRight" Visibility="Collapsed" IsHitTestVisible="False"/>
+        <Rectangle x:Name="Edge" Width="2" HorizontalAlignment="Left" Margin="0,3" Fill="{StaticResource Accent}" Visibility="Collapsed" IsHitTestVisible="False"/>
+        <ui:CutFrame x:Name="Focus" BorderBrush="{StaticResource FocusRing}" StrokeThickness="1.5" Cut="6" Corners="BottomRight" Visibility="Collapsed" IsHitTestVisible="False"/>
+      </Grid>
+      <ControlTemplate.Triggers>
+        <Trigger SourceName="KeyText" Property="Text" Value=""><Setter TargetName="Key" Property="Visibility" Value="Collapsed"/></Trigger>
+        <Trigger SourceName="Icon" Property="Data" Value="{x:Null}"><Setter TargetName="Icon" Property="Visibility" Value="Collapsed"/></Trigger>
+        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ButtonFrame" Property="BorderBrush" Value="{StaticResource Slate}"/><Setter TargetName="ButtonFrame" Property="Background" Value="#FFFFFF"/><Setter TargetName="Icon" Property="Stroke" Value="{StaticResource Accent}"/></Trigger>
+        <Trigger Property="ui:Ui.Tone" Value="compact"><Setter TargetName="Icon" Property="Visibility" Value="Collapsed"/></Trigger>
+        <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Focus" Property="Visibility" Value="Visible"/><Setter TargetName="Edge" Property="Visibility" Value="Visible"/></Trigger>
+        <Trigger Property="IsPressed" Value="True"><Setter TargetName="Press" Property="Visibility" Value="Visible"/><Setter TargetName="Edge" Property="Visibility" Value="Visible"/></Trigger>
+        <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Root" Property="Opacity" Value="0.42"/></Trigger>
+      </ControlTemplate.Triggers>
+    </ControlTemplate></Setter.Value></Setter>
+  </Style>
+
+  <!-- 播放轨道节点：菱形节点 + 线性图标 + 小字标签；整格约 64×52 可点击，键盘 / 手柄焦点为暗红外菱形与底线。 -->
+  <Style x:Key="NodeButton" TargetType="Button">
+    <Setter Property="Foreground" Value="{StaticResource MutedText}"/><Setter Property="Cursor" Value="Hand"/><Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="FontSize" Value="10.5"/><Setter Property="MinWidth" Value="64"/><Setter Property="MinHeight" Value="44"/><Setter Property="Padding" Value="0"/>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+      <Grid x:Name="Root" Background="Transparent" MinHeight="66">
+        <Grid Width="32" Height="32" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,6,0,0">
+          <Path x:Name="Ring" Data="M16,-3 L35,16 L16,35 L-3,16 Z" Stroke="{StaticResource Accent}" StrokeThickness="1" Visibility="Collapsed"/>
+          <Path x:Name="Node" Data="M16,1 L31,16 L16,31 L1,16 Z" Fill="#FFFFFF" Stroke="{StaticResource StrokeStrong}" StrokeThickness="1.2"/>
+          <Path x:Name="Icon" Data="{Binding (ui:Ui.Icon), RelativeSource={RelativeSource TemplatedParent}}" Stroke="{StaticResource Plate}" StrokeThickness="1.4" Width="12" Height="12" Stretch="Uniform" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Grid>
+        <!-- 名称铭牌（10-A3 语言）：浅色切角小牌 + 发丝描边 + 左上暗红短刻，整块位于确认铭牌下沿之下（轨道 66：铭牌 4–40，名称牌 43–62）；
+             中文深石板 SemiBold 12（对比约 13:1），右侧压缩英文副标雾蓝（约 5:1）。窄宽时由 PlaybackDeck 设 CaptionMode：dense 去英文，none 只留菱形（名称见提示）。 -->
+        <Grid x:Name="Label" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,43,0,0" SnapsToDevicePixels="True">
+          <ui:CutFrame x:Name="Cap" Background="#F4F6F8" BorderBrush="#BCC5CE" Cut="5" Corners="BottomRight">
+            <StackPanel Orientation="Horizontal" Margin="8,1,9,2">
+              <ContentPresenter x:Name="CapText" VerticalAlignment="Center" RecognizesAccessKey="True" TextElement.FontSize="12" TextElement.FontWeight="SemiBold" TextElement.Foreground="#1F2A36"/>
+              <TextBlock x:Name="Sub" Text="{Binding (ui:Ui.Sublabel), RelativeSource={RelativeSource TemplatedParent}}" FontFamily="{StaticResource LabelFont}" FontSize="8.5" FontWeight="SemiBold" Foreground="#4F6B8A" Margin="5,1,0,0" VerticalAlignment="Center" TextWrapping="NoWrap"/>
+            </StackPanel>
+          </ui:CutFrame>
+          <Rectangle x:Name="CapTick" Width="8" Height="2" Fill="{StaticResource Accent}" HorizontalAlignment="Left" VerticalAlignment="Top" IsHitTestVisible="False"/>
+        </Grid>
+        <Rectangle x:Name="Underline" Height="1.5" Width="18" Fill="{StaticResource Accent}" VerticalAlignment="Top" Margin="0,64,0,0" Visibility="Hidden"/>
+      </Grid>
+      <ControlTemplate.Triggers>
+        <Trigger Property="ui:Ui.Sublabel" Value=""><Setter TargetName="Sub" Property="Visibility" Value="Collapsed"/></Trigger>
+        <Trigger Property="ui:Ui.CaptionMode" Value="dense"><Setter TargetName="Sub" Property="Visibility" Value="Collapsed"/></Trigger>
+        <Trigger Property="ui:Ui.CaptionMode" Value="none"><Setter TargetName="Label" Property="Visibility" Value="Collapsed"/></Trigger>
+        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Node" Property="Stroke" Value="{StaticResource Slate}"/><Setter TargetName="Icon" Property="Stroke" Value="{StaticResource Accent}"/><Setter Property="Foreground" Value="{StaticResource Fg}"/><Setter TargetName="Cap" Property="BorderBrush" Value="{StaticResource Slate}"/><Setter TargetName="Cap" Property="Background" Value="#FFFFFF"/></Trigger>
+        <Trigger Property="IsPressed" Value="True"><Setter TargetName="Node" Property="Fill" Value="{StaticResource AccentFill}"/><Setter TargetName="Node" Property="Stroke" Value="{StaticResource Accent}"/><Setter TargetName="Cap" Property="Background" Value="{StaticResource AccentFill}"/><Setter TargetName="Cap" Property="BorderBrush" Value="{StaticResource Accent}"/></Trigger>
+        <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Ring" Property="Visibility" Value="Visible"/><Setter TargetName="Node" Property="Stroke" Value="{StaticResource Accent}"/><Setter TargetName="Underline" Property="Visibility" Value="Visible"/><Setter Property="Foreground" Value="{StaticResource Fg}"/></Trigger>
+        <!-- 紧凑高度：只留菱形节点（名称见提示），轨道高 44 -->
+        <Trigger Property="ui:Ui.Tone" Value="compact"><Setter TargetName="Label" Property="Visibility" Value="Collapsed"/><Setter TargetName="Root" Property="MinHeight" Value="44"/><Setter TargetName="Underline" Property="Margin" Value="0,41,0,0"/></Trigger>
+        <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Root" Property="Opacity" Value="0.4"/></Trigger>
+      </ControlTemplate.Triggers>
+    </ControlTemplate></Setter.Value></Setter>
+  </Style>
+
+  <!-- 确认播放：居中的六边形暗红铭牌（不是整行长条）；焦点为外圈暗红细框 + 白色内线。 -->
+  <Style x:Key="ConfirmPlate" TargetType="Button">
+    <Setter Property="Foreground" Value="#FFFFFF"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="FocusVisualStyle" Value="{x:Null}"/><Setter Property="HorizontalAlignment" Value="Center"/><Setter Property="MinWidth" Value="196"/><Setter Property="MinHeight" Value="34"/>
+    <Setter Property="Padding" Value="12,8"/>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+      <Grid x:Name="Root">
+        <Path x:Name="Ring" Data="M12,0 H188 L200,20 L188,40 H12 L0,20 Z" Stretch="Fill" Stroke="{StaticResource Accent}" StrokeThickness="1" Margin="-4" Visibility="Collapsed"/>
+        <Path x:Name="Shape" Data="M12,0 H188 L200,20 L188,40 H12 L0,20 Z" Stretch="Fill" Fill="{StaticResource PrimaryFill}"/>
+        <Path x:Name="Inner" Data="M12,0 H188 L200,20 L188,40 H12 L0,20 Z" Stretch="Fill" Stroke="#40FFFFFF" StrokeThickness="1" Margin="3"/>
+        <Border Padding="{TemplateBinding Padding}" Margin="18,0" HorizontalAlignment="Center" VerticalAlignment="Center">
+          <TextBlock Text="{Binding Content, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource CompactText}}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+        </Border>
+      </Grid>
+      <ControlTemplate.Triggers>
+        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Shape" Property="Fill" Value="{StaticResource AccentHover}"/></Trigger>
+        <Trigger Property="IsPressed" Value="True"><Setter TargetName="Shape" Property="Fill" Value="{StaticResource AccentPressed}"/></Trigger>
+        <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Ring" Property="Visibility" Value="Visible"/><Setter TargetName="Inner" Property="Stroke" Value="#FFFFFF"/></Trigger>
+        <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Root" Property="Opacity" Value="0.42"/></Trigger>
+      </ControlTemplate.Triggers>
+    </ControlTemplate></Setter.Value></Setter>
+  </Style>
+
+  <!-- 次级开关（暂停/跟随、游戏原声）：菱形状态灯 + 文字 + 状态标签；Ui.Tone = teal（跟随中）/ red（原声开）/ 其他 = 关。 -->
+  <Style x:Key="SoftToggle" TargetType="Button">
+    <Setter Property="Foreground" Value="{StaticResource MutedText}"/><Setter Property="Cursor" Value="Hand"/><Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="FontSize" Value="11.5"/><Setter Property="Padding" Value="9,4"/><Setter Property="MinHeight" Value="28"/>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+      <Grid x:Name="Root">
+        <ui:CutFrame x:Name="Frame" Background="{StaticResource CardFill}" BorderBrush="{StaticResource Stroke}" Cut="6" Corners="BottomRight" Padding="{TemplateBinding Padding}">
+          <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+            <Rectangle x:Name="Led" Width="6" Height="6" Fill="{StaticResource StrokeStrong}" VerticalAlignment="Center" Margin="0,0,7,0"><Rectangle.LayoutTransform><RotateTransform Angle="45"/></Rectangle.LayoutTransform></Rectangle>
+            <ContentPresenter VerticalAlignment="Center" RecognizesAccessKey="True"/>
+            <TextBlock x:Name="State" Text="{Binding (ui:Ui.StateText), RelativeSource={RelativeSource TemplatedParent}}" FontFamily="{StaticResource LabelFont}" FontSize="9.5" Foreground="{StaticResource SubtleText}" Margin="7,1,0,0" VerticalAlignment="Center" TextWrapping="NoWrap"/>
+          </StackPanel>
+        </ui:CutFrame>
+        <ui:CutFrame x:Name="Focus" BorderBrush="{StaticResource FocusRing}" StrokeThickness="1.5" Cut="6" Corners="BottomRight" Visibility="Collapsed" IsHitTestVisible="False"/>
+      </Grid>
+      <ControlTemplate.Triggers>
+        <Trigger Property="ui:Ui.Tone" Value="teal"><Setter TargetName="Frame" Property="Background" Value="{StaticResource TealFill}"/><Setter TargetName="Frame" Property="BorderBrush" Value="{StaticResource Teal}"/><Setter TargetName="Led" Property="Fill" Value="{StaticResource Teal}"/><Setter Property="Foreground" Value="{StaticResource TealText}"/><Setter TargetName="State" Property="Foreground" Value="{StaticResource TealText}"/></Trigger>
+        <Trigger Property="ui:Ui.Tone" Value="red"><Setter TargetName="Frame" Property="Background" Value="{StaticResource AccentFill}"/><Setter TargetName="Frame" Property="BorderBrush" Value="{StaticResource Accent}"/><Setter TargetName="Led" Property="Fill" Value="{StaticResource Accent}"/><Setter Property="Foreground" Value="{StaticResource AccentText}"/><Setter TargetName="State" Property="Foreground" Value="{StaticResource AccentText}"/></Trigger>
+        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Frame" Property="BorderBrush" Value="{StaticResource Slate}"/></Trigger>
+        <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Focus" Property="Visibility" Value="Visible"/></Trigger>
+        <Trigger Property="IsPressed" Value="True"><Setter TargetName="Frame" Property="Background" Value="{StaticResource SlateFill}"/></Trigger>
+        <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Root" Property="Opacity" Value="0.42"/></Trigger>
+      </ControlTemplate.Triggers>
+    </ControlTemplate></Setter.Value></Setter>
+  </Style>
+
+  <!-- ═════ 开关按钮 / TOGGLEBUTTON ═════ -->
+  <Style TargetType="ToggleButton">
+    <Setter Property="Background" Value="{StaticResource Raised}"/><Setter Property="Foreground" Value="{StaticResource Fg}"/>
+    <Setter Property="BorderBrush" Value="{StaticResource Stroke}"/><Setter Property="Padding" Value="12,8"/><Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="FocusVisualStyle" Value="{x:Null}"/><Setter Property="HorizontalContentAlignment" Value="Center"/><Setter Property="VerticalContentAlignment" Value="Center"/>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ToggleButton">
+      <Grid x:Name="Root">
+        <ui:CutFrame x:Name="ButtonFrame" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" Cut="7" Corners="BottomRight" Padding="{TemplateBinding Padding}">
+          <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}" RecognizesAccessKey="True"/>
+        </ui:CutFrame>
+        <Rectangle x:Name="Edge" Width="3" HorizontalAlignment="Left" Fill="{StaticResource Accent}" Visibility="Collapsed" IsHitTestVisible="False"/>
+      </Grid>
+      <ControlTemplate.Triggers>
+        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ButtonFrame" Property="BorderBrush" Value="{StaticResource Slate}"/></Trigger>
+        <Trigger Property="IsChecked" Value="True"><Setter TargetName="ButtonFrame" Property="Background" Value="{StaticResource AccentFill}"/><Setter TargetName="Edge" Property="Visibility" Value="Visible"/></Trigger>
+        <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="ButtonFrame" Property="BorderBrush" Value="{StaticResource Accent}"/></Trigger>
+        <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Root" Property="Opacity" Value="0.42"/></Trigger>
+      </ControlTemplate.Triggers>
+    </ControlTemplate></Setter.Value></Setter>
+  </Style>
+
+  <!-- ═════ 输入框 / TEXTBOX ═════ -->
+  <Style TargetType="TextBox">
+    <Setter Property="Background" Value="{StaticResource Inset}"/><Setter Property="Foreground" Value="{StaticResource Fg}"/><Setter Property="CaretBrush" Value="{StaticResource Accent}"/>
+    <Setter Property="BorderBrush" Value="{StaticResource Stroke}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="Padding" Value="10,8"/>
+    <Setter Property="SelectionBrush" Value="{StaticResource Accent}"/><Setter Property="SelectionOpacity" Value="0.25"/><Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TextBox">
+      <Grid x:Name="Root">
+        <ui:CutFrame x:Name="Field" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" Cut="7" Corners="BottomRight">
+          <ScrollViewer x:Name="PART_ContentHost" Focusable="False"/>
+        </ui:CutFrame>
+        <Rectangle x:Name="Underline" Height="2" VerticalAlignment="Bottom" Margin="0,0,7,0" Fill="{StaticResource Accent}" Visibility="Collapsed" IsHitTestVisible="False"/>
+      </Grid>
+      <ControlTemplate.Triggers>
+        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Field" Property="BorderBrush" Value="{StaticResource StrokeStrong}"/></Trigger>
+        <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="Field" Property="BorderBrush" Value="{StaticResource Accent}"/><Setter TargetName="Field" Property="Background" Value="#FFFFFF"/><Setter TargetName="Underline" Property="Visibility" Value="Visible"/></Trigger>
+        <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Root" Property="Opacity" Value="0.5"/></Trigger>
+      </ControlTemplate.Triggers>
+    </ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <!-- ═════ 列表 / LISTBOX ═════ -->
+  <Style TargetType="ListBox">
+    <Setter Property="Background" Value="Transparent"/><Setter Property="Foreground" Value="{StaticResource Fg}"/><Setter Property="BorderBrush" Value="{StaticResource Stroke}"/>
+    <Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="0"/>
+    <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/><Setter Property="ScrollViewer.CanContentScroll" Value="True"/>
+    <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True"/><Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling"/>
+    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBox">
+      <Border x:Name="Frame" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" SnapsToDevicePixels="True">
+        <ScrollViewer Focusable="False" Padding="{TemplateBinding Padding}"><ItemsPresenter SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/></ScrollViewer>
+      </Border>
+      <ControlTemplate.Triggers>
+        <MultiTrigger><MultiTrigger.Conditions><Condition Property="IsKeyboardFocusWithin" Value="True"/><Condition Property="BorderThickness" Value="1"/></MultiTrigger.Conditions><Setter TargetName="Frame" Property="BorderBrush" Value="{StaticResource StrokeStrong}"/></MultiTrigger>
+        <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Frame" Property="Opacity" Value="0.5"/></Trigger>
+        <Trigger Property="IsGrouping" Value="True"><Setter Property="ScrollViewer.CanContentScroll" Value="False"/></Trigger>
+      </ControlTemplate.Triggers>
+    </ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <!-- 列表项：悬停浅白；选中 = 白底 + 细框 + 左侧暗红刻条。 -->
   <Style TargetType="ListBoxItem">
     <Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="Padding" Value="0"/><Setter Property="Margin" Value="0,1"/>
-    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem"><Border x:Name="Frame" Background="Transparent" BorderBrush="Transparent" BorderThickness="1" CornerRadius="3" Padding="{TemplateBinding Padding}"><ContentPresenter/></Border><ControlTemplate.Triggers>
-      <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Frame" Property="Background" Value="{StaticResource Surface}"/></Trigger>
-      <Trigger Property="IsSelected" Value="True"><Setter TargetName="Frame" Property="BorderBrush" Value="{StaticResource Fg}"/></Trigger>
-    </ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem">
+      <Grid>
+        <ui:CutFrame x:Name="Frame" Background="Transparent" Cut="7" Corners="BottomRight" StrokeThickness="1" Padding="{TemplateBinding Padding}">
+          <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"/>
+        </ui:CutFrame>
+        <Rectangle x:Name="Bar" Width="3" HorizontalAlignment="Left" Fill="{StaticResource Accent}" Visibility="Collapsed" IsHitTestVisible="False"/>
+      </Grid>
+      <ControlTemplate.Triggers>
+        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Frame" Property="Background" Value="#99FFFFFF"/><Setter TargetName="Frame" Property="BorderBrush" Value="{StaticResource Stroke}"/></Trigger>
+        <Trigger Property="IsSelected" Value="True"><Setter TargetName="Frame" Property="Background" Value="{StaticResource SelectedFill}"/><Setter TargetName="Frame" Property="BorderBrush" Value="{StaticResource StrokeStrong}"/><Setter TargetName="Bar" Property="Visibility" Value="Visible"/></Trigger>
+        <MultiTrigger><MultiTrigger.Conditions><Condition Property="IsSelected" Value="True"/><Condition Property="Selector.IsSelectionActive" Value="True"/></MultiTrigger.Conditions><Setter TargetName="Frame" Property="BorderBrush" Value="{StaticResource Slate}"/></MultiTrigger>
+        <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.45"/></Trigger>
+      </ControlTemplate.Triggers>
+    </ControlTemplate></Setter.Value></Setter>
   </Style>
+  <!-- 台词行：左侧序号刻度 + 说话人色条；隔行浅白；选中为白底、暗红序号与刻条。 -->
+  <Style x:Key="LineItem" TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+    <Setter Property="Margin" Value="0"/>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem">
+      <Grid x:Name="Root" Background="Transparent">
+        <Grid.ColumnDefinitions><ColumnDefinition Width="30"/><ColumnDefinition Width="3"/><ColumnDefinition/></Grid.ColumnDefinitions>
+        <Border x:Name="Tint" Grid.ColumnSpan="3" Background="Transparent"/>
+        <Rectangle Grid.ColumnSpan="3" Height="1" VerticalAlignment="Bottom" Fill="#80CBD1D7"/>
+        <StackPanel Margin="0,9,0,0" HorizontalAlignment="Right" VerticalAlignment="Top">
+          <TextBlock x:Name="Index" Text="{Binding (ItemsControl.AlternationIndex), RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource Ordinal}, ConverterParameter=000}"
+                     Style="{StaticResource NumberText}" FontSize="10" Foreground="{StaticResource SubtleText}" Margin="0,0,6,0"/>
+          <Rectangle x:Name="Tick" Height="1" Width="10" HorizontalAlignment="Right" Fill="{StaticResource StrokeStrong}" Margin="0,3,0,0"/>
+        </StackPanel>
+        <Rectangle Grid.Column="1" Fill="{Binding Node.Speaker, Converter={StaticResource SpeakerTone}}" Margin="0,6"/>
+        <ContentPresenter Grid.Column="2" Margin="2,0,0,0" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"/>
+        <Rectangle x:Name="Bar" Grid.Column="0" Width="3" HorizontalAlignment="Left" Fill="{StaticResource Accent}" Visibility="Collapsed" IsHitTestVisible="False"/>
+      </Grid>
+      <ControlTemplate.Triggers>
+        <DataTrigger Binding="{Binding (ItemsControl.AlternationIndex), RelativeSource={RelativeSource Self}, Converter={StaticResource Odd}}" Value="True"><Setter TargetName="Tint" Property="Background" Value="#59FFFFFF"/></DataTrigger>
+        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Tint" Property="Background" Value="#B3FFFFFF"/><Setter TargetName="Tick" Property="Fill" Value="{StaticResource Slate}"/></Trigger>
+        <Trigger Property="IsSelected" Value="True"><Setter TargetName="Tint" Property="Background" Value="#FFFFFF"/><Setter TargetName="Bar" Property="Visibility" Value="Visible"/><Setter TargetName="Index" Property="Foreground" Value="{StaticResource AccentText}"/><Setter TargetName="Index" Property="FontWeight" Value="SemiBold"/><Setter TargetName="Tick" Property="Fill" Value="{StaticResource Accent}"/></Trigger>
+        <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.45"/></Trigger>
+      </ControlTemplate.Triggers>
+    </ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <!-- 分支选项：带序号的黄铜选项卡。 -->
   <Style x:Key="BranchOptionStyle" TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
     <Setter Property="Margin" Value="0,3"/>
-    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem"><Border x:Name="OptionFrame" Background="{StaticResource Surface}" BorderBrush="{StaticResource Stroke}" BorderThickness="1" CornerRadius="3" Padding="10,8"><ContentPresenter/></Border><ControlTemplate.Triggers>
-      <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="OptionFrame" Property="BorderBrush" Value="{StaticResource BranchAccent}"/></Trigger>
-      <Trigger Property="IsSelected" Value="True"><Setter TargetName="OptionFrame" Property="Background" Value="{StaticResource BranchFill}"/><Setter TargetName="OptionFrame" Property="BorderBrush" Value="{StaticResource BranchAccent}"/></Trigger>
-    </ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem">
+      <Grid>
+        <ui:CutFrame x:Name="OptionFrame" Background="{StaticResource CardFill}" BorderBrush="{StaticResource Stroke}" Cut="9" Corners="BottomRight" Padding="0">
+          <Grid>
+            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/></Grid.ColumnDefinitions>
+            <ContentPresenter Grid.Column="1" Margin="8,8,10,8"/>
+            <TextBlock x:Name="Index" Text="{Binding (ItemsControl.AlternationIndex), RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource Ordinal}}"
+                       Style="{StaticResource NumberText}" FontSize="12" Foreground="{StaticResource SubtleText}" Margin="11,9,0,0" Width="18" VerticalAlignment="Top" IsHitTestVisible="False"/>
+          </Grid>
+        </ui:CutFrame>
+        <Rectangle x:Name="Bar" Width="3" HorizontalAlignment="Left" Fill="{StaticResource Brass}" Visibility="Collapsed" IsHitTestVisible="False"/>
+      </Grid>
+      <ControlTemplate.Triggers>
+        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="OptionFrame" Property="BorderBrush" Value="{StaticResource BranchStroke}"/><Setter TargetName="Index" Property="Foreground" Value="{StaticResource BranchAccent}"/></Trigger>
+        <Trigger Property="IsSelected" Value="True"><Setter TargetName="OptionFrame" Property="Background" Value="{StaticResource BranchFill}"/><Setter TargetName="OptionFrame" Property="BorderBrush" Value="{StaticResource Brass}"/><Setter TargetName="Index" Property="Foreground" Value="{StaticResource BranchAccent}"/><Setter TargetName="Bar" Property="Visibility" Value="Visible"/></Trigger>
+        <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.45"/></Trigger>
+      </ControlTemplate.Triggers>
+    </ControlTemplate></Setter.Value></Setter>
+  </Style>
+
+  <!-- ═════ 选项卡 / TABS：深石板斜切标签条；选中项为与内容同色的“文件夹标签” ═════ -->
+  <Style TargetType="TabControl">
+    <Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="0"/>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TabControl">
+      <Grid KeyboardNavigation.TabNavigation="Local" SnapsToDevicePixels="True">
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+        <ui:CutFrame Background="{StaticResource PlateGradient}" Cut="14" Corners="TopRight"/>
+        <Rectangle Height="2" Width="40" HorizontalAlignment="Left" VerticalAlignment="Top" Fill="{StaticResource Accent}"/>
+        <TabPanel x:Name="HeaderPanel" IsItemsHost="True" Panel.ZIndex="1" KeyboardNavigation.TabIndex="1" Margin="4,5,18,0"/>
+        <Border Grid.Row="1" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}" KeyboardNavigation.TabNavigation="Local" KeyboardNavigation.DirectionalNavigation="Contained" KeyboardNavigation.TabIndex="2">
+          <ContentPresenter x:Name="PART_SelectedContentHost" ContentSource="SelectedContent"/>
+        </Border>
+      </Grid>
+    </ControlTemplate></Setter.Value></Setter>
   </Style>
   <Style TargetType="TabItem">
-    <Setter Property="Foreground" Value="{StaticResource MutedText}"/><Setter Property="Padding" Value="18,9"/>
-    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TabItem"><Border Background="Transparent" Padding="{TemplateBinding Padding}" BorderBrush="Transparent" BorderThickness="0,0,0,2" x:Name="TabFrame"><ContentPresenter ContentSource="Header"/></Border><ControlTemplate.Triggers><Trigger Property="IsSelected" Value="True"><Setter TargetName="TabFrame" Property="BorderBrush" Value="{StaticResource Accent}"/><Setter Property="Foreground" Value="{StaticResource Fg}"/></Trigger><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="TabFrame" Property="Background" Value="{StaticResource Surface}"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+    <Setter Property="Foreground" Value="#D3D9E0"/><Setter Property="Padding" Value="10,5,12,4"/><Setter Property="FocusVisualStyle" Value="{x:Null}"/><Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TabItem">
+      <Grid x:Name="Root" Background="Transparent">
+        <ui:CutFrame x:Name="TabFrame" Background="Transparent" Cut="8" Corners="TopRight" Padding="{TemplateBinding Padding}">
+          <StackPanel>
+            <ContentPresenter ContentSource="Header" HorizontalAlignment="Left" TextElement.FontWeight="SemiBold" RecognizesAccessKey="True"/>
+            <TextBlock x:Name="Sub" Text="{Binding Header, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource Sublabel}}" Style="{StaticResource SublabelText}" Foreground="{StaticResource PlateSub}" FontSize="8.5" Margin="0,1,0,0"/>
+          </StackPanel>
+        </ui:CutFrame>
+        <Rectangle x:Name="TopBar" Height="2" Width="16" HorizontalAlignment="Left" VerticalAlignment="Top" Fill="{StaticResource Accent}" Visibility="Collapsed"/>
+        <Rectangle x:Name="FocusLine" Height="2" VerticalAlignment="Bottom" Margin="6,0,10,2" Fill="{StaticResource Accent}" Visibility="Collapsed"/>
+      </Grid>
+      <ControlTemplate.Triggers>
+        <Trigger SourceName="Sub" Property="Text" Value=""><Setter TargetName="Sub" Property="Visibility" Value="Collapsed"/></Trigger>
+        <DataTrigger Binding="{Binding (ui:Ui.Tone), RelativeSource={RelativeSource AncestorType={x:Type TabControl}}}" Value="compact"><Setter Property="Padding" Value="8,6,8,6"/><Setter TargetName="Sub" Property="Visibility" Value="Collapsed"/></DataTrigger>
+        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="TabFrame" Property="Background" Value="#1FFFFFFF"/><Setter Property="Foreground" Value="#FFFFFF"/></Trigger>
+        <Trigger Property="IsSelected" Value="True">
+          <Setter Property="Foreground" Value="{StaticResource Fg}"/><Setter TargetName="TabFrame" Property="Background" Value="{StaticResource Bg}"/>
+          <Setter TargetName="TopBar" Property="Visibility" Value="Visible"/><Setter TargetName="Sub" Property="Foreground" Value="{StaticResource AccentText}"/>
+        </Trigger>
+        <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="FocusLine" Property="Visibility" Value="Visible"/></Trigger>
+        <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Root" Property="Opacity" Value="0.4"/></Trigger>
+      </ControlTemplate.Triggers>
+    </ControlTemplate></Setter.Value></Setter>
   </Style>
+
+  <!-- ═════ 下拉框 / COMBOBOX：白色字段 + 左侧雾蓝刻条 + 右侧箭头格 ═════ -->
   <Style TargetType="ComboBox">
-    <Setter Property="Foreground" Value="{StaticResource Fg}"/><Setter Property="Background" Value="{StaticResource Surface}"/><Setter Property="MinHeight" Value="34"/><Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
-    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ComboBox"><Grid>
-      <Border x:Name="ComboFrame" Background="{TemplateBinding Background}" BorderBrush="{StaticResource Stroke}" BorderThickness="1" CornerRadius="3"/>
-      <ContentPresenter Margin="10,6,28,6" VerticalAlignment="Center" IsHitTestVisible="False" Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"/>
-      <Path Data="M0,0 L4,4 L8,0" Stroke="{StaticResource MutedText}" StrokeThickness="1.5" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,12,0" IsHitTestVisible="False"/>
+    <Setter Property="Foreground" Value="{StaticResource Fg}"/><Setter Property="Background" Value="{StaticResource CardFill}"/><Setter Property="BorderBrush" Value="{StaticResource Stroke}"/>
+    <Setter Property="MinHeight" Value="34"/><Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/><Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ComboBox"><Grid x:Name="Root">
+      <ui:CutFrame x:Name="ComboFrame" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" Cut="7" Corners="BottomRight"/>
+      <Rectangle Width="29" HorizontalAlignment="Right" Margin="0,1,6,1" Fill="{StaticResource SlateFill}" IsHitTestVisible="False"/>
+      <Rectangle Width="1" HorizontalAlignment="Right" Margin="0,1,35,1" Fill="{StaticResource Stroke}" IsHitTestVisible="False"/>
+      <Rectangle Width="2" Height="12" HorizontalAlignment="Left" VerticalAlignment="Center" Fill="{StaticResource Slate}" IsHitTestVisible="False"/>
+      <ContentPresenter Margin="11,6,44,6" VerticalAlignment="Center" IsHitTestVisible="False" Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"/>
+      <Path x:Name="Chevron" Data="M0,0 L4.5,4.5 L9,0" Stroke="{StaticResource Slate}" StrokeThickness="1.5" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,16,0" IsHitTestVisible="False" RenderTransformOrigin="0.5,0.5"/>
+      <Rectangle x:Name="Underline" Height="2" VerticalAlignment="Bottom" Margin="0,0,7,0" Fill="{StaticResource Accent}" Visibility="Collapsed" IsHitTestVisible="False"/>
       <ToggleButton Focusable="False" IsChecked="{Binding IsDropDownOpen,RelativeSource={RelativeSource TemplatedParent},Mode=TwoWay}"><ToggleButton.Template><ControlTemplate TargetType="ToggleButton"><Border Background="Transparent"/></ControlTemplate></ToggleButton.Template></ToggleButton>
-      <Popup x:Name="PART_Popup" Placement="Bottom" AllowsTransparency="True" IsOpen="{TemplateBinding IsDropDownOpen}" Focusable="False"><Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Stroke}" BorderThickness="1" MinWidth="{Binding ActualWidth,RelativeSource={RelativeSource TemplatedParent}}"><ScrollViewer MaxHeight="260" CanContentScroll="True" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"><ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained"/></ScrollViewer></Border></Popup>
-    </Grid><ControlTemplate.Triggers><Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="ComboFrame" Property="BorderBrush" Value="{StaticResource NormalAccent}"/></Trigger><Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.4"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+      <Popup x:Name="PART_Popup" Placement="Bottom" AllowsTransparency="True" IsOpen="{TemplateBinding IsDropDownOpen}" Focusable="False" PopupAnimation="Fade">
+        <Grid Margin="0,2,8,8">
+          <ui:CutFrame Background="{StaticResource Surface}" BorderBrush="{StaticResource StrokeStrong}" Cut="9" Corners="BottomRight" MinWidth="{Binding ActualWidth,RelativeSource={RelativeSource TemplatedParent}}" Padding="1,3">
+            <ui:CutFrame.Effect><DropShadowEffect BlurRadius="12" ShadowDepth="3" Direction="300" Opacity="0.18" Color="#1D232A"/></ui:CutFrame.Effect>
+            <ScrollViewer MaxHeight="260" CanContentScroll="True" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"><ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained"/></ScrollViewer>
+          </ui:CutFrame>
+          <Rectangle Height="2" VerticalAlignment="Top" HorizontalAlignment="Left" Width="28" Fill="{StaticResource Accent}" IsHitTestVisible="False"/>
+        </Grid>
+      </Popup>
+    </Grid><ControlTemplate.Triggers>
+      <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ComboFrame" Property="BorderBrush" Value="{StaticResource Slate}"/></Trigger>
+      <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="ComboFrame" Property="BorderBrush" Value="{StaticResource Accent}"/><Setter TargetName="Underline" Property="Visibility" Value="Visible"/></Trigger>
+      <Trigger Property="IsDropDownOpen" Value="True"><Setter TargetName="Chevron" Property="RenderTransform"><Setter.Value><RotateTransform Angle="180"/></Setter.Value></Setter><Setter TargetName="Chevron" Property="Stroke" Value="{StaticResource AccentText}"/><Setter TargetName="ComboFrame" Property="BorderBrush" Value="{StaticResource Accent}"/></Trigger>
+      <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Root" Property="Opacity" Value="0.42"/></Trigger>
+    </ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
   </Style>
-  <Style TargetType="ComboBoxItem"><Setter Property="Foreground" Value="{StaticResource Fg}"/><Setter Property="Padding" Value="10,8"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ComboBoxItem"><Border x:Name="ItemFrame" Background="Transparent" Padding="{TemplateBinding Padding}"><ContentPresenter/></Border><ControlTemplate.Triggers><Trigger Property="IsHighlighted" Value="True"><Setter TargetName="ItemFrame" Property="Background" Value="{StaticResource SelectedFill}"/></Trigger><Trigger Property="IsSelected" Value="True"><Setter TargetName="ItemFrame" Property="BorderBrush" Value="{StaticResource Accent}"/><Setter TargetName="ItemFrame" Property="BorderThickness" Value="3,0,0,0"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter></Style>
+  <Style TargetType="ComboBoxItem">
+    <Setter Property="Foreground" Value="{StaticResource Fg}"/><Setter Property="Padding" Value="11,7"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ComboBoxItem"><Grid>
+      <Border x:Name="ItemFrame" Background="Transparent" Padding="{TemplateBinding Padding}"><ContentPresenter/></Border>
+      <Rectangle x:Name="Bar" Width="2" HorizontalAlignment="Left" Fill="{StaticResource Accent}" Visibility="Collapsed"/>
+    </Grid><ControlTemplate.Triggers>
+      <Trigger Property="IsSelected" Value="True"><Setter TargetName="ItemFrame" Property="Background" Value="{StaticResource AccentFill}"/><Setter TargetName="Bar" Property="Visibility" Value="Visible"/></Trigger>
+      <Trigger Property="IsHighlighted" Value="True"><Setter TargetName="ItemFrame" Property="Background" Value="#FFFFFF"/><Setter TargetName="Bar" Property="Visibility" Value="Visible"/></Trigger>
+      <MultiTrigger><MultiTrigger.Conditions><Condition Property="IsHighlighted" Value="True"/><Condition Property="IsSelected" Value="False"/></MultiTrigger.Conditions><Setter TargetName="Bar" Property="Fill" Value="{StaticResource Slate}"/></MultiTrigger>
+      <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.45"/></Trigger>
+    </ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <!-- ═════ 菜单 / CONTEXTMENU ═════ -->
+  <Style TargetType="ContextMenu">
+    <Setter Property="Background" Value="{StaticResource Surface}"/><Setter Property="Foreground" Value="{StaticResource Fg}"/><Setter Property="BorderBrush" Value="{StaticResource StrokeStrong}"/>
+    <Setter Property="FontFamily" Value="{StaticResource UiFont}"/><Setter Property="FontSize" Value="13"/><Setter Property="HasDropShadow" Value="False"/><Setter Property="MaxWidth" Value="520"/>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ContextMenu">
+      <Grid Margin="0,0,8,8">
+        <ui:CutFrame Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" Cut="9" Corners="BottomRight" Padding="2,4">
+          <ui:CutFrame.Effect><DropShadowEffect BlurRadius="14" ShadowDepth="3" Direction="300" Opacity="0.18" Color="#1D232A"/></ui:CutFrame.Effect>
+          <ScrollViewer CanContentScroll="True" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"><ItemsPresenter KeyboardNavigation.DirectionalNavigation="Cycle"/></ScrollViewer>
+        </ui:CutFrame>
+        <Rectangle Height="2" Width="28" VerticalAlignment="Top" HorizontalAlignment="Left" Fill="{StaticResource Accent}"/>
+      </Grid>
+    </ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <Style TargetType="MenuItem">
+    <Setter Property="Foreground" Value="{StaticResource Fg}"/><Setter Property="Padding" Value="12,7"/><Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="MenuItem"><Grid x:Name="Root" Background="Transparent">
+      <Border x:Name="ItemFrame" Background="Transparent" Padding="{TemplateBinding Padding}">
+        <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+          <ContentPresenter ContentSource="Header" RecognizesAccessKey="True" VerticalAlignment="Center"/>
+          <TextBlock Grid.Column="1" Text="{TemplateBinding InputGestureText}" Margin="18,0,0,0" Foreground="{StaticResource SubtleText}" FontFamily="{StaticResource LabelFont}" VerticalAlignment="Center"/>
+        </Grid>
+      </Border>
+      <Rectangle x:Name="Bar" Width="2" HorizontalAlignment="Left" Fill="{StaticResource Accent}" Visibility="Collapsed"/>
+    </Grid><ControlTemplate.Triggers>
+      <Trigger Property="IsHighlighted" Value="True"><Setter TargetName="ItemFrame" Property="Background" Value="#FFFFFF"/><Setter TargetName="Bar" Property="Visibility" Value="Visible"/><Setter TargetName="Bar" Property="Fill" Value="{StaticResource Slate}"/></Trigger>
+      <Trigger Property="IsChecked" Value="True"><Setter TargetName="ItemFrame" Property="Background" Value="{StaticResource AccentFill}"/></Trigger>
+      <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Root" Property="Opacity" Value="0.4"/></Trigger>
+    </ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <Style TargetType="Separator"><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Separator"><Rectangle Height="1" Margin="8,4" Fill="{StaticResource Stroke}"/></ControlTemplate></Setter.Value></Setter></Style>
+
+  <!-- ═════ 滚动条 / SCROLLBAR：细刻条，拖动时变红 ═════ -->
   <Style x:Key="EmptyRepeat" TargetType="RepeatButton"><Setter Property="Focusable" Value="False"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="RepeatButton"><Border Background="Transparent"/></ControlTemplate></Setter.Value></Setter></Style>
+  <Style x:Key="SliderFillRepeat" TargetType="RepeatButton"><Setter Property="Focusable" Value="False"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="RepeatButton"><Grid Background="Transparent"><Rectangle Height="2" VerticalAlignment="Center" Fill="{StaticResource Accent}"/></Grid></ControlTemplate></Setter.Value></Setter></Style>
   <Style TargetType="ScrollBar">
     <Setter Property="Width" Value="9"/><Setter Property="Background" Value="Transparent"/>
-    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ScrollBar"><Grid Background="{TemplateBinding Background}"><Track x:Name="PART_Track" IsDirectionReversed="True" Orientation="{TemplateBinding Orientation}" Minimum="{TemplateBinding Minimum}" Maximum="{TemplateBinding Maximum}" Value="{TemplateBinding Value}" ViewportSize="{TemplateBinding ViewportSize}">
-      <Track.DecreaseRepeatButton><RepeatButton Style="{StaticResource EmptyRepeat}" Command="ScrollBar.PageUpCommand"/></Track.DecreaseRepeatButton>
-      <Track.Thumb><Thumb><Thumb.Template><ControlTemplate TargetType="Thumb"><Border x:Name="Grip" Background="#626A70" Margin="2,2" CornerRadius="2"/><ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Grip" Property="Background" Value="{StaticResource NormalAccent}"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Thumb.Template></Thumb></Track.Thumb>
-      <Track.IncreaseRepeatButton><RepeatButton Style="{StaticResource EmptyRepeat}" Command="ScrollBar.PageDownCommand"/></Track.IncreaseRepeatButton>
-    </Track></Grid></ControlTemplate></Setter.Value></Setter>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ScrollBar"><Grid Background="{TemplateBinding Background}">
+      <Rectangle x:Name="Rail" Width="1" HorizontalAlignment="Center" Fill="{StaticResource Stroke}"/>
+      <Track x:Name="PART_Track" IsDirectionReversed="True" Orientation="{TemplateBinding Orientation}" Minimum="{TemplateBinding Minimum}" Maximum="{TemplateBinding Maximum}" Value="{TemplateBinding Value}" ViewportSize="{TemplateBinding ViewportSize}">
+        <Track.DecreaseRepeatButton><RepeatButton Style="{StaticResource EmptyRepeat}" Command="ScrollBar.PageUpCommand"/></Track.DecreaseRepeatButton>
+        <Track.Thumb><Thumb><Thumb.Template><ControlTemplate TargetType="Thumb"><Grid Background="Transparent"><Rectangle x:Name="Grip" Fill="{StaticResource StrokeStrong}" Margin="3,2"/></Grid><ControlTemplate.Triggers>
+          <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Grip" Property="Fill" Value="{StaticResource Slate}"/><Setter TargetName="Grip" Property="Margin" Value="2,2"/></Trigger>
+          <Trigger Property="IsDragging" Value="True"><Setter TargetName="Grip" Property="Fill" Value="{StaticResource Accent}"/><Setter TargetName="Grip" Property="Margin" Value="2,2"/></Trigger>
+        </ControlTemplate.Triggers></ControlTemplate></Thumb.Template></Thumb></Track.Thumb>
+        <Track.IncreaseRepeatButton><RepeatButton Style="{StaticResource EmptyRepeat}" Command="ScrollBar.PageDownCommand"/></Track.IncreaseRepeatButton>
+      </Track>
+    </Grid><ControlTemplate.Triggers>
+      <Trigger Property="Orientation" Value="Horizontal"><Setter TargetName="Rail" Property="Width" Value="NaN"/><Setter TargetName="Rail" Property="Height" Value="1"/><Setter TargetName="Rail" Property="VerticalAlignment" Value="Center"/><Setter TargetName="PART_Track" Property="IsDirectionReversed" Value="False"/></Trigger>
+    </ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
     <Style.Triggers><Trigger Property="Orientation" Value="Horizontal"><Setter Property="Width" Value="Auto"/><Setter Property="Height" Value="9"/></Trigger></Style.Triggers>
   </Style>
   <Style TargetType="ScrollViewer"><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ScrollViewer"><Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><Grid.RowDefinitions><RowDefinition/><RowDefinition Height="Auto"/></Grid.RowDefinitions><ScrollContentPresenter x:Name="PART_ScrollContentPresenter" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" CanContentScroll="{TemplateBinding CanContentScroll}" Margin="{TemplateBinding Padding}"/><ScrollBar x:Name="PART_VerticalScrollBar" Grid.Column="1" Orientation="Vertical" Maximum="{TemplateBinding ScrollableHeight}" ViewportSize="{TemplateBinding ViewportHeight}" Value="{Binding VerticalOffset,RelativeSource={RelativeSource TemplatedParent},Mode=OneWay}" Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}"/><ScrollBar x:Name="PART_HorizontalScrollBar" Grid.Row="1" Orientation="Horizontal" Maximum="{TemplateBinding ScrollableWidth}" ViewportSize="{TemplateBinding ViewportWidth}" Value="{Binding HorizontalOffset,RelativeSource={RelativeSource TemplatedParent},Mode=OneWay}" Visibility="{TemplateBinding ComputedHorizontalScrollBarVisibility}"/></Grid></ControlTemplate></Setter.Value></Setter></Style>
-  <Style TargetType="Slider"><Setter Property="Height" Value="24"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Slider"><Grid Margin="5,0"><Border Height="3" Background="{StaticResource Stroke}" VerticalAlignment="Center"/><Track x:Name="PART_Track" Minimum="{TemplateBinding Minimum}" Maximum="{TemplateBinding Maximum}" Value="{TemplateBinding Value}" Orientation="Horizontal"><Track.DecreaseRepeatButton><RepeatButton Command="Slider.DecreaseLarge" Style="{StaticResource EmptyRepeat}"/></Track.DecreaseRepeatButton><Track.Thumb><Thumb Width="10" Height="16"><Thumb.Template><ControlTemplate TargetType="Thumb"><Border Background="{StaticResource NormalAccent}" BorderBrush="{StaticResource Bg}" BorderThickness="1" CornerRadius="1"/></ControlTemplate></Thumb.Template></Thumb></Track.Thumb><Track.IncreaseRepeatButton><RepeatButton Command="Slider.IncreaseLarge" Style="{StaticResource EmptyRepeat}"/></Track.IncreaseRepeatButton></Track></Grid></ControlTemplate></Setter.Value></Setter></Style>
-  <Style TargetType="CheckBox"><Setter Property="Foreground" Value="{StaticResource Fg}"/><Setter Property="Cursor" Value="Hand"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="CheckBox"><DockPanel><Border x:Name="CheckFrame" Width="17" Height="17" Background="{StaticResource Inset}" BorderBrush="{StaticResource Stroke}" BorderThickness="1" CornerRadius="2" Margin="0,0,9,0" VerticalAlignment="Center"><Path x:Name="Tick" Data="M 3,7 L 6,10 L 12,3" Stroke="{StaticResource Fg}" StrokeThickness="1.6" Visibility="Collapsed"/></Border><ContentPresenter VerticalAlignment="Center" RecognizesAccessKey="True"/></DockPanel><ControlTemplate.Triggers><Trigger Property="IsChecked" Value="True"><Setter TargetName="CheckFrame" Property="Background" Value="{StaticResource Accent}"/><Setter TargetName="Tick" Property="Visibility" Value="Visible"/></Trigger><Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="CheckFrame" Property="BorderBrush" Value="{StaticResource Fg}"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter></Style>
+
+  <!-- ═════ 滑块 / SLIDER：细线 + 已选段暗红 + 三角滑块 ═════ -->
+  <Style TargetType="Slider">
+    <Setter Property="Height" Value="24"/><Setter Property="FocusVisualStyle" Value="{x:Null}"/><Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Slider"><Grid x:Name="Root" Margin="6,0" Background="Transparent">
+      <Rectangle Height="1" Fill="{StaticResource StrokeStrong}" VerticalAlignment="Center"/>
+      <Path Data="M0,0 V5 M25,0 V3 M50,0 V5 M75,0 V3 M100,0 V5" Stretch="Fill" Stroke="{StaticResource Stroke}" StrokeThickness="1" Height="5" VerticalAlignment="Bottom" Margin="0,0,0,1" IsHitTestVisible="False"/>
+      <Track x:Name="PART_Track" Minimum="{TemplateBinding Minimum}" Maximum="{TemplateBinding Maximum}" Value="{TemplateBinding Value}" Orientation="Horizontal" IsDirectionReversed="{TemplateBinding IsDirectionReversed}">
+        <Track.DecreaseRepeatButton><RepeatButton Command="Slider.DecreaseLarge" Style="{StaticResource SliderFillRepeat}"/></Track.DecreaseRepeatButton>
+        <Track.Thumb><Thumb Width="12" Height="22"><Thumb.Template><ControlTemplate TargetType="Thumb"><Grid Background="Transparent">
+          <Path x:Name="Blade" Data="M0,0 H12 L6,8 Z" Fill="{StaticResource Plate}" VerticalAlignment="Top" Margin="0,2,0,0"/>
+          <Rectangle x:Name="Stem" Width="1.5" Height="9" Fill="{StaticResource Plate}" VerticalAlignment="Top" Margin="0,9,0,0"/>
+        </Grid><ControlTemplate.Triggers>
+          <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Blade" Property="Fill" Value="{StaticResource Slate}"/><Setter TargetName="Stem" Property="Fill" Value="{StaticResource Slate}"/></Trigger>
+          <Trigger Property="IsDragging" Value="True"><Setter TargetName="Blade" Property="Fill" Value="{StaticResource Accent}"/><Setter TargetName="Stem" Property="Fill" Value="{StaticResource Accent}"/></Trigger>
+        </ControlTemplate.Triggers></ControlTemplate></Thumb.Template></Thumb></Track.Thumb>
+        <Track.IncreaseRepeatButton><RepeatButton Command="Slider.IncreaseLarge" Style="{StaticResource EmptyRepeat}"/></Track.IncreaseRepeatButton>
+      </Track>
+      <Rectangle x:Name="FocusLine" Height="1.5" VerticalAlignment="Bottom" Fill="{StaticResource Accent}" Visibility="Collapsed"/>
+    </Grid><ControlTemplate.Triggers>
+      <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="FocusLine" Property="Visibility" Value="Visible"/></Trigger>
+      <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Root" Property="Opacity" Value="0.4"/></Trigger>
+    </ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+  </Style>
+
+  <!-- ═════ 复选框 / CHECKBOX ═════ -->
+  <Style TargetType="CheckBox">
+    <Setter Property="Foreground" Value="{StaticResource Fg}"/><Setter Property="Cursor" Value="Hand"/><Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="CheckBox"><DockPanel x:Name="Root" Background="Transparent">
+      <Grid Width="17" Height="17" Margin="0,0,9,0" VerticalAlignment="Center">
+        <ui:CutFrame x:Name="CheckFrame" Background="#FFFFFF" BorderBrush="{StaticResource StrokeStrong}" Cut="5" Corners="BottomRight"/>
+        <Path x:Name="Tick" Data="M 3.5,8.5 L 7,12 L 13.5,4.5" Stroke="#FFFFFF" StrokeThickness="1.8" Visibility="Collapsed"/>
+        <Rectangle x:Name="Partial" Width="8" Height="2" Fill="{StaticResource Fg}" Visibility="Collapsed"/>
+      </Grid>
+      <ContentPresenter VerticalAlignment="Center" RecognizesAccessKey="True"/>
+    </DockPanel><ControlTemplate.Triggers>
+      <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="CheckFrame" Property="BorderBrush" Value="{StaticResource Slate}"/></Trigger>
+      <Trigger Property="IsChecked" Value="True"><Setter TargetName="CheckFrame" Property="Background" Value="{StaticResource PrimaryFill}"/><Setter TargetName="CheckFrame" Property="BorderBrush" Value="{StaticResource Accent}"/><Setter TargetName="Tick" Property="Visibility" Value="Visible"/></Trigger>
+      <Trigger Property="IsChecked" Value="{x:Null}"><Setter TargetName="Partial" Property="Visibility" Value="Visible"/></Trigger>
+      <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="CheckFrame" Property="BorderBrush" Value="{StaticResource Fg}"/></Trigger>
+      <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Root" Property="Opacity" Value="0.4"/></Trigger>
+    </ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <!-- 范围芯片（搜索框旁的「本章」）：选中为青灰。 -->
+  <Style x:Key="ToggleChip" TargetType="CheckBox">
+    <Setter Property="Foreground" Value="{StaticResource MutedText}"/><Setter Property="Cursor" Value="Hand"/><Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="CheckBox"><Grid x:Name="Root">
+      <ui:CutFrame x:Name="Frame" Background="{StaticResource CardFill}" BorderBrush="{StaticResource Stroke}" Cut="6" Corners="BottomRight" Padding="9,0,10,0">
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+          <Rectangle x:Name="Led" Width="7" Height="7" Stroke="{StaticResource StrokeStrong}" StrokeThickness="1" Fill="Transparent" Margin="0,0,7,0" VerticalAlignment="Center"/>
+          <ContentPresenter VerticalAlignment="Center" RecognizesAccessKey="True"/>
+        </StackPanel>
+      </ui:CutFrame>
+      <ui:CutFrame x:Name="Focus" BorderBrush="{StaticResource FocusRing}" StrokeThickness="1.5" Cut="6" Corners="BottomRight" Visibility="Collapsed" IsHitTestVisible="False"/>
+    </Grid><ControlTemplate.Triggers>
+      <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Frame" Property="BorderBrush" Value="{StaticResource Slate}"/></Trigger>
+      <Trigger Property="IsChecked" Value="True"><Setter TargetName="Frame" Property="Background" Value="{StaticResource TealFill}"/><Setter TargetName="Frame" Property="BorderBrush" Value="{StaticResource Teal}"/><Setter TargetName="Led" Property="Fill" Value="{StaticResource Teal}"/><Setter TargetName="Led" Property="Stroke" Value="{StaticResource Teal}"/><Setter Property="Foreground" Value="{StaticResource TealText}"/></Trigger>
+      <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Focus" Property="Visibility" Value="Visible"/></Trigger>
+      <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Root" Property="Opacity" Value="0.4"/></Trigger>
+    </ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+  </Style>
+
+  <!-- ═════ 折叠区 / EXPANDER：浅色标题条 + 三角标记 ═════ -->
+  <Style x:Key="ExpanderHeaderToggle" TargetType="ToggleButton">
+    <Setter Property="FocusVisualStyle" Value="{x:Null}"/><Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ToggleButton"><Grid x:Name="Root">
+      <ui:CutFrame x:Name="Bar" Background="{StaticResource CardFill}" BorderBrush="{StaticResource Stroke}" Cut="8" Corners="BottomRight" Padding="10,7,10,7">
+        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+          <Path x:Name="Chevron" Data="M0,0 L5,4 L0,8 Z" Fill="{StaticResource Slate}" VerticalAlignment="Center" Margin="0,0,10,0" RenderTransformOrigin="0.5,0.5"/>
+          <ContentPresenter Grid.Column="1" VerticalAlignment="Center" TextElement.FontWeight="SemiBold" RecognizesAccessKey="True"/>
+          <TextBlock x:Name="Sub" Grid.Column="2" Margin="10,0,0,0" Text="{Binding Content, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource Sublabel}}" Style="{StaticResource SublabelText}"/>
+        </Grid>
+      </ui:CutFrame>
+      <Rectangle x:Name="Edge" Width="2" HorizontalAlignment="Left" Fill="{StaticResource Accent}" Visibility="Collapsed"/>
+    </Grid><ControlTemplate.Triggers>
+      <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Bar" Property="Background" Value="#FFFFFF"/><Setter TargetName="Bar" Property="BorderBrush" Value="{StaticResource Slate}"/></Trigger>
+      <Trigger Property="IsChecked" Value="True"><Setter TargetName="Chevron" Property="RenderTransform"><Setter.Value><RotateTransform Angle="90"/></Setter.Value></Setter><Setter TargetName="Edge" Property="Visibility" Value="Visible"/><Setter TargetName="Chevron" Property="Fill" Value="{StaticResource Accent}"/><Setter TargetName="Sub" Property="Foreground" Value="{StaticResource AccentText}"/></Trigger>
+      <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Bar" Property="BorderBrush" Value="{StaticResource Accent}"/></Trigger>
+      <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Root" Property="Opacity" Value="0.4"/></Trigger>
+    </ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <Style TargetType="Expander">
+    <Setter Property="Foreground" Value="{StaticResource Fg}"/><Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Expander"><DockPanel>
+      <ToggleButton x:Name="HeaderSite" DockPanel.Dock="Top" Style="{StaticResource ExpanderHeaderToggle}" Content="{TemplateBinding Header}" ContentTemplate="{TemplateBinding HeaderTemplate}" Foreground="{TemplateBinding Foreground}"
+                    IsChecked="{Binding IsExpanded, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"/>
+      <ContentPresenter x:Name="ExpandSite" Visibility="Collapsed" Margin="{TemplateBinding Padding}" Focusable="False"/>
+    </DockPanel><ControlTemplate.Triggers>
+      <Trigger Property="IsExpanded" Value="True"><Setter TargetName="ExpandSite" Property="Visibility" Value="Visible"/></Trigger>
+    </ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+  </Style>
+
+  <!-- ═════ 对话框窗口 / DIALOG WINDOW：浅色系统外框 + 冷灰白标题条；保留 AdornerDecorator 供手柄焦点框使用 ═════ -->
+  <Style x:Key="PgrDialogWindow" TargetType="Window">
+    <Setter Property="Background" Value="{StaticResource WindowBackdrop}"/><Setter Property="Foreground" Value="{StaticResource Fg}"/>
+    <Setter Property="FontFamily" Value="{StaticResource UiFont}"/><Setter Property="FontSize" Value="13"/>
+    <Setter Property="UseLayoutRounding" Value="True"/><Setter Property="SnapsToDevicePixels" Value="True"/>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Window">
+      <Border Background="{TemplateBinding Background}">
+        <Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition/></Grid.RowDefinitions>
+          <Grid Height="34" Background="{StaticResource HeaderGradient}" IsHitTestVisible="False">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition/></Grid.ColumnDefinitions>
+            <Path Data="M5,0 L13,0 L8,34 L0,34 Z" Fill="{StaticResource Accent}" Margin="14,0,8,0" Height="34" Stretch="None"/>
+            <ui:Emblem Grid.Column="1" Width="14" Height="14" Margin="0,0,8,0" VerticalAlignment="Center"/>
+            <TextBlock Grid.Column="2" Text="{TemplateBinding Title}" FontSize="12.5" FontWeight="SemiBold" Foreground="{StaticResource Fg}" VerticalAlignment="Center" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" MaxWidth="420"/>
+            <TextBlock Grid.Column="3" Text="{Binding Title, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource Sublabel}}" Style="{StaticResource SublabelText}" Foreground="{StaticResource NormalAccent}" Margin="10,1,0,0"/>
+            <Rectangle Grid.Column="4" Height="1" Margin="14,0,16,0" Fill="{StaticResource Stroke}" VerticalAlignment="Center"/>
+            <Rectangle Grid.ColumnSpan="5" Height="1" VerticalAlignment="Bottom" Fill="{StaticResource Stroke}"/>
+            <Rectangle Grid.ColumnSpan="5" Height="2" Width="64" HorizontalAlignment="Left" VerticalAlignment="Bottom" Fill="{StaticResource Accent}"/>
+          </Grid>
+          <AdornerDecorator Grid.Row="1"><ContentPresenter/></AdornerDecorator>
+        </Grid>
+      </Border>
+    </ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <!-- ═════ 屏幕 10–13 / 01–09 定稿（HANDOFF-11-13 · SPEC） ═════ -->
+  <SolidColorBrush x:Key="DragAccent" Color="#5FA3A0"/>        <!-- 点击热区拖动态描边（青灰） -->
+  <SolidColorBrush x:Key="DragAccentLight" Color="#8FD3CF"/>   <!-- 拖动态角标与十字 -->
+  <SolidColorBrush x:Key="MistBracket" Color="#6F8FB0"/>       <!-- 悬停 / 焦点雾蓝括号 -->
+  <ui:UpperConverter x:Key="Upper"/>
+  <ui:TrackingConverter x:Key="Tracking"/>
+
+  <!-- 10-A3 指令按钮：切角 + 角标 + 刻口 + 图标 + 居中标签 + 英文副标；主按钮暗红渐变。副标 / 图标 / 种类用 ui:ActionButton 附加属性。 -->
+  <Style x:Key="TacticalActionButton" TargetType="Button">
+    <Setter Property="Foreground" Value="{StaticResource Fg}"/>
+    <Setter Property="FontSize" Value="12.5"/>
+    <Setter Property="MinHeight" Value="32"/>
+    <Setter Property="Padding" Value="9,0,10,0"/>
+    <Setter Property="Margin" Value="0,6,0,0"/>
+    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="SnapsToDevicePixels" Value="False"/>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+      <Grid Background="Transparent">
+        <ui:ActionPlate x:Name="Plate" Kind="{TemplateBinding ui:ActionButton.Kind}"/>
+        <Grid Margin="{TemplateBinding Padding}">
+          <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+          <Path x:Name="Notch" Width="3" Height="14" Stretch="Fill" Data="M0,0 L1,0.22 L1,0.78 L0,1 Z" Fill="{StaticResource Slate}" Margin="0,0,7,0" VerticalAlignment="Center"/>
+          <Path x:Name="Icon" Grid.Column="1" Width="14" Height="14" Stretch="None" Data="{TemplateBinding ui:ActionButton.Icon}" Stroke="{StaticResource Slate}" StrokeThickness="1.25"
+                StrokeStartLineCap="Square" StrokeEndLineCap="Square" StrokeLineJoin="Miter" Margin="0,0,7,0" VerticalAlignment="Center"/>
+          <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center">
+            <TextBlock x:Name="Label" Text="{Binding Content, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource ChipPart}, ConverterParameter=label}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+            <Border x:Name="KeyBadge" Background="{StaticResource Slate}" Margin="7,0,0,0" Padding="4,0,4,0" VerticalAlignment="Center">
+              <Border.Clip><PathGeometry Figures="M0,0 L60,0 L60,10 L57,13 L0,13 Z"/></Border.Clip>
+              <TextBlock x:Name="KeyText" Text="{Binding Content, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource ChipPart}, ConverterParameter=key}" FontFamily="{StaticResource LabelFont}" FontSize="9" LineHeight="13" LineStackingStrategy="BlockLineHeight" Foreground="White"/>
+            </Border>
+          </StackPanel>
+          <Canvas x:Name="Wing" Grid.Column="3" Width="22" Height="10" Margin="7,0,0,0" VerticalAlignment="Center" Visibility="Collapsed" Opacity="0.95">
+            <Path Data="M11,8.6 L1.2,2.4 M11,8.6 L3,5.2 M11,8.6 L5,7.4 M11,8.6 L20.8,2.4 M11,8.6 L19,5.2 M11,8.6 L17,7.4" Stroke="#E6CD94" StrokeThickness="0.9"/>
+            <Path Data="M11,1.4 L12.2,2.8 L11,4.2 L9.8,2.8 Z" Fill="#E6CD94"/>
+          </Canvas>
+          <TextBlock x:Name="Sub" Grid.Column="4" Text="{Binding (ui:ActionButton.Sublabel), RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource Tracking}}"
+                     FontFamily="{StaticResource LabelFont}" FontSize="8.5" FontWeight="SemiBold" Foreground="#5F6973" Margin="7,0,0,0" VerticalAlignment="Center"/>
+        </Grid>
+      </Grid>
+      <ControlTemplate.Triggers>
+        <Trigger Property="ui:ActionButton.Icon" Value="{x:Null}"><Setter TargetName="Icon" Property="Visibility" Value="Collapsed"/></Trigger>
+        <Trigger SourceName="KeyText" Property="Text" Value=""><Setter TargetName="KeyBadge" Property="Visibility" Value="Collapsed"/></Trigger>
+        <Trigger Property="ui:ActionButton.Sublabel" Value=""><Setter TargetName="Sub" Property="Visibility" Value="Collapsed"/></Trigger>
+        <Trigger Property="ui:ActionButton.Compact" Value="True"><Setter TargetName="Sub" Property="Visibility" Value="Collapsed"/></Trigger>
+        <Trigger Property="ui:ActionButton.Kind" Value="go">
+          <Setter Property="Foreground" Value="White"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="MinHeight" Value="34"/>
+          <Setter TargetName="Notch" Property="Fill" Value="#D6B268"/><Setter TargetName="Icon" Property="Stroke" Value="White"/>
+          <Setter TargetName="Sub" Property="Foreground" Value="#DBFFECEE"/><Setter TargetName="KeyBadge" Property="Background" Value="#6B14060A"/>
+          <Setter TargetName="Wing" Property="Visibility" Value="Visible"/>
+        </Trigger>
+        <Trigger Property="ui:ActionButton.Kind" Value="ghost">
+          <Setter Property="Foreground" Value="{StaticResource MutedText}"/>
+          <Setter TargetName="Notch" Property="Fill" Value="Transparent"/><Setter TargetName="Notch" Property="Stroke" Value="{StaticResource Slate}"/><Setter TargetName="Notch" Property="StrokeThickness" Value="1"/>
+        </Trigger>
+        <MultiTrigger>
+          <MultiTrigger.Conditions><Condition Property="IsMouseOver" Value="True"/><Condition Property="IsEnabled" Value="True"/></MultiTrigger.Conditions>
+          <Setter TargetName="Plate" Property="Hot" Value="True"/>
+        </MultiTrigger>
+        <MultiTrigger>
+          <MultiTrigger.Conditions><Condition Property="IsKeyboardFocused" Value="True"/><Condition Property="IsEnabled" Value="True"/></MultiTrigger.Conditions>
+          <Setter TargetName="Plate" Property="Hot" Value="True"/>
+        </MultiTrigger>
+        <MultiTrigger>
+          <MultiTrigger.Conditions><Condition SourceName="Plate" Property="Hot" Value="True"/><Condition Property="ui:ActionButton.Kind" Value=""/></MultiTrigger.Conditions>
+          <Setter TargetName="Notch" Property="Fill" Value="{StaticResource MistBracket}"/><Setter TargetName="Notch" Property="Width" Value="4"/>
+          <Setter TargetName="Icon" Property="Stroke" Value="#3F5F80"/><Setter TargetName="Sub" Property="Foreground" Value="#3F5F80"/>
+        </MultiTrigger>
+        <MultiTrigger>
+          <MultiTrigger.Conditions><Condition SourceName="Plate" Property="Hot" Value="True"/><Condition Property="ui:ActionButton.Kind" Value="ghost"/></MultiTrigger.Conditions>
+          <Setter TargetName="Notch" Property="Fill" Value="{StaticResource MistBracket}"/><Setter TargetName="Notch" Property="Width" Value="4"/>
+          <Setter TargetName="Icon" Property="Stroke" Value="#3F5F80"/><Setter TargetName="Sub" Property="Foreground" Value="#3F5F80"/>
+        </MultiTrigger>
+        <Trigger Property="IsPressed" Value="True"><Setter TargetName="Plate" Property="Pressed" Value="True"/></Trigger>
+        <Trigger Property="IsEnabled" Value="False">
+          <Setter TargetName="Plate" Property="Off" Value="True"/><Setter Property="Foreground" Value="#7D868F"/><Setter Property="FontWeight" Value="Normal"/>
+          <Setter TargetName="Notch" Property="Fill" Value="Transparent"/><Setter TargetName="Notch" Property="Stroke" Value="#A3ACB5"/><Setter TargetName="Notch" Property="StrokeThickness" Value="1"/>
+          <Setter TargetName="Notch" Property="StrokeDashArray" Value="2,2"/><Setter TargetName="Notch" Property="Width" Value="1.5"/>
+          <Setter TargetName="Icon" Property="Stroke" Value="#9AA3AC"/><Setter TargetName="Sub" Property="Foreground" Value="#8D959D"/>
+          <Setter TargetName="Sub" Property="TextDecorations" Value="Strikethrough"/><Setter TargetName="KeyBadge" Property="Background" Value="#9AA3AC"/>
+          <Setter TargetName="Wing" Property="Opacity" Value="0.4"/>
+        </Trigger>
+      </ControlTemplate.Triggers>
+    </ControlTemplate></Setter.Value></Setter>
+  </Style>
+
+  <!-- 次级窗口编号列表行（01-B / 02 / 03 / 05 / 07 …）：序号格 + 雾蓝 / 绯红边 + 选中右下三角 + 焦点雾蓝四角括号；行底半透明，压在档案纸面上。 -->
+  <Style x:Key="ArchiveRow" TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+    <Setter Property="Margin" Value="0,0,0,1"/>
+    <Setter Property="Padding" Value="10,6,10,6"/>
+    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem">
+      <Grid x:Name="Root" MinHeight="36" Background="Transparent">
+        <Grid.ColumnDefinitions><ColumnDefinition Width="34"/><ColumnDefinition/></Grid.ColumnDefinitions>
+        <Border x:Name="Tint" Grid.ColumnSpan="2" Background="#B8FFFFFF" BorderBrush="#E1E5E9" BorderThickness="0,0,0,1"/>
+        <Border x:Name="IndexCell" Background="#0F4F6B8A">
+          <TextBlock x:Name="Index" Text="{Binding (ItemsControl.AlternationIndex), RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource Ordinal}}"
+                     FontFamily="{StaticResource NumberFont}" FontSize="16" FontWeight="SemiBold" Foreground="#8FA6BF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Border>
+        <Rectangle x:Name="Edge" Width="3" HorizontalAlignment="Left" Fill="Transparent"/>
+        <ContentPresenter Grid.Column="1" Margin="{TemplateBinding Padding}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center"/>
+        <Path x:Name="Corner" Grid.Column="1" Data="M8,0 L8,8 L0,8 Z" Fill="{StaticResource Accent}" HorizontalAlignment="Right" VerticalAlignment="Bottom" Visibility="Collapsed"/>
+        <ui:CornerMarks x:Name="Focus" Grid.ColumnSpan="2" Stroke="{StaticResource MistBracket}" StrokeThickness="1.5" Length="7" Margin="1" Visibility="Collapsed"/>
+      </Grid>
+      <ControlTemplate.Triggers>
+        <DataTrigger Binding="{Binding (ItemsControl.AlternationIndex), RelativeSource={RelativeSource Self}, Converter={StaticResource Odd}}" Value="True"><Setter TargetName="Tint" Property="Background" Value="#94F4F6F8"/></DataTrigger>
+        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Tint" Property="Background" Value="#EBFFFFFF"/><Setter TargetName="Edge" Property="Fill" Value="{StaticResource MistBracket}"/></Trigger>
+        <Trigger Property="IsSelected" Value="True">
+          <Setter TargetName="Tint" Property="Background" Value="White"/><Setter TargetName="IndexCell" Property="Background" Value="{StaticResource Accent}"/>
+          <Setter TargetName="Index" Property="Foreground" Value="White"/><Setter TargetName="Edge" Property="Fill" Value="{StaticResource Accent}"/>
+          <Setter TargetName="Corner" Property="Visibility" Value="Visible"/><Setter Property="Foreground" Value="{StaticResource AccentText}"/>
+        </Trigger>
+        <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="Focus" Property="Visibility" Value="Visible"/></Trigger>
+        <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.45"/></Trigger>
+      </ControlTemplate.Triggers>
+    </ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <Style x:Key="ArchiveList" TargetType="ListBox" BasedOn="{StaticResource {x:Type ListBox}}">
+    <Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="0"/>
+    <Setter Property="AlternationCount" Value="100000"/>
+    <Setter Property="ItemContainerStyle" Value="{StaticResource ArchiveRow}"/>
+    <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
+  </Style>
+
+  <!-- 01-B 深色分类页签：未选为深底浅字，选中为浅色文件夹页签 + 顶部暗红线；焦点雾蓝描边。 -->
+  <Style x:Key="CategoryTab" TargetType="ListBoxItem">
+    <Setter Property="Foreground" Value="#DDE3E9"/>
+    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem">
+      <Grid MinHeight="40" Background="Transparent">
+        <Path x:Name="Tab" Stretch="Fill" Data="M0,0 L0.9,0 L1,0.25 L1,1 L0,1 Z" Fill="Transparent"/>
+        <Rectangle x:Name="Top" Height="2" VerticalAlignment="Top" Fill="{StaticResource Accent}" Margin="0,0,10,0" Visibility="Collapsed"/>
+        <ContentPresenter Margin="10,5,14,5" VerticalAlignment="Center"/>
+        <Rectangle x:Name="Sep" Width="1" HorizontalAlignment="Right" Fill="#4A545F" Margin="0,11"/>
+        <ui:CornerMarks x:Name="Focus" Stroke="{StaticResource MistBracket}" StrokeThickness="1.5" Length="6" Margin="2" Visibility="Collapsed"/>
+      </Grid>
+      <ControlTemplate.Triggers>
+        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Tab" Property="Fill" Value="#1FFFFFFF"/></Trigger>
+        <Trigger Property="IsSelected" Value="True">
+          <Setter TargetName="Tab" Property="Fill" Value="#F3F5F7"/><Setter Property="Foreground" Value="{StaticResource Fg}"/>
+          <Setter TargetName="Top" Property="Visibility" Value="Visible"/><Setter TargetName="Sep" Property="Visibility" Value="Hidden"/>
+        </Trigger>
+        <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="Focus" Property="Visibility" Value="Visible"/></Trigger>
+      </ControlTemplate.Triggers>
+    </ControlTemplate></Setter.Value></Setter>
+  </Style>
+
+  <!-- 13-B 「重选分支」菜单：切角框 + 不可点的页眉 / 页脚（在模板里，不是菜单项）+ 结构化条目。 -->
+  <Style x:Key="RechoiceItem" TargetType="MenuItem">
+    <Setter Property="Foreground" Value="{StaticResource Fg}"/>
+    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="MenuItem">
+      <Grid MinWidth="380" Background="Transparent">
+        <Border x:Name="Tint" Background="Transparent" BorderBrush="#DDE1E6" BorderThickness="0,0,0,1"/>
+        <Rectangle x:Name="Bar" Width="2" HorizontalAlignment="Left" Fill="{StaticResource Slate}" Visibility="Collapsed"/>
+        <ContentPresenter ContentSource="Header" Margin="12,8,12,8" RecognizesAccessKey="False"/>
+        <ui:CornerMarks x:Name="Brackets" Stroke="{StaticResource MistBracket}" StrokeThickness="1.5" Length="7" Margin="3" Visibility="Collapsed"/>
+      </Grid>
+      <ControlTemplate.Triggers>
+        <Trigger Property="IsHighlighted" Value="True"><Setter TargetName="Tint" Property="Background" Value="White"/><Setter TargetName="Bar" Property="Visibility" Value="Visible"/><Setter TargetName="Brackets" Property="Visibility" Value="Visible"/></Trigger>
+        <Trigger Property="IsPressed" Value="True"><Setter TargetName="Tint" Property="Background" Value="#F6E8EA"/><Setter TargetName="Bar" Property="Fill" Value="{StaticResource Accent}"/><Setter TargetName="Bar" Property="Width" Value="3"/><Setter TargetName="Bar" Property="Visibility" Value="Visible"/></Trigger>
+        <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.42"/><Setter TargetName="Tint" Property="Background" Value="{StaticResource StripeTexture}"/></Trigger>
+      </ControlTemplate.Triggers>
+    </ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <Style x:Key="RechoiceMenu" TargetType="ContextMenu">
+    <Setter Property="HasDropShadow" Value="False"/>
+    <Setter Property="Foreground" Value="{StaticResource Fg}"/>
+    <Setter Property="FontFamily" Value="{StaticResource UiFont}"/>
+    <Setter Property="FontSize" Value="13"/>
+    <Setter Property="ItemContainerStyle" Value="{StaticResource RechoiceItem}"/>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ContextMenu">
+      <Grid Margin="2,2,10,12" MaxWidth="460">
+        <ui:CutFrame Background="#0F1D232A" Cut="10" Corners="TopRight, BottomRight" Margin="2,6,-6,-8"/>
+        <ui:CutFrame Background="#141D232A" Cut="10" Corners="TopRight, BottomRight" Margin="1,2,-2,-3"/>
+        <ui:CutFrame Background="#F3F5F7" BorderBrush="#8D97A2" Cut="10" Corners="TopRight, BottomRight" ClipContent="True">
+          <Grid>
+            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+            <ui:OrbitArc Width="150" Height="44" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-12,6,0" Opacity="0.5"/>
+            <Rectangle Width="28" Height="2" Fill="{StaticResource Accent}" HorizontalAlignment="Left" VerticalAlignment="Top"/>
+            <DockPanel Margin="12,9,14,8" IsHitTestVisible="False">
+              <ui:Emblem Width="16" Height="16" Margin="0,0,7,0" VerticalAlignment="Center"/>
+              <TextBlock DockPanel.Dock="Right" Text="{Binding Items.Count, RelativeSource={RelativeSource TemplatedParent}, StringFormat=共 {0} 处}" FontSize="11" Foreground="{StaticResource MutedText}" VerticalAlignment="Center"/>
+              <StackPanel Orientation="Horizontal">
+                <TextBlock Text="本小节已选分支" FontWeight="SemiBold" FontSize="12.5" VerticalAlignment="Center"/>
+                <Border Width="18" Height="10" Margin="10,0,6,0" Background="{StaticResource HazardTexture}" VerticalAlignment="Center"/>
+                <TextBlock Text="RECHOOSE // ROUTE" FontFamily="{StaticResource LabelFont}" FontSize="9" FontWeight="SemiBold" Foreground="{StaticResource NormalAccent}" VerticalAlignment="Center"/>
+              </StackPanel>
+            </DockPanel>
+            <Rectangle Height="1" Fill="#D5DADF" VerticalAlignment="Bottom"/>
+            <ScrollViewer Grid.Row="1" MaxHeight="380" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" CanContentScroll="False">
+              <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Cycle"/>
+            </ScrollViewer>
+            <Grid Grid.Row="2" IsHitTestVisible="False">
+              <ui:TideLine Height="12" VerticalAlignment="Bottom" Stroke="{StaticResource Accent}" StrokeThickness="0.7" PeakHeight="4" Peaks="0" Opacity="0.35"/>
+              <WrapPanel Margin="12,7,12,9" TextElement.FontSize="10.5" TextElement.Foreground="{StaticResource MutedText}">
+                <Border Background="{StaticResource Plate}" Padding="4,0,4,1" Margin="0,0,4,0" VerticalAlignment="Center"><TextBlock Text="↑↓" FontSize="9" Foreground="White"/></Border>
+                <TextBlock Text="选择 · " VerticalAlignment="Center"/>
+                <Border Background="{StaticResource Plate}" Padding="4,0,4,1" Margin="0,0,4,0" VerticalAlignment="Center"><TextBlock Text="ENTER" FontFamily="{StaticResource LabelFont}" FontSize="9" Foreground="White"/></Border>
+                <TextBlock Text="重新打开 · " VerticalAlignment="Center"/>
+                <Border Background="{StaticResource Plate}" Padding="4,0,4,1" Margin="0,0,4,0" VerticalAlignment="Center"><TextBlock Text="ESC" FontFamily="{StaticResource LabelFont}" FontSize="9" Foreground="White"/></Border>
+                <TextBlock Text="关闭 · 打开即暂停收听" VerticalAlignment="Center"/>
+              </WrapPanel>
+              <Rectangle Height="1" Fill="#D5DADF" VerticalAlignment="Top"/>
+            </Grid>
+          </Grid>
+        </ui:CutFrame>
+        <Path Data="M6,0 L6,6 L0,6" Stroke="{StaticResource Brass}" StrokeThickness="2" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,3,3"/>
+      </Grid>
+    </ControlTemplate></Setter.Value></Setter>
+  </Style>
+
+  <!-- 11-B 航线行：无外框、行间 1px 分隔；选中行 90% 白 + 绯红 2px 左边；悬停雾蓝左边。装饰不进行内。 -->
+  <Style x:Key="RouteRowStyle" TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+    <Setter Property="Margin" Value="0"/>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem">
+      <Grid Background="Transparent">
+        <Border x:Name="Tint" Background="#59FFFFFF" BorderBrush="#E1E5E9" BorderThickness="0,0,0,1"/>
+        <Rectangle x:Name="Edge" Width="2" HorizontalAlignment="Left" Fill="Transparent"/>
+        <ContentPresenter HorizontalAlignment="Stretch"/>
+      </Grid>
+      <ControlTemplate.Triggers>
+        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Tint" Property="Background" Value="#B3FFFFFF"/><Setter TargetName="Edge" Property="Fill" Value="{StaticResource MistBracket}"/></Trigger>
+        <Trigger Property="IsSelected" Value="True"><Setter TargetName="Tint" Property="Background" Value="#E6FFFFFF"/><Setter TargetName="Edge" Property="Fill" Value="{StaticResource Accent}"/></Trigger>
+        <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.45"/></Trigger>
+      </ControlTemplate.Triggers>
+    </ControlTemplate></Setter.Value></Setter>
+  </Style>
+
+  <!-- 12-B 首句卡片：切角 8；选中 = 绯红描边 + 3px 左边 + 右下三角；同文 = 黄铜虚线 + 浅斜纹。 -->
+  <Style x:Key="AnchorCardStyle" TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+    <Setter Property="Margin" Value="0"/>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem">
+      <Grid Background="Transparent">
+        <ui:CutFrame x:Name="Card" Background="#F2FFFFFF" BorderBrush="#BFC7CF" Cut="8" Corners="TopRight, BottomLeft" Padding="12,8,10,8">
+          <ContentPresenter HorizontalAlignment="Stretch"/>
+        </ui:CutFrame>
+        <Border x:Name="Stripes" Background="{StaticResource StripeTexture}" Margin="1" IsHitTestVisible="False" Visibility="Collapsed"/>
+        <Rectangle x:Name="Dash" Stroke="{StaticResource Brass}" StrokeThickness="1" StrokeDashArray="3,2" Visibility="Collapsed" IsHitTestVisible="False"/>
+        <Rectangle x:Name="Edge" Width="3" HorizontalAlignment="Left" Fill="{StaticResource Accent}" Visibility="Collapsed" IsHitTestVisible="False"/>
+        <Path x:Name="Tri" Data="M10,0 L10,10 L0,10 Z" Fill="{StaticResource Accent}" HorizontalAlignment="Right" VerticalAlignment="Bottom" Visibility="Collapsed" IsHitTestVisible="False"/>
+      </Grid>
+      <ControlTemplate.Triggers>
+        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Card" Property="BorderBrush" Value="{StaticResource MistBracket}"/></Trigger>
+        <DataTrigger Binding="{Binding Tag.IsAmbiguous, RelativeSource={RelativeSource Self}}" Value="True">
+          <Setter TargetName="Stripes" Property="Visibility" Value="Visible"/><Setter TargetName="Dash" Property="Visibility" Value="Visible"/><Setter TargetName="Card" Property="BorderBrush" Value="Transparent"/>
+        </DataTrigger>
+        <Trigger Property="IsSelected" Value="True">
+          <Setter TargetName="Card" Property="BorderBrush" Value="{StaticResource Accent}"/><Setter TargetName="Card" Property="StrokeThickness" Value="1.5"/>
+          <Setter TargetName="Edge" Property="Visibility" Value="Visible"/><Setter TargetName="Tri" Property="Visibility" Value="Visible"/>
+        </Trigger>
+        <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.45"/></Trigger>
+      </ControlTemplate.Triggers>
+    </ControlTemplate></Setter.Value></Setter>
+  </Style>
+
 </ResourceDictionary>

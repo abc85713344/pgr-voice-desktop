@@ -170,6 +170,8 @@ DialogueFrameTests.Run();
 SubtitleStabilityTests.Run();
 AndroidCoreTests.Run();
 StateSaveQueueTests.Run();
+CharacterArtTests.Run();
+ChapterCoverTests.Run();
 void Check(bool condition, string message) { if (!condition) throw new Exception(message); }
 void Test(string name, Action test) { test(); passed++; Console.WriteLine("PASS " + name); }
 Pack Fixture()

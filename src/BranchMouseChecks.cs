@@ -109,6 +109,25 @@ public partial class MainWindow
             Check(branchMenu.Options.Items.Count > 2 && engine.AvailableOptions[1].BodyVerified, "第二项是可验证正文的真实选项");
             string secondTarget = engine.AvailableOptions[1].TargetId;
             int calls = playCalls;
+
+            // 0.4.8：分支窗口位置记忆（拖动本身依赖真实 DragMove 消息循环，这里验证位置记忆、越界收回与复位的接线）。
+            {
+                double defaultLeft = branchMenu.Left, defaultTop = branchMenu.Top;
+                var remembered = new Point(defaultLeft + 123, defaultTop + 45);
+                branchMenu.UserPosition = remembered;
+                HideBranchMenu(); ShowBranchMenu(); await Task.Delay(25);
+                Check(branchMenu.IsVisible && Math.Abs(branchMenu.Left - remembered.X) < 1 && Math.Abs(branchMenu.Top - remembered.Y) < 1,
+                    "再次显示分支窗口时沿用用户拖动过的位置，而不是回到主窗口右侧");
+                branchMenu.UserPosition = new Point(-100000, -100000);
+                HideBranchMenu(); ShowBranchMenu(); await Task.Delay(25);
+                var area = SystemParameters.WorkArea;
+                Check(branchMenu.Left >= area.Left - 1 && branchMenu.Top >= area.Top - 1, "记忆位置超出屏幕时收回工作区内");
+                preferences.BranchMenuLeft = preferences.BranchMenuTop = null; branchMenu.UserPosition = null;
+                HideBranchMenu(); ShowBranchMenu(); await Task.Delay(25);
+                Check(Math.Abs(branchMenu.Left - defaultLeft) < 1 && Math.Abs(branchMenu.Top - defaultTop) < 1, "复位后回到默认位置（跟随主窗口）");
+                Check(branchMenu.IsVisible && engine.CurrentId == menuId && engine.Mode == RunMode.Choice && playCalls == calls, "位置记忆不改变当前菜单、不播放");
+                FocusCheck();
+            }
             var second = ItemTarget(1);
             await Click(second);
             Check(branchMenu.Options.SelectedIndex == 1 && engine.CurrentId == menuId && playCalls == calls,
