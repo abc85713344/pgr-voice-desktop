@@ -128,6 +128,7 @@ public partial class MainWindow : Window
         testUi |= args.Contains("--test-047-ui");
         testUi |= args.Contains("--test-quick-window-ui");
         testUi |= args.Contains("--test-text-auto-ui") || args.Contains("--test-route-compat-ui") || args.Contains("--test-story-reference-ui") || args.Contains("--test-preference-validation-ui");
+        testUi |= args.Contains("--test-path-selection-ui");
         stateFile = Path.Combine(Log.DataDir, "preferences.json");
         // 在初始化控件、恢复章节可能保存默认设置之前冻结新旧用户判断。
         autoOpenOnboarding = OnboardingStore.ShouldAutoOpen(Log.DataDir);
@@ -236,7 +237,7 @@ public partial class MainWindow : Window
             {
                 SetLibrary(args[libraryArgument + 1]);
                 var choices = LibraryBox.Items.OfType<PackChoice>().ToList();
-                var initial = choices.FirstOrDefault(x => String.Equals(x.File, packFile, StringComparison.OrdinalIgnoreCase)) ?? choices.FirstOrDefault();
+                var initial = choices.FirstOrDefault(x => LibraryPaths.SameFile(x.File, packFile)) ?? choices.FirstOrDefault();
                 if (initial != null) LoadPack(initial.File);
             }
             else if (File.Exists(packFile)) { SetLibrary(Path.GetDirectoryName(Path.GetFullPath(packFile))!); LoadPack(packFile); }
@@ -258,7 +259,8 @@ public partial class MainWindow : Window
                 SectionBox.SelectedItem = textStartSection;
             if (args.Contains("--text-tracking")) Expand(gameTextTab);
             Log.Write("startup", $"窗口已就绪，PID={Environment.ProcessId}，面板={expanded}，位置={Left:0},{Top:0}");
-            if (args.Contains("--test-047-ui")) await Run047UiTest(args);
+            if (args.Contains("--test-path-selection-ui")) await RunPathSelectionUiTest(args);
+            else if (args.Contains("--test-047-ui")) await Run047UiTest(args);
             else if (args.Contains("--test-quick-window-ui")) await RunQuickWindowUiTest(args);
             else if (args.Contains("--test-ui-review")) await RunUiReviewTest();
             else if (args.Contains("--test-preference-validation-ui")) await RunPreferenceValidationUiTest();
@@ -356,6 +358,7 @@ public partial class MainWindow : Window
         StopListeningForGame();
         try
         {
+            file = Path.GetFullPath(file);
             var pack = DesktopPackLoader.Load(file);
             if(engine!=null)
             {
@@ -364,7 +367,7 @@ public partial class MainWindow : Window
                 {
                     ShowSaveFailure(saveError.Message); Tell("当前章进度保存失败，已保留当前章节。请处理保存问题后再切章。");
                     selectingLibrary = true;
-                    LibraryBox.SelectedItem = LibraryBox.Items.OfType<PackChoice>().FirstOrDefault(x => String.Equals(x.File, preferences.PackFile, StringComparison.OrdinalIgnoreCase));
+                    LibraryBox.SelectedItem = LibraryBox.Items.OfType<PackChoice>().FirstOrDefault(x => LibraryPaths.SameFile(x.File, preferences.PackFile));
                     selectingLibrary = false; return;
                 }
             }
@@ -383,7 +386,7 @@ public partial class MainWindow : Window
                 applyReselectHighlight=engine.CurrentReselectOptionId!=null;singleResume=engine.ReviewRoute!=null;
             }
             preferences.PackFile = file;
-            var selected = LibraryBox.Items.OfType<PackChoice>().FirstOrDefault(x => String.Equals(x.File,file,StringComparison.OrdinalIgnoreCase));
+            var selected = LibraryBox.Items.OfType<PackChoice>().FirstOrDefault(x => LibraryPaths.SameFile(x.File, file));
             if (selected != null) { selectingLibrary=true;LibraryBox.SelectedItem=selected;selectingLibrary=false; }
             ChapterBox.ItemsSource = pack.Chapters; ChapterBox.SelectedIndex = 0;
             UpdateChapterNavigation();
@@ -406,7 +409,7 @@ public partial class MainWindow : Window
                 try
                 {
                     LibraryBox.SelectedItem = LibraryBox.Items.OfType<PackChoice>().FirstOrDefault(x =>
-                        String.Equals(x.File, preferences.PackFile, StringComparison.OrdinalIgnoreCase));
+                        LibraryPaths.SameFile(x.File, preferences.PackFile));
                 }
                 finally { selectingLibrary = false; }
             }
@@ -1081,7 +1084,7 @@ public partial class MainWindow : Window
     void LibraryChanged(object sender, SelectionChangedEventArgs e)
     {
         if (ready && !selectingLibrary && LibraryBox.SelectedItem is PackChoice choice &&
-            !String.Equals(preferences.PackFile,choice.File,StringComparison.OrdinalIgnoreCase)) LoadPack(choice.File);
+            !LibraryPaths.SameFile(preferences.PackFile, choice.File)) LoadPack(choice.File);
     }
     void SetLibrary(string folder)
     {
@@ -1196,12 +1199,32 @@ public partial class MainWindow : Window
             Expand(SettingsTab); await Task.Delay(150);
             async Task Edit(string action, Key key, bool save, bool collision = false, bool useList = false)
             {
+                await PrepareIsolatedTestForeground(this, "改键检查的主窗口无法取得前台");
                 var open = Dispatcher.InvokeAsync(() => keyButtons[action].RaiseEvent(new RoutedEventArgs(Button.ClickEvent)));
                 await Task.Delay(180);
                 var editor = keyEditor ?? throw new Exception("没有打开改键窗口");
                 try
                 {
                     if (!editor.CaptureField.IsKeyboardFocused) throw new Exception("改键窗口未将焦点放到录入框");
+                    editor.UpdateLayout(); editor.CaptureField.ApplyTemplate();
+                    var field = editor.CaptureField.Template.FindName("Field", editor.CaptureField) as CutFrame;
+                    if (field?.Background is not SolidColorBrush background || editor.CaptureField.Foreground is not SolidColorBrush foreground)
+                        throw new Exception("改键框的实际模板颜色不可读取");
+                    static double Luminance(Color c)
+                    {
+                        static double Channel(byte b) { double v = b / 255d; return v <= .04045 ? v / 12.92 : Math.Pow((v + .055) / 1.055, 2.4); }
+                        return .2126 * Channel(c.R) + .7152 * Channel(c.G) + .0722 * Channel(c.B);
+                    }
+                    double light = Luminance(foreground.Color), dark = Luminance(background.Color);
+                    double contrast = (Math.Max(light, dark) + .05) / (Math.Min(light, dark) + .05);
+                    if (contrast < 4.5) throw new Exception("聚焦后的改键框文字对比度不足：" + contrast);
+                    results.Add("PASS: 聚焦后的按键文字清晰可见，对比度=" + contrast.ToString("0.00"));
+                    if (action == "next" && key == Key.J)
+                    {
+                        var bitmap = new RenderTargetBitmap((int)editor.ActualWidth, (int)editor.ActualHeight, 96, 96, PixelFormats.Pbgra32);
+                        bitmap.Render(editor); var png = new PngBitmapEncoder(); png.Frames.Add(BitmapFrame.Create(bitmap));
+                        using var screenshot = File.Create(Path.Combine(Log.DataDir, "key-capture-focused.png")); png.Save(screenshot);
+                    }
                     if (useList)
                     {
                         // 07-B 改键窗口把「或直接选择按键」列表放进了分栏里：按 AutomationId 在逻辑树中找，不依赖层级。

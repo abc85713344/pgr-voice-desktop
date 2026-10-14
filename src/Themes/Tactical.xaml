@@ -394,7 +394,8 @@
       </Grid>
       <ControlTemplate.Triggers>
         <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Field" Property="BorderBrush" Value="{StaticResource StrokeStrong}"/></Trigger>
-        <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="Field" Property="BorderBrush" Value="{StaticResource Accent}"/><Setter TargetName="Field" Property="Background" Value="#FFFFFF"/><Setter TargetName="Underline" Property="Visibility" Value="Visible"/></Trigger>
+        <!-- 保留输入框自己的背景与文字配色；深色按键框不能在聚焦时变成白底白字。 -->
+        <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="Field" Property="BorderBrush" Value="{StaticResource Accent}"/><Setter TargetName="Underline" Property="Visibility" Value="Visible"/></Trigger>
         <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Root" Property="Opacity" Value="0.5"/></Trigger>
       </ControlTemplate.Triggers>
     </ControlTemplate></Setter.Value></Setter>

@@ -8,6 +8,13 @@ namespace PgrVoice;
 // 只识别总目录、约定的分类目录和单章，避免递归读入同步备份及历史修订。
 internal static class LibraryPaths
 {
+    internal static bool SameFile(string? first, string? second)
+    {
+        if (string.IsNullOrWhiteSpace(first) || string.IsNullOrWhiteSpace(second)) return false;
+        try { return string.Equals(Path.GetFullPath(first), Path.GetFullPath(second), StringComparison.OrdinalIgnoreCase); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        { return false; }
+    }
     internal static bool IsCategory(string folder)
     {
         string name = Path.GetFileName(Path.TrimEndingDirectorySeparator(folder));
@@ -56,9 +63,11 @@ internal static class LibraryPaths
     // 整章目录移动时，包编号与存档不变；只恢复名称唯一的原章节路径。
     internal static string Restore(string file, string? library = null)
     {
-        if (string.IsNullOrWhiteSpace(file) || File.Exists(file)) return file;
+        if (string.IsNullOrWhiteSpace(file)) return file;
         try
         {
+            file = Path.GetFullPath(file);
+            if (File.Exists(file)) return file;
             if (!Path.GetFileName(file).Equals("pack.json", StringComparison.OrdinalIgnoreCase)) return file;
             string? chapter = Path.GetDirectoryName(Path.GetFullPath(file));
             if (chapter == null) return file;

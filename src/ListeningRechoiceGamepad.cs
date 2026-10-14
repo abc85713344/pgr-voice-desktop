@@ -49,10 +49,16 @@ public partial class MainWindow
             Dispatcher.BeginInvoke(DispatcherPriority.ContextIdle, new Action(() =>
             {
                 binding.Cancelled = true;
-                if (!ReferenceEquals(listeningRechoiceMenuBinding, binding)) return;
-                listeningRechoiceMenuBinding = null;
-                ResetGamepadContext();
-                if (expanded && Tabs.SelectedItem == listeningTab) listeningRechoose.Focus();
+                if (ReferenceEquals(listeningRechoiceMenuBinding, binding))
+                {
+                    listeningRechoiceMenuBinding = null;
+                    ResetGamepadContext();
+                }
+                // B / Esc 会先同步清空绑定以禁止旧 Click；原生 Popup 完成关闭后仍须恢复焦点。
+                // 新菜单、改选后的界面及其他会话不能被旧 Closed 回调抢回焦点。
+                if (closing || listeningRechoiceMenuBinding != null || binding.Epoch != listeningRechoiceMenuEpoch
+                    || !ReferenceEquals(binding.Owner, listeningSession) || binding.Version != listeningChoiceUiVersion) return;
+                if (expanded && Tabs.SelectedItem == listeningTab && listeningRechoose.IsEnabled) listeningRechoose.Focus();
             }));
         };
     }

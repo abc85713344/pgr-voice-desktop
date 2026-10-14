@@ -77,11 +77,20 @@ public partial class MainWindow
             Check(listeningOffset == 1234 && !listeningRunning, "同章重开恢复句内断点并保持静音");
             listeningBookmarkName.Text = "验收书签"; AddListeningBookmark();
             Check(ListeningProgress!.Bookmarks.Count == 1 && ListeningProgress.Bookmarks[0].Snapshot.PositionMs == 1234, "命名书签保留本句与句内位置");
-            listeningDwellScale = 0.5; // 本步要在停留期间核对字幕，用 1 秒停留避免空闲调度时已越过
-            StartListening(); long first = listeningTicket; OnListeningCompleted(first); await DrainListeningUi();
-            // 0.4.7（J）：缺音频台词显示字幕并按字数停留后继续（测试缩短停留），不再跳过。
-            Check(listeningSession.Current?.NodeId == "missing" && listeningRunning && listeningMessage.StartsWith("无配音 · "), "0.4.7：缺音频句显示字幕与「无配音」签，按字数停留：" + listeningMessage);
-            var dwellDeadline = DateTime.UtcNow.AddSeconds(3);
+            listeningDwellScale = 1; // 本步核对真实停留规则，不缩短产品要求的字幕阅读时间。
+            int expectedDwell = PendingVoice.DwellMilliseconds(pack.Nodes.Single(n => n.Id == "missing").Text);
+            StartListening(); long first = listeningTicket; OnListeningCompleted(first);
+            // 完成回调把下一句排在 Background；观察也排入同一队列，在随后到点的 Timer 之前取状态。
+            // 不能等 ApplicationIdle：加载较慢时原来的 1 秒测试停留已经结束，看到的会是后面的分支。
+            await Dispatcher.InvokeAsync(() =>
+            {
+                Check(listeningSession.Current?.NodeId == "missing" && listeningRunning && listeningMessage.StartsWith("无配音 · "),
+                    "0.4.7：缺音频句显示字幕与「无配音」签，按字数停留：" + listeningMessage);
+                Check(listeningText.Text.Contains("未补配音") && listeningDwellTimer?.IsEnabled == true
+                    && listeningDwellTimer.Interval == TimeSpan.FromMilliseconds(expectedDwell),
+                    $"无配音句已显示正文，实际停留计时使用按字数规则（{expectedDwell} 毫秒）");
+            }, System.Windows.Threading.DispatcherPriority.Background);
+            var dwellDeadline = DateTime.UtcNow.AddMilliseconds(expectedDwell + 3000);
             while (!listeningSession.HasPendingChoice && DateTime.UtcNow < dwellDeadline) await Task.Delay(20);
             listeningDwellScale = 0.02;
             Check(listeningSession.HasPendingChoice && !listeningRunning && listeningSkipped == 0 && listeningPendingVoiceItems == 1, $"停留后遇手动分支停止（{listeningSession.Current?.NodeId}；无配音 {listeningPendingVoiceItems}；播放 {listeningRunning}）");

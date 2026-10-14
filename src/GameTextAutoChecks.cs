@@ -35,15 +35,18 @@ public partial class MainWindow
                     new() { Id = "tail", SectionId = "s", Speaker = "甲", Text = "最后一句。", Audio = "voice.wav", NextId = "end" },
                     new() { Id = "end", SectionId = "s", Kind = "end" } } };
             pack.Validate();
-            long Start(string id = "a", GameTextKind kind = GameTextKind.Ordinary)
+            long Start(string id = "a", GameTextKind kind = GameTextKind.Ordinary, Pack? sourcePack = null)
             {
                 CancelTextAutoAdvance(); environment = foreground = true; clickSucceeds = true; textActiveConflict = false;
+                playingNative = false; nativeVoiceUntil = 0;
                 textAutoBox.IsChecked = true; textAutoDelay.SelectedIndex = 1;
-                var owner = new PlaybackEngine(pack); engine = textOwner = owner; textSection = "s"; textArmed = true; lastTextPlayed = "";
+                sourcePack ??= pack;
+                var node = sourcePack.ById[id];
+                var owner = new PlaybackEngine(sourcePack); engine = textOwner = owner; textSection = node.SectionId; textArmed = true; lastTextPlayed = "";
                 owner.PlayRequested += _ => { playCalls++; audioRequest++; };
                 owner.StopRequested += StopAudio;
                 foreach (var p in textProbes) { p.Active = false; p.Observed = p.Pending = p.ObservedSpeaker = p.PendingSpeaker = ""; }
-                var node = pack.ById[id]; sample = new(true, node.Text, true, Active: true, Speaker: node.Speaker);
+                sample = new(true, node.Text, true, Active: true, Speaker: node.Speaker);
                 var probe = textProbes[kind == GameTextKind.Ordinary ? 0 : 1];
                 ObserveGameText(probe, sample, Stopwatch.GetTimestamp());
                 CommitMemoryGameText(probe, owner, node.Text, node.Speaker); probe.Pending = "";
@@ -134,6 +137,94 @@ public partial class MainWindow
             Check(clicks == before + 1 && engine!.CurrentId == "r1", "已读取并确认的支线正文也可自动点一次");
             ticket = Start("a", GameTextKind.Scene3D); before = clicks; OnTextAudioCompleted(ticket); clock += 2000; TickTextAutoAdvance();
             Check(clicks == before + 1, "3D 探针使用同一完成及等待规则");
+
+            // 使用触发过提前点击的第43章真实原配身份和19.75秒时长；仍不输出音频或系统点击。
+            var nativeEntry = NativeVoiceCatalog.Shared?.FindConfiguredVoice(
+                "voice-v2-MAIN43_ANNOTATED_20261005_015707", "MAIN43_ZX06921BA_A551_P2_ALL")
+                ?? throw new InvalidOperationException("缺少第43章原配等待回归条目");
+            var nativePack = new Pack { Id = nativeEntry.PackId, Title = "原配等待验收", Root = folder,
+                Chapters = new() { new() { Id = "native-chapter", Sections = new() { new() { Id = nativeEntry.SectionId, StartId = nativeEntry.NodeId } } } },
+                Nodes = new() {
+                    new() { Id = nativeEntry.NodeId, SectionId = nativeEntry.SectionId, PathId = nativeEntry.PathId,
+                        Speaker = nativeEntry.Speaker, Text = nativeEntry.Text, RawText = nativeEntry.RawText, Audio = "voice.wav", NextId = "native-next" },
+                    new() { Id = "native-next", SectionId = nativeEntry.SectionId, PathId = nativeEntry.PathId,
+                        Speaker = "旁白", Text = "后续测试台词。", Audio = "voice.wav", NextId = "native-end" },
+                    new() { Id = "native-end", SectionId = nativeEntry.SectionId, Kind = "end" } } };
+            nativePack.Validate();
+            long StartNative()
+            {
+                long nativeTicket = Start(nativeEntry.NodeId, sourcePack: nativePack);
+                preferences.NativeVoiceMute = true; preferences.NativeVoiceDubPacks.Clear();
+                MarkNativeVoiceStart(engine!.Current, true); playingNative = true;
+                return nativeTicket;
+            }
+            ticket = StartNative(); before = clicks;
+            Check(nativeEntry.NativeDurationMs == 19750 && NativeVoiceLine(engine!.Current) && NativeVoiceRemainingMs() == 20000,
+                "第43章真实原配身份匹配，19.75秒原声加250毫秒尾部保护");
+            long nativeEnd = nativeVoiceUntil;
+            clock += 6780; OnTextAudioCompleted(ticket);
+            Check(textAutoLine?.NativeUntil == nativeEnd && textAutoLine.ClickAt == nativeEnd + 1500,
+                "静音占位6.78秒播完后，点击截止保留原配余时再加用户间隔");
+            foreground = false; TickTextAutoAdvance(); foreground = true; TickTextAutoAdvance();
+            clock += 1500; TickTextAutoAdvance();
+            Check(clicks == before && NativeVoiceRemainingMs() > 0 && textAutoLine?.NativeUntil == nativeEnd,
+                "原配未结束时切出再返回，过普通1.5秒仍不能提前点击");
+            textAutoDelay.SelectedIndex = 0; TickTextAutoAdvance();
+            Check(clicks == before && textAutoLine?.ClickAt == nativeEnd + 1000,
+                "恢复前台后修改等待设置仍保留本句原配截止");
+            clock = nativeEnd - 1; TickTextAutoAdvance();
+            Check(clicks == before, "原配结束前最后1毫秒不点击");
+            clock = nativeEnd + 999; TickTextAutoAdvance();
+            Check(clicks == before, "原配结束后还要等满所选1秒间隔");
+            clock++; TickTextAutoAdvance(); TickTextAutoAdvance();
+            Check(clicks == before + 1 && textAutoLine == null, "原配和所选间隔都结束后只点击一次");
+
+            ticket = StartNative(); before = clicks; nativeEnd = nativeVoiceUntil;
+            clock += 6780; OnTextAudioCompleted(ticket); foreground = false; TickTextAutoAdvance();
+            clock = nativeEnd + 5000; TickTextAutoAdvance();
+            Check(clicks == before && textAutoLine?.FocusHeld == true, "原配在后台已结束仍不点击");
+            foreground = true; TickTextAutoAdvance(); long resumedAt = clock;
+            clock += 100; textAutoDelay.SelectedIndex = 2; TickTextAutoAdvance();
+            Check(clicks == before && textAutoLine?.ClickAt == resumedAt + 2000,
+                "原配已结束后返回并修改间隔，以本次恢复时刻等待，不能回用旧完成时刻");
+            clock = resumedAt + 1999; TickTextAutoAdvance();
+            Check(clicks == before, "原配在后台结束后，返回仍等待完整新间隔");
+            clock++; TickTextAutoAdvance();
+            Check(clicks == before + 1, "原配已结束时不重复等待原配全长，完整间隔后点击");
+
+            ticket = StartNative(); before = clicks;
+            clock = nativeVoiceUntil + 5000; OnTextAudioCompleted(ticket);
+            Check(textAutoLine?.ClickAt == clock + 1500, "占位完成晚于原配结束时只添加普通间隔");
+            clock += 1499; TickTextAutoAdvance(); Check(clicks == before, "较晚完成的占位仍不能跳过用户间隔");
+            clock++; TickTextAutoAdvance(); Check(clicks == before + 1, "较晚完成的占位等满间隔后点击");
+
+            ticket = StartNative(); before = clicks; nativeEnd = nativeVoiceUntil;
+            foreground = false; TickTextAutoAdvance(); clock += 5000; foreground = true; TickTextAutoAdvance();
+            Check(clicks == before && textAutoLine?.CompletedAt == null, "原配占位尚未完成时返回不能产生点击资格");
+            clock += 1780; OnTextAudioCompleted(ticket); clock += 1500; TickTextAutoAdvance();
+            Check(clicks == before && textAutoLine?.ClickAt == nativeEnd + 1500,
+                "先恢复前台再收到占位完成事件，同样保留原配截止");
+            clock = nativeEnd + 1500; TickTextAutoAdvance(); Check(clicks == before + 1, "先恢复前台的原配句也只在完整等待后点击");
+
+            foreach (string change in new[] { "stop", "toggle", "text", "input", "ticket" })
+            {
+                ticket = StartNative(); before = clicks; clock += 6780; OnTextAudioCompleted(ticket);
+                switch (change)
+                {
+                    case "stop": StopAudio(); break;
+                    case "toggle": textAutoBox.IsChecked = false; break;
+                    case "text": sample = sample with { Text = "已换到新的原配台词。" }; break;
+                    case "input": ObserveTextAutoInput(true, "原配等待时手动操作"); break;
+                    case "ticket": audioRequest++; break;
+                }
+                clock += 60000; OnTextAudioCompleted(ticket); TickTextAutoAdvance();
+                Check(clicks == before && textAutoLine == null, "原配截止不能恢复已取消或失效的点击票据：" + change);
+            }
+            long oldNativeTicket = ticket; ticket = StartNative(); before = clicks;
+            OnTextAudioCompleted(oldNativeTicket); clock += 60000; TickTextAutoAdvance();
+            Check(clicks == before && textAutoLine?.CompletedAt == null,
+                "上一句原配完成事件不能授权新票据，也不能仅凭原配到期点击");
+
             pack.ById["a"].Text = "。。。。。。"; pack.ById["a"].Audio = null;
             ticket = Start(); before = clicks;
             Check(textAutoLine?.SilentPause == true && textAutoLine.CompletedAt != null, "纯标点没有音频时独立计时，不等待不存在的播完事件");
@@ -191,7 +282,8 @@ public partial class MainWindow
         catch (Exception ex) { report.Add("FAIL: " + ex); }
         finally
         {
-            CancelTextAutoAdvance(); textAutoEnvironmentTest = null; textAutoForegroundTest = null; textAutoSampleTest = null; textAutoClickTest = null; textAutoClockTest = null;
+            CancelTextAutoAdvance(); playingNative = false; nativeVoiceUntil = 0;
+            textAutoEnvironmentTest = null; textAutoForegroundTest = null; textAutoSampleTest = null; textAutoClickTest = null; textAutoClockTest = null;
             Directory.CreateDirectory(Log.DataDir); File.WriteAllLines(Path.Combine(Log.DataDir, "text-auto-ui-test.txt"), report); Close();
         }
     }

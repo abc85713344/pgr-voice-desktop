@@ -20,7 +20,9 @@ public partial class MainWindow
         public long ClickAt;
         public bool FocusHeld;
         public bool SilentPause;
-        public int NativeHold;
+        // 原配截止属于本句，不随焦点变化或等待设置重置；WaitFrom 记录本次完整等待的起点。
+        public long NativeUntil;
+        public long WaitFrom;
     }
     TextAutoLine? textAutoLine;
     // 隔离验收替换环境、内存样本与点击；生产运行无法使用这些替身。
@@ -31,6 +33,8 @@ public partial class MainWindow
     Func<long>? textAutoClockTest;
     long TextAutoNow() => testUi && textAutoClockTest != null ? textAutoClockTest() : (long)(Stopwatch.GetTimestamp() * (1000d / Stopwatch.Frequency));
     int TextAutoDelayMs => new[] { 1000, 1500, 2000 }[Math.Clamp(textAutoDelay.SelectedIndex, 0, 2)];
+    void ScheduleTextAutoClick(TextAutoLine line) => line.ClickAt = Math.Max(line.WaitFrom, line.NativeUntil) +
+        (line.SilentPause ? AutoPlaybackLinePolicy.SilentPauseMilliseconds : TextAutoDelayMs);
 
     void InitializeTextAutoAdvance(StackPanel panel)
     {
@@ -50,7 +54,7 @@ public partial class MainWindow
         textAutoDelay.SelectionChanged += (_, _) =>
         {
             preferences.TextAutoDelaySeconds = TextAutoDelayMs / 1000d;
-            if (textAutoLine is { CompletedAt: not null, SilentPause: false } line) line.ClickAt = line.CompletedAt.Value + line.NativeHold + TextAutoDelayMs;
+            if (textAutoLine is { CompletedAt: not null, SilentPause: false } line) ScheduleTextAutoClick(line);
             Save();
         };
         textAutoPosition.Click += (_, _) =>
@@ -102,7 +106,8 @@ public partial class MainWindow
         {
             textAutoLine.SilentPause = true;
             textAutoLine.CompletedAt = TextAutoNow();
-            textAutoLine.ClickAt = textAutoLine.CompletedAt.Value + AutoPlaybackLinePolicy.SilentPauseMilliseconds;
+            textAutoLine.WaitFrom = textAutoLine.CompletedAt.Value;
+            ScheduleTextAutoClick(textAutoLine);
             textAutoStatus.Text = "标点停顿 · 1.2 秒后核对并继续。";
             return;
         }
@@ -151,9 +156,12 @@ public partial class MainWindow
         {
             if (!TextAutoCurrent(line)) { CancelTextAutoAdvance("当前句已变化，本次自动点击已取消。"); return; }
             if (!TextAutoCanContinue(line)) return;
-            line.NativeHold = NativeVoiceRemainingMs();
-            line.CompletedAt = TextAutoNow(); line.ClickAt = line.CompletedAt.Value + line.NativeHold + TextAutoDelayMs;
-            textAutoStatus.Text = (line.NativeHold > 0 ? "游戏原配预计还要 " + (line.NativeHold / 1000d).ToString("0.#") + " 秒，播完再" : "配音已播完，") +
+            int nativeRemaining = NativeVoiceRemainingMs();
+            line.CompletedAt = TextAutoNow();
+            line.NativeUntil = line.CompletedAt.Value + nativeRemaining;
+            line.WaitFrom = line.CompletedAt.Value;
+            ScheduleTextAutoClick(line);
+            textAutoStatus.Text = (nativeRemaining > 0 ? "游戏原配预计还要 " + (nativeRemaining / 1000d).ToString("0.#") + " 秒，播完再" : "配音已播完，") +
                 "等待 " + (TextAutoDelayMs / 1000d).ToString("0.#") + " 秒后点击下一句。";
             Log.Write("text-auto-completed", $"节点={line.Node}\t请求={ticket}\t等待毫秒={TextAutoDelayMs}");
             if (!TextAutoHasFocus()) { line.FocusHeld = false; HoldTextAutoForFocus(); }
@@ -171,8 +179,11 @@ public partial class MainWindow
             if (line.FocusHeld)
             {
                 line.FocusHeld = false;
-                if (line.CompletedAt != null) line.ClickAt = TextAutoNow() +
-                    (line.SilentPause ? AutoPlaybackLinePolicy.SilentPauseMilliseconds : TextAutoDelayMs);
+                if (line.CompletedAt != null)
+                {
+                    line.WaitFrom = TextAutoNow();
+                    ScheduleTextAutoClick(line);
+                }
                 textAutoStatus.Text = line.CompletedAt == null ? "已回到游戏，等待当前配音播完。" : "已回到游戏，当前句一致，重新等待后点击下一句。";
                 Log.Write("text-auto-foreground", textAutoStatus.Text);
                 return;

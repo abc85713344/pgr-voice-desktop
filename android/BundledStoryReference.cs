@@ -66,14 +66,21 @@ public static class BundledStoryReference
             {
                 var section = GetSection(pack.Id, sectionId);
                 if (section == null) return "内置资料暂未收录这个小节。";
-                // 允许旧包只有导航边界不同；正文与菜单身份/选项必须双向一致。
+                // 旧资料中的正文与菜单身份/选项仍须全部准确对应；仅新增节点可以另列只读补充。
+                // 补充不建立内置来源绑定，也不消费 NextId、选项目标或其他导航证据。
                 var current = pack.Nodes.Where(n => !n.Archived && n.SectionId == sectionId && n.Kind is "line" or "choice").ToArray();
                 var reference = section.Nodes.Values.Where(n => n.Node.Kind is "line" or "choice").ToArray();
-                if (current.Length == 0 || current.Length != reference.Length || current.Any(n =>
-                    !section.Nodes.TryGetValue(n.Id, out var r) || !Matches(pack.Id, n, r))) return Mismatch;
+                if (current.Length == 0 || current.Select(n => n.Id).Distinct(StringComparer.Ordinal).Count() != current.Length) return Mismatch;
+                var currentById = current.ToDictionary(n => n.Id, StringComparer.Ordinal);
+                if (reference.Any(r => !currentById.TryGetValue(r.Node.NodeId, out var n) || !Matches(pack.Id, n, r)) ||
+                    current.Any(n => section.Nodes.TryGetValue(n.Id, out var r) && !Matches(pack.Id, n, r))) return Mismatch;
+                var added = current.Where(n => !section.Nodes.ContainsKey(n.Id)).ToArray();
                 section.Text ??= ReadText(section.Metadata.TextEntry);
                 cachedPreamble ??= ReadText(cachedPack!.PreambleEntry);
-                return "内置剧情文本 · 只读参考\n正文和选项已与当前小节逐条对应；资料中的现稿连接不代替实际游戏路线。\n\n" + cachedPreamble + section.Text;
+                if (added.Length == 0)
+                    return "内置剧情文本 · 只读参考\n正文和选项已与当前小节逐条对应；资料中的现稿连接不代替实际游戏路线。\n\n" + cachedPreamble + section.Text;
+                return $"小节剧情文本 · 内置版本 + 当前包补充 · 只读参考\n内置的 {reference.Length} 条正文和选项已与当前小节逐条对应；当前包另有 {added.Length} 条新增记录，列在文末。\n新增记录尚未绑定内置资料；下面的内置版本不包含这些记录。资料中的现稿连接不代替实际游戏路线。\n\n" +
+                    cachedPreamble + section.Text + FormatAdditions(added);
             }
             catch (Exception ex) when (IsDataError(ex)) { return Unavailable; }
         }
@@ -95,6 +102,23 @@ public static class BundledStoryReference
     }
 
     static Node? FindCurrent(Pack pack, string id) => pack.ById.TryGetValue(id, out var n) ? n : pack.Nodes.FirstOrDefault(n => n.Id == id);
+
+    static string FormatAdditions(IReadOnlyList<Node> added)
+    {
+        var text = new StringBuilder("\n\n──────── 当前包补充 ────────\n以下原文、角色和来源摘自当前配音包，尚未绑定内置资料。按包内记录顺序列出，不表示游戏发生顺序、分支连接或自动续播资格。\n");
+        for (int i = 0; i < added.Count; i++)
+        {
+            var node = added[i];
+            text.Append($"\n[{i + 1}] {(node.Kind == "choice" ? "选项记录" : "台词记录")} · 未绑定内置资料\n包内节点号：{node.Id}\n");
+            if (!string.IsNullOrWhiteSpace(node.Speaker)) text.Append("角色：").Append(node.Speaker).Append('\n');
+            if (!string.IsNullOrWhiteSpace(node.Text)) text.Append("正文：").Append(node.Text).Append('\n');
+            for (int option = 0; option < node.Options.Count; option++)
+                text.Append($"选项 {option + 1}：{node.Options[option].Label}\n");
+            text.Append("包内注明的来源：").Append(string.IsNullOrWhiteSpace(node.Source) ? "未注明" : node.Source).Append('\n');
+        }
+        return text.ToString();
+    }
+
     static bool Matches(string packId, Node node, ReferenceDocument reference)
     {
         var r = reference.Node;

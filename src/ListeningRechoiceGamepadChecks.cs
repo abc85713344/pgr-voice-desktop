@@ -73,12 +73,32 @@ public partial class MainWindow
             HandleGamepadReading(reading, Native.GetForegroundWindow());
         }
         async Task Tap(GamepadButtons buttons) { Send(buttons); await Drain(); Send(GamepadButtons.None); await Drain(); }
-        async Task OpenWithController()
+        int openAttempt = 0;
+        string MenuDiagnostic(string stage)
         {
-            listeningRechoose.BringIntoView(); UpdateLayout(); listeningRechoose.Focus(); Send(GamepadButtons.None);
+            var binding = listeningRechoiceMenuBinding;
+            var focused = Keyboard.FocusedElement as FrameworkElement;
+            var foreground = Native.GetForegroundWindow();
+            GetWindowThreadProcessId(foreground, out uint processId);
+            var windowClass = new StringBuilder(256); GetListeningCheckWindowClass(foreground, windowClass, windowClass.Capacity);
+            string text = $"{stage}: foreground={foreground}, PID={processId}, class={windowClass}, main={new WindowInteropHelper(this).Handle}, "
+                + $"focus={focused?.GetType().Name}:{focused?.Name}, buttonFocus={listeningRechoose.IsKeyboardFocusWithin}, "
+                + $"menuOpen={listeningRechoose.ContextMenu?.IsOpen}, context={GetGamepadContext()}, storedContext={gamepadContext}, "
+                + $"bindingEpoch={binding?.Epoch}, currentEpoch={listeningRechoiceMenuEpoch}, bindingVersion={binding?.Version}, uiVersion={listeningChoiceUiVersion}, "
+                + $"cancelled={binding?.Cancelled}, requireNeutral={gamepadRequireNeutral}, expanded={expanded}, listeningTab={Tabs.SelectedItem == listeningTab}";
+            File.AppendAllText(Path.Combine(root, "listening-rechoice-gamepad-diagnostics.txt"), text + Environment.NewLine);
+            return text;
+        }
+        async Task OpenWithController(bool focusButton = true)
+        {
+            openAttempt++;
+            if (focusButton) { listeningRechoose.BringIntoView(); UpdateLayout(); listeningRechoose.Focus(); }
+            Send(GamepadButtons.None);
+            MenuDiagnostic($"第 {openAttempt} 次 A 重开前（测试恢复焦点={focusButton}）");
             await Tap(GamepadButtons.South); Send(GamepadButtons.None); await Drain();
+            string diagnostic = MenuDiagnostic($"第 {openAttempt} 次 A 重开后");
             check(listeningRechoose.ContextMenu?.IsOpen == true && GetGamepadContext().StartsWith("listening-rechoice:", StringComparison.Ordinal),
-                "手柄 A 打开重选列表并进入独立菜单路由");
+                "手柄 A 打开重选列表并进入独立菜单路由（" + diagnostic + "）");
         }
         var pack = new Pack
         {
@@ -128,7 +148,19 @@ public partial class MainWindow
             items[1].RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent)); OnListeningCompleted(cancelledTicket); await Drain();
             check(State() == beforeCancel && !listeningRunning, "取消后旧菜单点击和旧完成回调不能提交改选");
 
-            await OpenWithController(); await Tap(GamepadButtons.DPadDown); Send(GamepadButtons.South); await Drain();
+            // 直接使用产品关闭后的焦点连续重开，测试不得在每次 A 前替产品 Focus。
+            for (int i = 0; i < 8; i++)
+            {
+                await Task.Delay(120); await Drain();
+                string diagnostic = MenuDiagnostic($"连续取消重开 {i + 1}/8：关闭稳定后");
+                check(listeningRechoose.IsKeyboardFocusWithin, "手柄 B 关闭稳定后焦点回到重选按钮（" + diagnostic + "）");
+                await OpenWithController(false);
+                await Tap(GamepadButtons.East);
+                check(listeningRechoose.ContextMenu?.IsOpen == false && !listeningRunning && State() == beforeCancel,
+                    $"连续取消重开 {i + 1}/8：B 只关闭菜单，路线与进度保持");
+            }
+
+            await OpenWithController(false); await Tap(GamepadButtons.DPadDown); Send(GamepadButtons.South); await Drain();
             check(!listeningSession.HasPendingChoice && listeningRechoose.ContextMenu!.IsOpen, "手柄 A 按下时不会提前提交改选");
             Send(GamepadButtons.None); await Drain();
             check(listeningSession.HasPendingChoice && listeningSession.Current!.ChoiceKey == "menu2:0" && !listeningRunning

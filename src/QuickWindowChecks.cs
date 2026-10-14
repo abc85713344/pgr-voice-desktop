@@ -342,27 +342,55 @@ public partial class MainWindow
                 var homeRect = q.PixelRect;
                 int hx = screenArea.Left + (screenArea.Width - homeRect.Width) / 2, hy = screenArea.Top + Math.Max(0, (screenArea.Height - homeRect.Height) / 2);
                 q.MoveTo(hx, hy); quickHome = (hx, hy); await Drain();
+                string AvoidanceDiagnostic(string stage)
+                {
+                    string Rect(QuickWindow.RECT r) => $"({r.Left},{r.Top},{r.Width},{r.Height})";
+                    QuickWindow.GetWindowRect(branchMenu.Handle, out var branchRect);
+                    QuickWindow.GetWindowRect(new WindowInteropHelper(clickZone).Handle, out var clickRect);
+                    string detail = $"{stage}: expected=({hx},{hy}), actual={Rect(q.PixelRect)}, home={quickHome}, "
+                        + $"visible={q.IsVisible}, form={q.Form}, dragging={q.Dragging}, scale={q.Scale}, state={quickState}, expanded={expanded}, "
+                        + $"branchVisible={branchMenu.IsVisible}, branch={Rect(branchRect)}, clickVisible={clickZone.IsVisible}, click={Rect(clickRect)}, "
+                        + $"obstacles=[{string.Join(";", QuickObstacles().Select(Rect))}]";
+                    report.Add("OBSERVE: " + detail);
+                    return detail;
+                }
+                AvoidanceDiagnostic("分支窗打开前");
                 var positionsBeforeAvoid = preferences.QuickWindowPositions.ToDictionary(pair => pair.Key, pair => pair.Value.ToArray());
                 bool PositionsUnchanged() => preferences.QuickWindowPositions.Count == positionsBeforeAvoid.Count &&
                     positionsBeforeAvoid.All(pair => preferences.QuickWindowPositions.TryGetValue(pair.Key, out var value) && value.SequenceEqual(pair.Value));
                 ShowBranchMenu(); await Drain();
                 Check(branchMenu.IsVisible, "避让：分支窗已打开");
-                double scale = q.Scale;
-                branchMenu.Left = (hx + 20) / scale; branchMenu.Top = (hy + 20) / scale; branchMenu.UpdateLayout(); await Drain();
+                Check(SetQuickCheckWindowPos(branchMenu.Handle, IntPtr.Zero, hx + 20, hy + 20, 0, 0, 0x0001 | 0x0004 | 0x0010),
+                    "避让夹具：以物理像素放置分支窗，不借用快捷窗 DPI");
+                branchMenu.UpdateLayout(); await Drain();
                 AvoidQuickObstacles(); await Drain();
                 var obstacles = QuickObstacles().ToList(); var now2 = q.PixelRect;
+                AvoidanceDiagnostic("分支窗打开并避让后");
                 Check(obstacles.Count > 0 && !obstacles.Any(o => Overlaps(o, now2.Left, now2.Top, now2.Width, now2.Height, 0)) && quickHome == (hx, hy), "避让：分支窗盖住快捷窗时临时移开，不改记忆位置");
                 Check(PositionsUnchanged(), "避让：分支窗临时移开不改任何显示器的已保存位置");
                 HideBranchMenu(); await Drain(); AvoidQuickObstacles(); await Drain();
-                Check(q.PixelRect.Left == hx && q.PixelRect.Top == hy, "避让：分支窗关闭后回到原位");
+                bool returnedImmediately = q.PixelRect.Left == hx && q.PixelRect.Top == hy;
+                AvoidanceDiagnostic("分支窗关闭后立即");
+                await Task.Delay(350); await Drain();
+                string branchDiagnostic = AvoidanceDiagnostic("分支窗关闭后稳定观察");
+                Check(returnedImmediately && q.PixelRect.Left == hx && q.PixelRect.Top == hy,
+                    "避让：分支窗关闭后回到原位（立即归位=" + returnedImmediately + "；" + branchDiagnostic + "）");
                 Check(PositionsUnchanged(), "避让：分支窗关闭回原位后已保存位置仍不变");
-                clickZone.Show(); clickZone.PlaceAt((hx + 30) / scale, (hy + 30) / scale); clickZone.UpdateLayout(); await Drain();
+                clickZone.Show();
+                Check(SetQuickCheckWindowPos(new WindowInteropHelper(clickZone).Handle, IntPtr.Zero, hx + 30, hy + 30, 0, 0, 0x0001 | 0x0004 | 0x0010),
+                    "避让夹具：以物理像素放置点击区，不借用快捷窗 DPI");
+                clickZone.UpdateLayout(); await Drain();
                 AvoidQuickObstacles(); await Drain();
                 obstacles = QuickObstacles().ToList(); now2 = q.PixelRect;
                 Check(clickZone.IsVisible && obstacles.Count > 0 && !obstacles.Any(o => Overlaps(o, now2.Left, now2.Top, now2.Width, now2.Height, 0)), "避让：点击区盖住快捷窗时临时移开");
                 Check(PositionsUnchanged(), "避让：点击区临时移开不改任何显示器的已保存位置");
                 clickZone.Hide(); await Drain(); AvoidQuickObstacles(); await Drain();
-                Check(q.PixelRect.Left == hx && q.PixelRect.Top == hy, "避让：点击区隐藏后回到原位");
+                bool clickReturnedImmediately = q.PixelRect.Left == hx && q.PixelRect.Top == hy;
+                AvoidanceDiagnostic("点击区隐藏后立即");
+                await Task.Delay(350); await Drain();
+                string clickDiagnostic = AvoidanceDiagnostic("点击区隐藏后稳定观察");
+                Check(clickReturnedImmediately && q.PixelRect.Left == hx && q.PixelRect.Top == hy,
+                    "避让：点击区隐藏后回到原位（立即归位=" + clickReturnedImmediately + "；" + clickDiagnostic + "）");
                 Check(PositionsUnchanged(), "避让：点击区隐藏回原位后已保存位置仍不变");
                 HideQuick();
             }
@@ -378,4 +406,6 @@ public partial class MainWindow
     }
     [DllImport("user32.dll")] static extern void keybd_event(byte vk, byte scan, uint flags, UIntPtr extra);
     [DllImport("user32.dll", EntryPoint = "GetWindowLong")] static extern int GetWindowLong(IntPtr hwnd, int index);
+    [DllImport("user32.dll", EntryPoint = "SetWindowPos", SetLastError = true)]
+    static extern bool SetQuickCheckWindowPos(IntPtr hwnd, IntPtr after, int x, int y, int cx, int cy, uint flags);
 }
