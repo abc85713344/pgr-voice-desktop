@@ -129,7 +129,7 @@ public partial class MainWindow
             Check(clicks == before && textAutoLine == null, "小节末尾不自动跨越");
             ticket = Start(); before = clicks; pack.ById["b"].Audio = null;
             OnTextAudioCompleted(ticket); clock += 2000; TickTextAutoAdvance(); pack.ById["b"].Audio = "voice.wav";
-            Check(clicks == before && textArmed, "下一句缺配音不继续自动点击，等待手动处理");
+            Check(clicks == before + 1 && textArmed, "下一句缺配音时照常点击，由下一句显示字幕并按字数停留（0.4.7 规则）");
             ticket = Start("r1"); before = clicks; OnTextAudioCompleted(ticket); clock += 2000; TickTextAutoAdvance();
             Check(clicks == before + 1 && engine!.CurrentId == "r1", "已读取并确认的支线正文也可自动点一次");
             ticket = Start("a", GameTextKind.Scene3D); before = clicks; OnTextAudioCompleted(ticket); clock += 2000; TickTextAutoAdvance();

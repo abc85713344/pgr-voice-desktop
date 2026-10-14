@@ -48,7 +48,7 @@ public static class BundledPackCorrections
                 original.Nodes.Any(n => n.Kind == "line" && !n.Archived &&
                     (!candidate.ById.TryGetValue(n.Id, out var target) || TextVersion(original.Id, n) != target.TextVersion))))
             {
-                original.BundledCorrectionNotice = "配音包含有其他版本的剧情，已保留原包；请核对播放器更新。";
+                original.BundledCorrectionNotice = "配音包的剧情比播放器内置快照新，已按配音包原样播放 · 本章未套用内置剧情修正";
                 return original;
             }
             int bound = 0, missing = 0, outdated = 0;

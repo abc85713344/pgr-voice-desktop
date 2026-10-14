@@ -79,6 +79,16 @@ public partial class MainWindow
             playingNative = false; ApplySpeakerVolumes();
             Check(Math.Abs(audio.Volume - .8f) < .0001, "普通句恢复原音量");
 
+            Check(entry.NativeDurationMs is > 0,
+                $"原配表带游戏原声时长（本句 {entry.NativeDurationMs} 毫秒）");
+            MarkNativeVoiceStart(engine.Current, true); playingNative = true;
+            int hold = NativeVoiceRemainingMs();
+            Check(hold > entry.NativeDurationMs!.Value - 1000 && hold <= entry.NativeDurationMs.Value + NativeVoiceTailMilliseconds,
+                $"原配句开始后，自动推进先等原声播完（剩余 {hold} 毫秒）");
+            MarkNativeVoiceStart(engine.Pack.ById["plain"], false);
+            Check(NativeVoiceRemainingMs() == 0, "普通句不额外等待");
+            playingNative = false;
+
             UpdateState(); RefreshCompactFollowControls();
             Check(StripState.Text.Contains(NativeVoiceStatus) && StripState.Text.StartsWith(NativeVoiceWave), "小台词条状态显示声波与“正在听游戏原配”");
             Check(ReferenceEquals(StripState.Foreground, Theme.Brush("TealText")) && ReferenceEquals(StripView.BorderBrush, Theme.Brush("Teal")), "小台词条换青色");

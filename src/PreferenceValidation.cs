@@ -66,6 +66,8 @@ public static class PreferenceValidation
         Set(value.ClickZoneTop, double.IsFinite(value.ClickZoneTop) ? value.ClickZoneTop : -1, x => value.ClickZoneTop = x);
         Set(value.BranchMenuLeft, value.BranchMenuLeft is { } bl && double.IsFinite(bl) ? bl : null, x => value.BranchMenuLeft = x);
         Set(value.BranchMenuTop, value.BranchMenuTop is { } bt && double.IsFinite(bt) ? bt : null, x => value.BranchMenuTop = x);
+        Set(value.BranchMenuScreenX, value.BranchMenuScreenX is { } sx && double.IsFinite(sx) ? sx : null, x => value.BranchMenuScreenX = x);
+        Set(value.BranchMenuScreenY, value.BranchMenuScreenY is { } sy && double.IsFinite(sy) ? sy : null, x => value.BranchMenuScreenY = x);
         if (value.DialogueRegion == null || !value.DialogueRegion.IsValid)
         { value.DialogueRegion = new(); changed = true; }
         return changed;

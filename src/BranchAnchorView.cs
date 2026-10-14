@@ -93,13 +93,14 @@ public sealed partial class BranchMenuWindow
         SetBadgeTone(false);SetDecor("1ST",true);
         title.Text="游戏选完后，现在出现的是哪句？";
         badge.Text="◆ 首句确认 · 可拖动此处 · 只在手动确认时使用";
-        var area=SystemParameters.WorkArea;Width=Math.Min(1060,area.Width-24);MaxHeight=Math.Min(440,area.Height-24);
+        double scale=ScreenArea.Monitor(ScreenArea.ToPhysical(MainReference,normalLeft,normalTop),out var work);
+        Width=Math.Min(1060,work.Width/scale-24);MaxHeight=Math.Min(440,work.Height/scale-24);
         var order=offer.Cards.Select(c=>c.OptionId).Distinct().ToList();
         Options.Tag=(Func<string,int>)(id=>order.IndexOf(id)+1);
         Options.ItemsPanel=new ItemsPanelTemplate(new FrameworkElementFactory(typeof(AnchorLanePanel)));Options.MaxHeight=184;
         Options.ItemContainerStyle=(Style)Application.Current.FindResource("AnchorCardStyle");
         RenderAnchorPage();
-        if(!same || !anchorDragged){Left=area.Left+(area.Width-Width)/2;Top=area.Top+12;}
+        if(!same || !anchorDragged)ScreenArea.MoveTo(this,work.Left+(work.Width-Width*scale)/2,work.Top+12*scale);
         if(!IsVisible)Show();return true;
     }
 

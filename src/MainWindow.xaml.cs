@@ -171,9 +171,16 @@ public partial class MainWindow : Window
         branchMenu.Locate+=()=>{singleResume=engine?.ReviewRoute!=null;HideBranchMenu();_=Locate();};
         branchMenu.Manual+=OpenManualContinuation;
         // 0.4.8：分支窗口可拖动，位置记入设置；双击把手复位为跟随主窗口。
-        if(preferences.BranchMenuLeft is {} bmLeft && preferences.BranchMenuTop is {} bmTop) branchMenu.UserPosition=new Point(bmLeft,bmTop);
-        branchMenu.UserMoved+=p=>{preferences.BranchMenuLeft=p?.X;preferences.BranchMenuTop=p?.Y;Save();Log.Write("branch-menu",p==null?"分支窗口位置已复位为跟随主窗口。":$"分支窗口已拖到 {p.Value.X:0},{p.Value.Y:0}。");};
+        if(preferences.BranchMenuScreenX is null && preferences.BranchMenuLeft is {} bmLeft && preferences.BranchMenuTop is {} bmTop)
+        {
+            var legacy=ScreenArea.ToPhysical(this,bmLeft,bmTop);
+            preferences.BranchMenuScreenX=legacy.X;preferences.BranchMenuScreenY=legacy.Y;
+        }
+        preferences.BranchMenuLeft=preferences.BranchMenuTop=null;
+        if(preferences.BranchMenuScreenX is {} bmX && preferences.BranchMenuScreenY is {} bmY) branchMenu.UserPosition=new Point(bmX,bmY);
+        branchMenu.UserMoved+=p=>{preferences.BranchMenuScreenX=p?.X;preferences.BranchMenuScreenY=p?.Y;Save();Log.Write("branch-menu",p==null?"分支窗口位置已复位为跟随主窗口。":$"分支窗口已拖到 {p.Value.X:0},{p.Value.Y:0}。");};
         branchMenu.Options.SelectionChanged+=(_,_)=>{if(branchMenu.MenuId!=null)preferences.MenuSelections[branchMenu.MenuId]=branchMenu.Options.SelectedIndex;};
+        branchMenu.UserSelected+=()=>userPickedMenu=branchMenu.IsNavigation || branchMenu.IsAnchorView?null:branchMenu.MenuId;
         clickZone.Moved += () =>
         {
             if (!ready || loadingPack || !preferences.ClickZoneEnabled) return;
@@ -443,6 +450,7 @@ public partial class MainWindow : Window
             if (notice.Length > 0) { if (automaticRunning) StopAutomatic("本句录音不可用，自动播放已暂停。"); lastAudioProblem=notice; diagnosticStatus.Text=notice+" · "+node.Speaker+"："+node.Text; Tell(notice + "。可在设置中查看问题或重试本句。"); CaptureBranchPlaybackProblem("本句未能播放：" + notice); return; }
             if (path == null) { if (automaticRunning) StopAutomatic("本句缺少录音，自动播放已暂停。"); CaptureBranchPlaybackProblem("本句缺少可用录音；可手动选择游戏当前续接句。"); return; }
             bool native = NativeVoiceLine(node);
+            MarkNativeVoiceStart(node, native);
             if (!testUi) StartAudio(path, node.Speaker, native);
             playingId = node.Id; PaintPlaying();
             Tell((native ? NativeVoiceStatus : "正在播放") + " · " + node.Speaker);
@@ -542,6 +550,7 @@ public partial class MainWindow : Window
     void EngineChanged()
     {
         if (engine == null) return;
+        if (userPickedMenu != null && (engine.CurrentId != userPickedMenu || engine.Mode != RunMode.Choice)) userPickedMenu = null;
         if (!applyingMemoryLine && !InputBranchRecoveryCurrent())
             CancelInputBranchRecovery("已手动改变播放位置，分支监听已取消。");
         DialogueEngineChanged();
@@ -692,7 +701,8 @@ public partial class MainWindow : Window
         if(expanded)Collapse(false);
         int selected=preferences.MenuSelections.GetValueOrDefault(engine.CurrentId!,0);
         if(applyReselectHighlight && engine.CurrentReselectOptionId!=null) {int previous=engine.AvailableOptions.FindIndex(o=>o.Id==engine.CurrentReselectOptionId);if(previous>=0)selected=previous;}
-        else selected=GameMenuSuggestion(selected);
+        // 探索建议只用于刚进入菜单；同一次停留里用户亲手改选过，收起再开要保留那一项。
+        else if(userPickedMenu!=engine.CurrentId)selected=GameMenuSuggestion(selected);
         applyReselectHighlight=false;
         branchMenu.Present(engine,Left+70,Top,selected,anchors);
         branchMenu.SetContinuationFeedback(engine,CurrentBranchWaitReason());

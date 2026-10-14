@@ -1,3 +1,4 @@
+using System;
 using System.Windows;
 using System.Windows.Controls;
 
@@ -9,6 +10,14 @@ public partial class MainWindow
     internal const string NativeVoiceStatus = "正在听游戏原配";
     internal const string NativeVoiceWave = "▂▅▃▆";
     bool playingNative;
+    // 原配句按游戏配置时长推算的原声结束时刻（毫秒时钟）；不知道时长或不是原配为 0。
+    long nativeVoiceUntil;
+    const int NativeVoiceTailMilliseconds = 250;
+    static long NativeClockMs() => (long)(System.Diagnostics.Stopwatch.GetTimestamp() * (1000d / System.Diagnostics.Stopwatch.Frequency));
+    void MarkNativeVoiceStart(Node? node, bool native) =>
+        nativeVoiceUntil = native && NativeVoiceCatalog.Shared?.FindLineVoice(engine?.Pack, node)?.NativeDurationMs is int ms ? NativeClockMs() + ms + NativeVoiceTailMilliseconds : 0;
+    /// <summary>静音占位播完后，游戏原声预计还要多久结束；自动推进先等完这段，再按用户设置的间隔点下一句。</summary>
+    int NativeVoiceRemainingMs() => playingNative && nativeVoiceUntil > 0 ? (int)Math.Clamp(nativeVoiceUntil - NativeClockMs(), 0, 50_000) : 0;
 
     /// <summary>当前章这一句由游戏播原配（开关打开、本章没选“用配音包”、且是清单核过的原配台词）。</summary>
     bool NativeVoiceLine(Node? node) =>

@@ -378,9 +378,12 @@ public sealed class Preferences
     public double TextAutoDelaySeconds { get; set; } = 1.5;
     public double ClickZoneLeft { get; set; } = -1;   // 小于 0 表示还没定位过
     public double ClickZoneTop { get; set; } = -1;
-    // 0.4.8：分支选择窗口用户拖动后的位置；null 表示沿用默认（主窗口右侧）。
+    // 0.4.8：分支选择窗口用户拖动后的位置；null 表示沿用默认（主窗口右侧）。047.9 存的是 WPF 单位，读入时换算一次后清空。
     public double? BranchMenuLeft { get; set; }
     public double? BranchMenuTop { get; set; }
+    // 047.10 起改存物理像素，不同缩放的显示器之间保持同一位置。
+    public double? BranchMenuScreenX { get; set; }
+    public double? BranchMenuScreenY { get; set; }
     public Dictionary<string, string> Keys { get; set; } = new()
     {
         ["next"]="Space", ["previous"]="PageUp", ["manualNext"]="PageDown", ["replay"]="F5", ["panel"]="F6", ["pause"]="F7", ["original"]="F8", ["ocr"]="F9", ["catalog"]="F4", ["reselect"]="F3", ["history"]="F2", ["interactions"]="F1", ["connect"]="F10"

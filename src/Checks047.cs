@@ -354,7 +354,8 @@ public partial class MainWindow
                     report.Add("SHOT: " + name);
                 }
                 Check(engine.OpenGameMenu(campMenu.Id, campMenu.SectionId), "打开 29-1 营地人物菜单");
-                var lixi = campMenu.Options.First(o => o.Label.StartsWith("栗西 · 了解", StringComparison.Ordinal)); var derrick = campMenu.Options.First(o => o.Label.StartsWith("戴里克", StringComparison.Ordinal));
+                // 现行第29章包的选项名为「搭话（栗西 · 了解情况）」等，旧包没有「搭话（」前缀。
+                var lixi = campMenu.Options.First(o => o.Label.Contains("栗西 · 了解", StringComparison.Ordinal)); var derrick = campMenu.Options.First(o => o.Label.Contains("戴里克", StringComparison.Ordinal));
                 DesktopExploration.Add(engine, campMenu.Id, lixi.Id);
                 var firstLine = engine.Pack.ById[derrick.TargetId];
                 DesktopExploration.RecordJump(engine, campMenu.Id, new(derrick.Id, derrick.Label, firstLine.Speaker + "「" + firstLine.Text + "」"));

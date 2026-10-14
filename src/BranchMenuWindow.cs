@@ -46,9 +46,11 @@ public sealed partial class BranchMenuWindow : Window
     Grid panel=null!;
     readonly OrbitArc routeOrbit=new(){Stroke=Hud.Solid("#596F8FB0"),Dashed=false,Tilt=-70,StartAngle=200,Sweep=140,Margin=new Thickness(-10,0,0,0),Visibility=Visibility.Collapsed};
     public event Action? Confirm, Cancel, Locate, Manual, Interactions, ReturnTopic, NavigationScope;
+    /// <summary>用户用鼠标、方向键或手柄改选了选项（程序设定的选中不触发）。</summary>
+    public event Action? UserSelected;
     /// <summary>0.4.8：用户拖动窗口后触发（含双击把手复位为 null）；参数为新的用户位置，null 表示恢复默认跟随主窗口。</summary>
     public event Action<Point?>? UserMoved;
-    /// <summary>用户拖动后的记忆位置；为 null 时按调用方给的默认位置摆放。</summary>
+    /// <summary>用户拖动后的记忆位置（物理像素，跨不同缩放的显示器保持一致）；为 null 时按调用方给的默认位置摆放。</summary>
     public Point? UserPosition { get; set; }
     bool dragging;
     public bool IsNavigation { get; private set; }
@@ -82,6 +84,7 @@ public sealed partial class BranchMenuWindow : Window
                 ItemsControl.ContainerFromElement(Options, source) is ListBoxItem item && item.IsEnabled)
             {
                 Options.SelectedItem = item;
+                UserSelected?.Invoke();
                 if (IsAnchorView || e.ClickCount == 2) { pendingMouseConfirm = item; pendingMouseEpoch = Epoch; }
                 e.Handled = true;
             }
@@ -121,10 +124,15 @@ public sealed partial class BranchMenuWindow : Window
             if(IsAnchorView || e.ButtonState!=MouseButtonState.Pressed) return;   // 首句确认视图保留原有把手拖动
             if(e.OriginalSource is DependencyObject source && (FindAncestor<Button>(source,header)!=null || FindAncestor<ListBox>(source,header)!=null)) return;
             if(e.ClickCount==2){UserPosition=null;UserMoved?.Invoke(null);e.Handled=true;return;}
+            var start=ScreenArea.PhysicalOrigin(this);
             dragging=true;
             try{DragMove();}catch(InvalidOperationException){}
             finally{dragging=false;}
-            UserPosition=new Point(Left,Top);UserMoved?.Invoke(UserPosition);e.Handled=true;
+            e.Handled=true;
+            var end=ScreenArea.PhysicalOrigin(this);
+            // 单击页眉不算拖动，不能把当前默认位置钉成用户位置。
+            if(!double.IsFinite(end.X) || (Math.Abs(end.X-start.X)<1 && Math.Abs(end.Y-start.Y)<1))return;
+            UserPosition=end;UserMoved?.Invoke(UserPosition);
         };
         SetBadgeTone(false);
         scopeButton.Click+=(_,_)=>NavigationScope?.Invoke();
@@ -198,7 +206,17 @@ public sealed partial class BranchMenuWindow : Window
         headerTag.Content=Archive.StripedTag(anchor?"FIRST LINE // CONFIRM":"ROUTE // BRANCH");
         badgeGrip.Visibility=anchor?Visibility.Visible:Visibility.Collapsed;
     }
-    IntPtr Hook(IntPtr h,int msg,IntPtr w,IntPtr l,ref bool handled) {if(msg==0x21 && !GamepadNavigation){handled=true;return new IntPtr(3);}return IntPtr.Zero;}
+    IntPtr Hook(IntPtr h,int msg,IntPtr w,IntPtr l,ref bool handled)
+    {
+        if(msg==0x21 && !GamepadNavigation){handled=true;return new IntPtr(3);}
+        // 移到缩放不同的显示器时，WPF 的 DPI 调整会带激活地 SetWindowPos，抢走游戏前台。
+        if(msg==0x46 && !GamepadNavigation && l!=IntPtr.Zero)
+        {
+            int offset=2*IntPtr.Size+16;   // WINDOWPOS.flags
+            Marshal.WriteInt32(l,offset,Marshal.ReadInt32(l,offset)|0x0010);   // SWP_NOACTIVATE
+        }
+        return IntPtr.Zero;
+    }
     public void SetGamepadNavigation(bool enabled)
     {
         GamepadNavigation=enabled;
@@ -283,14 +301,17 @@ public sealed partial class BranchMenuWindow : Window
         if(!IsVisible){Epoch++;Show();}
         Options.ScrollIntoView(Options.SelectedItem);
     }
-    /// <summary>按默认位置或用户拖动过的位置摆放，始终收在工作区内；拖动进行中不改位置。</summary>
+    /// <summary>按默认位置（主窗口单位）或用户拖动过的位置（物理像素）摆放，收在最近一块显示器的工作区内；拖动进行中不改位置。</summary>
     void Place(double left,double top,double maxHeight)
     {
         if(dragging)return;
-        var area=SystemParameters.WorkArea;MaxHeight=Math.Min(maxHeight,area.Height-24);
-        if(UserPosition is {} user){left=user.X;top=user.Y;}
-        Left=Math.Clamp(left,area.Left,Math.Max(area.Left,area.Right-Width));Top=Math.Clamp(top,area.Top,Math.Max(area.Top,area.Bottom-MaxHeight));
+        var desired=UserPosition ?? ScreenArea.ToPhysical(MainReference,left,top);
+        double scale=ScreenArea.Monitor(new Point(desired.X+20,desired.Y+20),out var work);
+        MaxHeight=Math.Min(maxHeight,work.Height/scale-24);
+        double width=Width*scale,height=MaxHeight*scale;
+        ScreenArea.MoveTo(this,Math.Clamp(desired.X,work.Left,Math.Max(work.Left,work.Right-width)),Math.Clamp(desired.Y,work.Top,Math.Max(work.Top,work.Bottom-height)));
     }
+    Visual MainReference => Application.Current?.MainWindow is {} main && !ReferenceEquals(main,this) ? main : this;
     static T? FindAncestor<T>(DependencyObject? node,DependencyObject stop) where T:DependencyObject
     {
         while(node!=null && node!=stop){if(node is T hit)return hit;node=System.Windows.Media.VisualTreeHelper.GetParent(node) ?? LogicalTreeHelper.GetParent(node);}
@@ -361,6 +382,7 @@ public sealed partial class BranchMenuWindow : Window
         while(next>0 && next<Options.Items.Count-1 && Collapsed(next))next+=Math.Sign(delta);
         if(Collapsed(next))next=Options.SelectedIndex;
         Options.SelectedIndex=next;Options.ScrollIntoView(Options.SelectedItem);
+        UserSelected?.Invoke();
     }
     bool Collapsed(int index)=>index>=0 && index<Options.Items.Count && Options.Items[index] is ListBoxItem{Visibility:Visibility.Collapsed};
     static UIElement Docked(UIElement e,Dock dock){DockPanel.SetDock(e,dock);return e;}

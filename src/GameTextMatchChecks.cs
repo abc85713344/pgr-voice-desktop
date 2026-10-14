@@ -56,6 +56,41 @@ public partial class MainWindow
             Check(GameTextPolicy.PreferByPosition(synthetic, synthetic.ById["a1"], new[] { synthetic.ById["p1"], synthetic.ById["a4"] })?.Id == "a4",
                 "消歧只在候选里选，不跨路线取另一条路线的同文句");
 
+            // 提交层：对白框隐藏后重新显示同一句短句不前跳；有推进操作后连续同文句照常前进。
+            timer.Stop(); gameTextTimer.Stop();
+            string folder = Path.Combine(Log.DataDir, "text-match-fixture"); Directory.CreateDirectory(folder);
+            File.WriteAllBytes(Path.Combine(folder, "voice.wav"), new byte[] { 0 });
+            var repeat = new Pack
+            {
+                Id = "text-match-repeat", Title = "重显检查", Root = folder,
+                Chapters = { new Chapter { Id = "chapter", Sections = { new Section { Id = "r", StartId = "h" } } } },
+                Nodes =
+                {
+                    new Node { Id = "h", SectionId = "r", Speaker = "华胥", Text = "开场白。", Audio = "voice.wav", NextId = "d1" },
+                    new Node { Id = "d1", SectionId = "r", Speaker = "曲", Text = "……", NextId = "d2" },
+                    new Node { Id = "d2", SectionId = "r", Speaker = "曲", Text = "……", NextId = "t" },
+                    new Node { Id = "t", SectionId = "r", Speaker = "旁白", Text = "结束。", Audio = "voice.wav", NextId = "end" },
+                    new Node { Id = "end", SectionId = "r", Kind = "end" },
+                }
+            };
+            repeat.Validate();
+            var owner = new PlaybackEngine(repeat); engine = textOwner = owner; textSection = "r"; textArmed = true; lastTextPlayed = "";
+            var probe = textProbes[0];
+            CommitMemoryGameText(probe, owner, "开场白。", "华胥");
+            Check(owner.CurrentId == "h", "重显夹具：唯一正文定位到开场句");
+            CommitMemoryGameText(probe, owner, "……", "曲");
+            Check(owner.CurrentId == "d1", "换成新正文的短句无需推进操作即按位置定位");
+            CommitMemoryGameText(probe, owner, "……", "曲");
+            Check(owner.CurrentId == "d1", "对白框重显同一句“……”且没有推进操作时保持当前句，不前跳");
+            ObserveTextAutoInput(false, "");
+            CommitMemoryGameText(probe, owner, "……", "曲");
+            Check(owner.CurrentId == "d1", "游戏外的点击或按键不算推进");
+            ObserveTextAutoInput(true, "");
+            CommitMemoryGameText(probe, owner, "……", "曲");
+            Check(owner.CurrentId == "d2", "游戏内推进后，连续同文“……”照常前进到下一句");
+            CommitMemoryGameText(probe, owner, "结束。", "旁白");
+            Check(owner.CurrentId == "t", "之后的唯一正文正常接续");
+
             // 二、真实第32章 32-6 只读夹具（当前库里有第32章时）。
             var ch32File = LibraryBox.Items.OfType<PackChoice>().Select(c => c.File)
                 .FirstOrDefault(f => { try { return Pack.Load(f).Id == "pgr-ch32"; } catch { return false; } });

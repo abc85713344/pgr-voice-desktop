@@ -112,19 +112,39 @@ public partial class MainWindow
 
             // 0.4.8：分支窗口位置记忆（拖动本身依赖真实 DragMove 消息循环，这里验证位置记忆、越界收回与复位的接线）。
             {
-                double defaultLeft = branchMenu.Left, defaultTop = branchMenu.Top;
-                var remembered = new Point(defaultLeft + 123, defaultTop + 45);
+                Point Origin() => ScreenArea.PhysicalOrigin(branchMenu);
+                void FocusAt(string step) => Check(Native.GetForegroundWindow() == sceneHandle, "摆放分支窗口不抢游戏前台：" + step +
+                    $"（前台={Native.GetForegroundWindow()}，分支窗={branchMenu.Handle}，主窗={new WindowInteropHelper(this).Handle}，游戏={sceneHandle}）");
+                var start = Origin();
+                var remembered = new Point(start.X + 123, start.Y + 45);
                 branchMenu.UserPosition = remembered;
                 HideBranchMenu(); ShowBranchMenu(); await Task.Delay(25);
-                Check(branchMenu.IsVisible && Math.Abs(branchMenu.Left - remembered.X) < 1 && Math.Abs(branchMenu.Top - remembered.Y) < 1,
+                Check(branchMenu.IsVisible && Math.Abs(Origin().X - remembered.X) < 2 && Math.Abs(Origin().Y - remembered.Y) < 2,
                     "再次显示分支窗口时沿用用户拖动过的位置，而不是回到主窗口右侧");
+                FocusAt("同屏记忆位置");
                 branchMenu.UserPosition = new Point(-100000, -100000);
                 HideBranchMenu(); ShowBranchMenu(); await Task.Delay(25);
-                var area = SystemParameters.WorkArea;
-                Check(branchMenu.Left >= area.Left - 1 && branchMenu.Top >= area.Top - 1, "记忆位置超出屏幕时收回工作区内");
-                preferences.BranchMenuLeft = preferences.BranchMenuTop = null; branchMenu.UserPosition = null;
+                DesktopAdvanceInput.GetWindowRect(branchMenu.Handle, out var placed);
+                Check(System.Windows.Forms.Screen.AllScreens.Any(s => s.WorkingArea.Left <= placed.Left && s.WorkingArea.Top <= placed.Top && placed.Right <= s.WorkingArea.Right + 1),
+                    $"记忆位置超出屏幕时收回到最近一块显示器的工作区内（窗口物理坐标 {placed.Left},{placed.Top}-{placed.Right}）");
+                FocusAt("越界收回");
+                var screens = System.Windows.Forms.Screen.AllScreens;
+                if (screens.Length > 1)
+                {
+                    var other = screens.First(s => !s.Primary).WorkingArea;
+                    var target = new Point(other.Left + 40, other.Top + 40);
+                    branchMenu.UserPosition = target;
+                    HideBranchMenu(); ShowBranchMenu(); await Task.Delay(25);
+                    Check(Math.Abs(Origin().X - target.X) < 2 && Math.Abs(Origin().Y - target.Y) < 2,
+                        $"拖到副屏的位置保留在副屏，不被拉回主屏（期望 {target.X},{target.Y}，实际 {Origin().X},{Origin().Y}）");
+                    HideBranchMenu(); ShowBranchMenu(); await Task.Delay(25);
+                    Check(Math.Abs(Origin().X - target.X) < 2 && Math.Abs(Origin().Y - target.Y) < 2, "副屏缩放不同也不因再次弹出而漂移");
+                    FocusAt("副屏位置");
+                }
+                else results.Add("INFO: 只有一块显示器，跳过副屏位置用例。");
+                preferences.BranchMenuScreenX = preferences.BranchMenuScreenY = null; branchMenu.UserPosition = null;
                 HideBranchMenu(); ShowBranchMenu(); await Task.Delay(25);
-                Check(Math.Abs(branchMenu.Left - defaultLeft) < 1 && Math.Abs(branchMenu.Top - defaultTop) < 1, "复位后回到默认位置（跟随主窗口）");
+                Check(Math.Abs(Origin().X - start.X) < 2 && Math.Abs(Origin().Y - start.Y) < 2, "复位后回到默认位置（跟随主窗口）");
                 Check(branchMenu.IsVisible && engine.CurrentId == menuId && engine.Mode == RunMode.Choice && playCalls == calls, "位置记忆不改变当前菜单、不播放");
                 FocusCheck();
             }

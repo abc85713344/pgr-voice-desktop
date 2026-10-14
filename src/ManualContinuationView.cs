@@ -65,7 +65,7 @@ public partial class MainWindow
     }
     void SetExpandedPanelSize(double width,double height)
     {
-        var area=SystemParameters.WorkArea;
+        var area=ScreenArea.WorkAreaOf(this);
         double maxWidth=Math.Max(200,area.Width-20),maxHeight=Math.Max(240,area.Height-20);
         Width=Math.Clamp(double.IsFinite(width)?width:580,Math.Min(420,maxWidth),maxWidth);
         Height=Math.Clamp(double.IsFinite(height)?height:760,Math.Min(480,maxHeight),maxHeight);

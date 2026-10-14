@@ -45,6 +45,7 @@ public partial class MainWindow
     readonly DispatcherTimer gameTextTimer = new() { Interval = TimeSpan.FromMilliseconds(50) };
     PlaybackEngine? textOwner;
     string textSection = "", lastTextPlayed = "";
+    long gameAdvanceInputs, lastTextPlayedInputs;
     bool textArmed, applyingMemoryLine, textActiveConflict;
     TextProbe? textSoundSource;
     bool TextFollowing => textArmed || textProbes.Any(p => p.Binding != null);
@@ -352,11 +353,15 @@ public partial class MainWindow
         { WaitForNextMemoryLine(probe, "已定位：" + node.Speaker + " · 这句暂无可用配音，继续等待下一句。"); return; }
         string key = owner.Pack.Id + "/" + node.Id + "/" + text;
         if (key == lastTextPlayed) return;
+        // 对白框隐藏后重新显示同一句时，位置消歧会选到后面的同文短句；没有任何推进操作就不算换句。
+        if (textEndWait == null && owner.Current is { Kind: "line" } current && current.Id != node.Id &&
+            lastTextPlayed == owner.Pack.Id + "/" + current.Id + "/" + text && gameAdvanceInputs == lastTextPlayedInputs)
+        { probe.Status.Text = "同一句重新显示，保持当前位置。"; return; }
         applyingMemoryLine = true;
         try
         {
             if (!owner.ConfirmGameLine(node.Id)) { WaitForNextMemoryLine(probe, owner.NavigationError + "；继续等待下一句。"); return; }
-            lastTextPlayed = key; textSoundSource = probe; singleResume = false; DialoguePositionConfirmed();
+            lastTextPlayed = key; lastTextPlayedInputs = gameAdvanceInputs; textSoundSource = probe; singleResume = false; DialoguePositionConfirmed();
             if (inputBranchRecovery == null) CaptureTextAutoLine(probe, owner, text, speaker);
             ArmTextEndWait(owner, node);
             Log.Write("game-text-line", $"节点={node.Id}\t角色={node.Speaker}\t读取角色={speaker}\t正文={text}");

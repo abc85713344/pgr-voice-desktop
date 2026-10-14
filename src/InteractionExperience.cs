@@ -122,8 +122,12 @@ public partial class MainWindow
             Check(engine.CurrentId == Menu("012") && engine.Mode == RunMode.Choice, "突围话题结束后返回卡朋特本人话题");
             engine.SelectBranch(2); FinishTopic();
             Check(engine.CurrentId == Menu("000") && engine.Mode == RunMode.Choice, "结束交谈后返回人物菜单，不串到其他人的台词");
-            OpenTarget("011"); engine.SelectBranch(1); FinishTopic();
-            Check(engine.CurrentId == Menu("011"), "保留另一种卡朋特零件正文及对应返回位置");
+            if (engine.Pack.ById.TryGetValue(Menu("011"), out var altCarpenter) && !altCarpenter.Archived)
+            {
+                OpenTarget("011"); engine.SelectBranch(1); FinishTopic();
+                Check(engine.CurrentId == Menu("011"), "保留另一种卡朋特零件正文及对应返回位置");
+            }
+            else checks.Add("INFO: 当前第29章包已把另一种卡朋特菜单（menu-011）归档合并，跳过该用例。");
             OpenTarget("006"); engine.SelectBranch(0); string? before = engine.CurrentId; calls = playCalls;
             var facts = engine.Facts.ToArray(); var heard = engine.Heard.ToArray();
             OpenTarget("012"); UndoCorrectionClick(this, new());

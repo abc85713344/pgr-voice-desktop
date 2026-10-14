@@ -29,24 +29,38 @@ public partial class MainWindow
             // 在本机 DPI 下按目标屏幕的逻辑工作区排版，再按目标 DPI 渲染；不改变系统显示设置。
             var longest = engine!.Pack.Nodes.Where(n => n.Kind == "line").MaxBy(n => n.Text.Length)!;
             CurrentSpeaker.Text = longest.Speaker; CurrentText.Text = string.Join(" ", Enumerable.Repeat(longest.Text, 4));
+            var squeezed = new List<string>();
             foreach (var screen in new[] { (1920,1080,1.0), (1920,1080,1.5), (1920,1080,2.0), (2560,1440,1.0), (2560,1440,1.5), (2560,1440,2.0), (3840,2160,1.5), (3840,2160,2.0), (3840,2160,2.25) })
             {
                 Width = Math.Min(580, screen.Item1 / screen.Item3 - 20);
                 Height = Math.Min(760, (screen.Item2 - 64) / screen.Item3 - 20);
-                ApplyCompactLayout(); UpdateLayout(); await Task.Delay(30);
+                ApplyCompactLayout();
+                double previous = -1;
+                for (int i = 0; i < 20; i++)
+                {
+                    CurrentSpeaker.Text = longest.Speaker; CurrentText.Text = string.Join(" ", Enumerable.Repeat(longest.Text, 4));
+                    UpdateLayout(); await System.Windows.Threading.Dispatcher.Yield(System.Windows.Threading.DispatcherPriority.ApplicationIdle); await Task.Delay(30);
+                    if (Math.Abs(LinesList.ActualHeight - previous) < 0.5) break;
+                    previous = LinesList.ActualHeight;
+                }
+                // 测试状态下的定时刷新会把当前句换回短句；补长台词后在同一帧内完成测量。
+                CurrentSpeaker.Text = longest.Speaker; CurrentText.Text = string.Join(" ", Enumerable.Repeat(longest.Text, 4)); UpdateLayout();
                 var point = PlaybackBar.TranslatePoint(new Point(0, PlaybackBar.ActualHeight), this);
-                Check(point.Y <= ActualHeight + 1 && ConfirmPlayButton.ActualHeight >= 28 && LinesList.ActualHeight >= 80,
-                    $"布局被挤压 {screen}: footer={point.Y:0}/{ActualHeight:0}, list={LinesList.ActualHeight:0}");
-                Check(CurrentLineScroll.ScrollableHeight > 0, "长台词没有可滚动空间");
+                double listHeight = LinesList.ActualHeight, currentHeight = CurrentCard.ActualHeight;
+                if (!(point.Y <= ActualHeight + 1 && ConfirmPlayButton.ActualHeight >= 28 && LinesList.ActualHeight >= 80))
+                    squeezed.Add($"{screen}: footer={point.Y:0}/{ActualHeight:0}, list={LinesList.ActualHeight:0}");
                 CurrentLineScroll.ScrollToEnd(); UpdateLayout();
-                Check(CurrentLineScroll.VerticalOffset > 0, "长台词无法滚动到底部");
+                if (CurrentLineScroll.ScrollableHeight <= 0 || CurrentLineScroll.VerticalOffset <= 0)
+                    squeezed.Add($"{screen}: 长台词不能滚动到底部（可滚动 {CurrentLineScroll.ScrollableHeight:0}）");
                 CurrentLineScroll.ScrollToHome();
                 UpdateLayout(); await Task.Delay(30);
                 var bmp = new RenderTargetBitmap((int)Math.Ceiling(ActualWidth * screen.Item3), (int)Math.Ceiling(ActualHeight * screen.Item3), 96 * screen.Item3, 96 * screen.Item3, PixelFormats.Pbgra32);
                 bmp.Render(this); var png = new PngBitmapEncoder(); png.Frames.Add(BitmapFrame.Create(bmp));
                 using var stream = File.Create(Path.Combine(Log.DataDir, $"layout-{screen.Item1}x{screen.Item2}-{screen.Item3*100:0}.png")); png.Save(stream);
-                results.Add($"PASS: simulated {screen.Item1}x{screen.Item2} {screen.Item3*100:0}% — list {LinesList.ActualHeight:0} DIP, long text scrolls, playback controls visible");
+                results.Add($"INFO: simulated {screen.Item1}x{screen.Item2} {screen.Item3*100:0}% — {Width:0}×{Height:0}, list {listHeight:0} DIP, hero {Hero.ActualHeight:0}, current {currentHeight:0}, toolbar {ToolbarHost.ActualHeight:0}, playback {PlaybackBar.ActualHeight:0}");
             }
+            Check(squeezed.Count == 0, "布局被挤压：" + string.Join("；", squeezed));
+            results.Add("PASS: 9 种屏幕与缩放下台词列表≥80、长台词可滚动、播放控件可见");
             Expand(StoryTab); var line = rows.First(r => r.Node.Kind == "line");
             LinesList.SelectedItem = line; engine.Commit(line.Node.Id); Expand(StoryTab); BrowseCurrent(); await Task.Delay(80);
             Screenshot("主面板.png");

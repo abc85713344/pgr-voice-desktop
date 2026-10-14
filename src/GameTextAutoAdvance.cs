@@ -20,6 +20,7 @@ public partial class MainWindow
         public long ClickAt;
         public bool FocusHeld;
         public bool SilentPause;
+        public int NativeHold;
     }
     TextAutoLine? textAutoLine;
     // 隔离验收替换环境、内存样本与点击；生产运行无法使用这些替身。
@@ -49,7 +50,7 @@ public partial class MainWindow
         textAutoDelay.SelectionChanged += (_, _) =>
         {
             preferences.TextAutoDelaySeconds = TextAutoDelayMs / 1000d;
-            if (textAutoLine is { CompletedAt: not null, SilentPause: false } line) line.ClickAt = line.CompletedAt.Value + TextAutoDelayMs;
+            if (textAutoLine is { CompletedAt: not null, SilentPause: false } line) line.ClickAt = line.CompletedAt.Value + line.NativeHold + TextAutoDelayMs;
             Save();
         };
         textAutoPosition.Click += (_, _) =>
@@ -80,6 +81,7 @@ public partial class MainWindow
     }
     void ObserveTextAutoInput(bool gameInput, string reason)
     {
+        if (gameInput) gameAdvanceInputs++;
         if (textAutoLine == null) return;
         // 从其他窗口点回游戏的第一下可能仅激活窗口，也可能推进对白。
         // 保留监听并重新校验文字；如果真的换句，旧音频票据会被换句流程取消。
@@ -149,8 +151,10 @@ public partial class MainWindow
         {
             if (!TextAutoCurrent(line)) { CancelTextAutoAdvance("当前句已变化，本次自动点击已取消。"); return; }
             if (!TextAutoCanContinue(line)) return;
-            line.CompletedAt = TextAutoNow(); line.ClickAt = line.CompletedAt.Value + TextAutoDelayMs;
-            textAutoStatus.Text = "配音已播完，等待 " + (TextAutoDelayMs / 1000d).ToString("0.#") + " 秒后点击下一句。";
+            line.NativeHold = NativeVoiceRemainingMs();
+            line.CompletedAt = TextAutoNow(); line.ClickAt = line.CompletedAt.Value + line.NativeHold + TextAutoDelayMs;
+            textAutoStatus.Text = (line.NativeHold > 0 ? "游戏原配预计还要 " + (line.NativeHold / 1000d).ToString("0.#") + " 秒，播完再" : "配音已播完，") +
+                "等待 " + (TextAutoDelayMs / 1000d).ToString("0.#") + " 秒后点击下一句。";
             Log.Write("text-auto-completed", $"节点={line.Node}\t请求={ticket}\t等待毫秒={TextAutoDelayMs}");
             if (!TextAutoHasFocus()) { line.FocusHeld = false; HoldTextAutoForFocus(); }
         }
@@ -185,6 +189,7 @@ public partial class MainWindow
                 try { clicked = DesktopAdvanceInput.TryClick(line.Window, line.Bounds, (line.Zone.Left + line.Zone.Right) / 2, (line.Zone.Top + line.Zone.Bottom) / 2, preferences.GameExecutablePath, out error); }
                 finally { if (!closing) UpdateClickZone(); }
             }
+            if (clicked) gameAdvanceInputs++;
             textAutoStatus.Text = clicked ? "已点击一次，等待游戏出现新台词。" : error;
             Log.Write(clicked ? "text-auto-click" : "text-auto-click-failed", $"节点={line.Node}\t请求={line.AudioTicket}\t播完后经过毫秒={TextAutoNow() - line.CompletedAt.Value}\t{textAutoStatus.Text}");
         }

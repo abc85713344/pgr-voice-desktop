@@ -7,8 +7,8 @@
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AssemblyName>PgrVoice</AssemblyName>
-    <Version>2026.10.13.479</Version>
-    <InformationalVersion>2026.10.13-047.9</InformationalVersion>
+    <Version>2026.10.14.4711</Version>
+    <InformationalVersion>2026.10.14-047.11</InformationalVersion>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets/PgrVoice.ico</ApplicationIcon>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>

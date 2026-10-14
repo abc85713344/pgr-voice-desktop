@@ -6,7 +6,7 @@ namespace PgrVoice;
 public sealed record NativeVoiceEntry(string PackId, string NodeId, string SectionId, string PathId,
     string Text, string? RawText, string Speaker, string PackSha256, string CueId, string EvidenceId,
     string MovieId, string ActionId, string TextField, IReadOnlyList<string> ConfiguredLanguages,
-    IReadOnlyList<string> LocalResourceLanguages);
+    IReadOnlyList<string> LocalResourceLanguages, int? NativeDurationMs = null);
 public sealed record NativeVoiceStatistics(int ConfiguredEntries, int Packs, int ExcludedCandidates,
     int RejectedEntries, int AmbiguousIdentities);
 
@@ -80,8 +80,11 @@ public sealed class NativeVoiceCatalog
             var key = (packId, nodeId);
             if (ambiguous.Contains(key)) { rejected++; continue; }
             if (entries.ContainsKey(key)) { entries.Remove(key); ambiguous.Add(key); rejected += 2; continue; }
+            // 游戏配置里各语言 cue 的最长时长；缺失或异常时为 null，调用方按配音包时长处理。
+            int? duration = row.TryGetProperty("nativeDurationMs", out var ms) && ms.ValueKind == JsonValueKind.Number &&
+                ms.TryGetInt32(out int value) && value is > 0 and <= 120_000 ? value : null;
             entries.Add(key, new(packId, nodeId, sectionId, pathId, text, Get(row, "rawText"), speaker, sha!, cue, evidence,
-                movie, action, field, Array.AsReadOnly(configured), Array.AsReadOnly(local)));
+                movie, action, field, Array.AsReadOnly(configured), Array.AsReadOnly(local), duration));
         }
         return new(version, entries, candidates, rejected, ambiguous.Count);
     }

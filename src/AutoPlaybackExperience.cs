@@ -220,7 +220,7 @@ public partial class MainWindow
         // If natural EOF won the dispatcher race, retain it until the matching
         // successful start notification arrives; it cannot authorize a click yet.
         if (automaticCycle.Phase == DesktopAutoPlaybackPhase.StartingAudio) return;
-        int delay = silentPause ? 0 : AutomaticDelayMilliseconds;
+        int delay = silentPause ? 0 : AutomaticDelayMilliseconds + NativeVoiceRemainingMs();
         long cycleEpoch = automaticCycle.Epoch;
         if (silentPause ? !automaticCycle.CompleteSilentPause(cycleEpoch, ticket, AutomaticNow()) :
             !automaticCycle.CompleteAudio(cycleEpoch, ticket, AutomaticNow(), delay)) return;
@@ -262,6 +262,7 @@ public partial class MainWindow
             finally { if (!closing) UpdateClickZone(); }
         }
         if (!clicked) { StopAutomatic(error); return; }
+        gameAdvanceInputs++;
         if (!automaticCycle.ClickCompleted(cycleEpoch, clickTicket, next.Id, AutomaticNow()))
         { if (automaticRunning && epoch == automaticEpoch) StopAutomatic("点击回执已过期，请重新核对游戏位置。"); return; }
         ShowAutomaticPhase();

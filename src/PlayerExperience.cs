@@ -37,6 +37,7 @@ public partial class MainWindow
     CancellationTokenSource? diagnosticCancellation;
     PackDiagnosticReport? diagnosticReport;
     bool refreshingExperience, experienceReady, previewingHistory, applyReselectHighlight;
+    string? userPickedMenu;
     DateTime lastReconnectCheck;
     long deviceSelectionRequest;
     string connectionNotice = "未绑定游戏";
